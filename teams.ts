@@ -1,0 +1,5 @@
+export type Team={id:number;name:string;shortName:string;tla:string;crest:string}
+const ids: Record<string,[number,string,string]> = {
+  "Arsenal":[57,"Arsenal","ARS"],"Aston Villa":[58,"Aston Villa","AVL"],"Bournemouth":[1044,"Bournemouth","BOU"],"Brentford":[337,"Brentford","BRE"],"Brighton & Hove Albion":[397,"Brighton","BHA"],"Burnley":[328,"Burnley","BUR"],"Chelsea":[61,"Chelsea","CHE"],"Crystal Palace":[354,"Crystal Palace","CRY"],"Everton":[62,"Everton","EVE"],"Fulham":[63,"Fulham","FUL"],"Leeds United":[341,"Leeds United","LEE"],"Liverpool":[64,"Liverpool","LIV"],"Manchester City":[65,"Manchester City","MCI"],"Manchester United":[66,"Manchester United","MUN"],"Newcastle United":[67,"Newcastle United","NEW"],"Nottingham Forest":[351,"Nottingham Forest","NFO"],"Sunderland":[71,"Sunderland","SUN"],"Tottenham Hotspur":[73,"Tottenham Hotspur","TOT"],"West Ham United":[563,"West Ham United","WHU"],"Wolverhampton Wanderers":[76,"Wolverhampton Wanderers","WOL"]
+}
+export const teams:Team[]=Object.entries(ids).map(([name,[id,shortName,tla]])=>({id,name,shortName,tla,crest:`https://crests.football-data.org/${id}.png`})).sort((a,b)=>a.name.localeCompare(b.name))
