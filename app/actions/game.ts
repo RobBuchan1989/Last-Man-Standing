@@ -12,15 +12,6 @@ export async function joinGameAction(
   displayName: string,
   competitionCode?: string
 ) {
-  const existing = await getCurrentEntry(competitionCode)
-
-  if (existing) {
-    return {
-      ok: true,
-      returning: true,
-    }
-  }
-
   const name = displayName.trim().slice(0, 40)
 
   if (!name) {
@@ -30,6 +21,15 @@ export async function joinGameAction(
   }
 
   try {
+    const existing = await getCurrentEntry(competitionCode)
+
+    if (existing) {
+      return {
+        ok: true,
+        returning: true,
+      }
+    }
+
     await joinCompetition(name, competitionCode)
 
     revalidatePath("/")
@@ -48,18 +48,34 @@ export async function joinGameAction(
 }
 
 export async function createLeagueAction(
-  leagueName: string
+  leagueName: string,
+  managerName: string
 ) {
-  const name = leagueName.trim().slice(0, 60)
+  const cleanLeagueName = leagueName.trim().slice(0, 60)
+  const cleanManagerName = managerName.trim().slice(0, 40)
 
-  if (!name) {
+  if (!cleanLeagueName) {
     return {
       error: "Please enter a league name.",
     }
   }
 
+  if (!cleanManagerName) {
+    return {
+      error: "Please enter your manager name first.",
+    }
+  }
+
   try {
-    const competition = await createCompetition(name)
+    // Create the new league.
+    const competition =
+      await createCompetition(cleanLeagueName)
+
+    // Automatically add the creator to the new league.
+    await joinCompetition(
+      cleanManagerName,
+      competition.code
+    )
 
     revalidatePath("/")
 
