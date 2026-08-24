@@ -47,9 +47,13 @@ export function JoinGame({
     setNotice(null)
 
     startTransition(async () => {
-      const code = joinCode.trim().toUpperCase() || undefined
+      const code =
+        joinCode.trim().toUpperCase() || undefined
 
-      const res = await joinGameAction(name, code)
+      const res = await joinGameAction(
+        name,
+        code
+      )
 
       if (res?.error) {
         setError(res.error)
@@ -72,7 +76,8 @@ export function JoinGame({
 
     startTransition(async () => {
       const res = await createLeagueAction(
-        leagueName
+        leagueName,
+        name
       )
 
       if (res?.error) {
@@ -81,10 +86,13 @@ export function JoinGame({
       }
 
       if (!res?.code) {
-        setError("The league was created but no join code was returned.")
+        setError(
+          "The league was created but no join code was returned."
+        )
         return
       }
 
+      // Show the code briefly while redirecting.
       setNotice(
         `League created! Your join code is ${res.code}.`
       )
@@ -194,9 +202,11 @@ export function JoinGame({
 
         <div className="my-6 flex items-center gap-3">
           <div className="h-px flex-1 bg-border" />
+
           <span className="text-xs uppercase tracking-widest text-muted-foreground">
             Or
           </span>
+
           <div className="h-px flex-1 bg-border" />
         </div>
 
@@ -229,7 +239,8 @@ export function JoinGame({
             onClick={handleCreateLeague}
             disabled={
               pending ||
-              !leagueName.trim()
+              !leagueName.trim() ||
+              !name.trim()
             }
             variant="secondary"
             className="mt-3 w-full font-display text-base uppercase tracking-wide"
