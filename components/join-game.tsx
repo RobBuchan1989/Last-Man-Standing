@@ -27,16 +27,27 @@ export function JoinGame({
   const router = useRouter()
   const [name, setName] = useState(defaultName)
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
   const handleJoin = () => {
     setError(null)
+    setNotice(null)
+
     startTransition(async () => {
       const res = await joinGameAction(name)
+
       if (res?.error) {
         setError(res.error)
         return
       }
+
+      if (res?.returning) {
+        setNotice(
+          `Welcome back, ${name.trim()} — your existing seat has been restored.`
+        )
+      }
+
       router.refresh()
     })
   }
@@ -44,10 +55,14 @@ export function JoinGame({
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">
       <div className="rounded-lg border border-border bg-card p-6">
-        <p className="font-display text-xs uppercase tracking-[0.3em] text-primary">{gameName}</p>
+        <p className="font-display text-xs uppercase tracking-[0.3em] text-primary">
+          {gameName}
+        </p>
+
         <h1 className="mt-1 font-display text-3xl font-700 uppercase leading-none tracking-tight text-balance">
           Join the survival pool
         </h1>
+
         <p className="mt-2 text-sm text-muted-foreground">
           Currently on Round {round}. Enter your manager name to take your seat.
         </p>
@@ -58,13 +73,17 @@ export function JoinGame({
               <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-secondary font-display text-sm font-600 text-primary">
                 {i + 1}
               </span>
-              <span className="text-sm leading-relaxed text-foreground">{rule}</span>
+
+              <span className="text-sm leading-relaxed text-foreground">
+                {rule}
+              </span>
             </li>
           ))}
         </ol>
 
         <div className="mt-6 flex flex-col gap-2">
           <Label htmlFor="displayName">Manager name</Label>
+
           <Input
             id="displayName"
             value={name}
@@ -77,6 +96,12 @@ export function JoinGame({
         {error && (
           <p className="mt-3 text-sm text-destructive" role="alert">
             {error}
+          </p>
+        )}
+
+        {notice && (
+          <p className="mt-3 text-sm text-primary" role="status">
+            {notice}
           </p>
         )}
 
