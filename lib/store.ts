@@ -20,15 +20,21 @@ function authHeaders() {
   }
 }
 
-async function rest<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    ...init,
-    headers: {
-      ...authHeaders(),
-      ...(init?.headers || {}),
-    },
-    cache: "no-store",
-  })
+async function rest<T>(
+  path: string,
+  init?: RequestInit
+): Promise<T> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/${path}`,
+    {
+      ...init,
+      headers: {
+        ...authHeaders(),
+        ...(init?.headers || {}),
+      },
+      cache: "no-store",
+    }
+  )
 
   if (!res.ok) {
     throw new Error(
@@ -37,7 +43,9 @@ async function rest<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   const text = await res.text()
-  return (text ? JSON.parse(text) : null) as T
+  return (text
+    ? JSON.parse(text)
+    : null) as T
 }
 
 export type Competition = {
@@ -84,13 +92,16 @@ function cleanCode(code?: string | null) {
     .replace(/[^A-Z0-9-]/g, "")
 }
 
-async function setCompetitionCookie(code: string) {
+async function setCompetitionCookie(
+  code: string
+) {
   const jar = await cookies()
 
   jar.set(COMPETITION_COOKIE, code, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure:
+      process.env.NODE_ENV === "production",
     maxAge: 60 * 60 * 24 * 365,
     path: "/",
   })
@@ -102,7 +113,8 @@ async function setEntryCookie(id: string) {
   jar.set(ENTRY_COOKIE, id, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure:
+      process.env.NODE_ENV === "production",
     maxAge: 60 * 60 * 24 * 365,
     path: "/",
   })
@@ -120,10 +132,13 @@ export async function getCompetition(
   requestedCode?: string
 ): Promise<Competition> {
   const jar = await cookies()
-  const cookieCode = jar.get(COMPETITION_COOKIE)?.value
+  const cookieCode =
+    jar.get(COMPETITION_COOKIE)?.value
 
   const code = cleanCode(
-    requestedCode || cookieCode || DEFAULT_CODE
+    requestedCode ||
+      cookieCode ||
+      DEFAULT_CODE
   )
 
   const rows = await rest<Competition[]>(
@@ -133,7 +148,9 @@ export async function getCompetition(
   )
 
   if (!rows[0]) {
-    throw new Error("That league could not be found.")
+    throw new Error(
+      "That league could not be found."
+    )
   }
 
   return rows[0]
@@ -142,38 +159,52 @@ export async function getCompetition(
 export async function createCompetition(
   leagueName: string
 ): Promise<Competition> {
-  const name = leagueName.trim().slice(0, 60)
+  const name = leagueName
+    .trim()
+    .slice(0, 60)
 
   if (!name) {
-    throw new Error("Please enter a league name.")
+    throw new Error(
+      "Please enter a league name."
+    )
   }
 
-  for (let attempt = 0; attempt < 5; attempt += 1) {
+  for (
+    let attempt = 0;
+    attempt < 5;
+    attempt += 1
+  ) {
     const code = newLeagueCode()
 
     try {
-      const rows = await rest<Competition[]>(
-        "competitions?select=*",
-        {
-          method: "POST",
-          headers: {
-            Prefer: "return=representation",
-          },
-          body: JSON.stringify({
-            id: crypto.randomUUID(),
-            code,
-            name,
-            status: "active",
-            round: 1,
-          }),
-        }
-      )
+      const rows =
+        await rest<Competition[]>(
+          "competitions?select=*",
+          {
+            method: "POST",
+            headers: {
+              Prefer:
+                "return=representation",
+            },
+            body: JSON.stringify({
+              id: crypto.randomUUID(),
+              code,
+              name,
+              status: "active",
+              round: 1,
+            }),
+          }
+        )
 
       if (!rows[0]) {
-        throw new Error("The league was not created.")
+        throw new Error(
+          "The league was not created."
+        )
       }
 
-      await setCompetitionCookie(rows[0].code)
+      await setCompetitionCookie(
+        rows[0].code
+      )
 
       return rows[0]
     } catch (error) {
@@ -181,7 +212,9 @@ export async function createCompetition(
         error instanceof Error &&
         (
           error.message.includes("409") ||
-          error.message.includes("duplicate") ||
+          error.message.includes(
+            "duplicate"
+          ) ||
           error.message.includes("unique")
         )
       ) {
@@ -198,12 +231,28 @@ export async function createCompetition(
 }
 
 export async function getCurrentEntry(
-  competitionCode?: string
+  competitionCode?: string,
+  ignoreExistingEntry = false
 ): Promise<Entry | null> {
-  const c = await getCompetition(competitionCode)
+  const c = await getCompetition(
+    competitionCode
+  )
+
+  /*
+   * If a player arrives through a shared
+   * league link, deliberately ignore any
+   * existing browser entry cookie.
+   *
+   * This allows another person using the
+   * same link to enter their own name.
+   */
+  if (ignoreExistingEntry) {
+    return null
+  }
 
   const jar = await cookies()
-  const id = jar.get(ENTRY_COOKIE)?.value
+  const id =
+    jar.get(ENTRY_COOKIE)?.value
 
   if (!id) return null
 
@@ -222,12 +271,18 @@ export async function joinCompetition(
   name: string,
   competitionCode?: string
 ): Promise<Entry> {
-  const c = await getCompetition(competitionCode)
+  const c = await getCompetition(
+    competitionCode
+  )
 
-  const cleanName = name.trim().slice(0, 40)
+  const cleanName = name
+    .trim()
+    .slice(0, 40)
 
   if (!cleanName) {
-    throw new Error("Please enter your name.")
+    throw new Error(
+      "Please enter your name."
+    )
   }
 
   /*
@@ -243,8 +298,13 @@ export async function joinCompetition(
   )
 
   if (existing[0]) {
-    await setCompetitionCookie(c.code)
-    await setEntryCookie(existing[0].id)
+    await setCompetitionCookie(
+      c.code
+    )
+
+    await setEntryCookie(
+      existing[0].id
+    )
 
     return existing[0]
   }
@@ -260,7 +320,8 @@ export async function joinCompetition(
       {
         method: "POST",
         headers: {
-          Prefer: "return=representation",
+          Prefer:
+            "return=representation",
         },
         body: JSON.stringify({
           id,
@@ -277,14 +338,17 @@ export async function joinCompetition(
       )
     }
 
-    await setCompetitionCookie(c.code)
+    await setCompetitionCookie(
+      c.code
+    )
+
     await setEntryCookie(id)
 
     return rows[0]
   } catch (error) {
     /*
-     * Safety net for two requests arriving at almost
-     * exactly the same time.
+     * Safety net for two requests arriving
+     * at almost exactly the same time.
      */
     if (
       error instanceof Error &&
@@ -292,17 +356,23 @@ export async function joinCompetition(
         "entries_competition_id_name_key"
       )
     ) {
-      const duplicate = await rest<Entry[]>(
-        `entries?competition_id=eq.${encodeURIComponent(
-          c.id
-        )}&name=eq.${encodeURIComponent(
-          cleanName
-        )}&select=*&limit=1`
-      )
+      const duplicate =
+        await rest<Entry[]>(
+          `entries?competition_id=eq.${encodeURIComponent(
+            c.id
+          )}&name=eq.${encodeURIComponent(
+            cleanName
+          )}&select=*&limit=1`
+        )
 
       if (duplicate[0]) {
-        await setCompetitionCookie(c.code)
-        await setEntryCookie(duplicate[0].id)
+        await setCompetitionCookie(
+          c.code
+        )
+
+        await setEntryCookie(
+          duplicate[0].id
+        )
 
         return duplicate[0]
       }
@@ -326,7 +396,9 @@ export async function getRoundPicks(
   round: number,
   competitionCode?: string
 ): Promise<Pick[]> {
-  const c = await getCompetition(competitionCode)
+  const c = await getCompetition(
+    competitionCode
+  )
 
   const entries = await rest<Entry[]>(
     `entries?competition_id=eq.${encodeURIComponent(
@@ -345,7 +417,9 @@ export async function getRoundPicks(
   )
 }
 
-function canonicalTeamName(name: string): string {
+function canonicalTeamName(
+  name: string
+): string {
   const cleaned = name
     .replace(/\./g, "")
     .replace(/\bFC\b/gi, "")
@@ -353,7 +427,10 @@ function canonicalTeamName(name: string): string {
     .replace(/\s+/g, " ")
     .trim()
 
-  const aliases: Record<string, string> = {
+  const aliases: Record<
+    string,
+    string
+  > = {
     "Brighton and Hove Albion":
       "Brighton & Hove Albion",
   }
@@ -370,8 +447,10 @@ export async function getFixtures(
 
   return rows.map((f) => ({
     ...f,
-    home_team: canonicalTeamName(f.home_team),
-    away_team: canonicalTeamName(f.away_team),
+    home_team:
+      canonicalTeamName(f.home_team),
+    away_team:
+      canonicalTeamName(f.away_team),
   }))
 }
 
@@ -381,13 +460,19 @@ export async function makePick(
   competitionCode?: string
 ) {
   if (!entry.alive) {
-    throw new Error("You have been eliminated.")
+    throw new Error(
+      "You have been eliminated."
+    )
   }
 
-  const c = await getCompetition(competitionCode)
+  const c = await getCompetition(
+    competitionCode
+  )
 
   if (c.status !== "active") {
-    throw new Error("The competition has finished.")
+    throw new Error(
+      "The competition has finished."
+    )
   }
 
   const previous = await rest<Pick[]>(
@@ -416,7 +501,9 @@ export async function makePick(
     )
   }
 
-  const fixtures = await getFixtures(c.round)
+  const fixtures = await getFixtures(
+    c.round
+  )
 
   const fixture = fixtures.find(
     (f) =>
@@ -431,10 +518,13 @@ export async function makePick(
   }
 
   if (
-    new Date(fixture.kickoff).getTime() <= Date.now() ||
-    ["FINISHED", "IN_PLAY", "PAUSED"].includes(
-      fixture.status
-    )
+    new Date(fixture.kickoff).getTime() <=
+      Date.now() ||
+    [
+      "FINISHED",
+      "IN_PLAY",
+      "PAUSED",
+    ].includes(fixture.status)
   ) {
     throw new Error(
       "That fixture has already kicked off, so picks are locked."
@@ -452,7 +542,8 @@ export async function makePick(
       round: c.round,
       team: team.name,
       fixture_id: fixture.id,
-      locked_at: new Date().toISOString(),
+      locked_at:
+        new Date().toISOString(),
       result: null,
     }),
   })
@@ -461,7 +552,9 @@ export async function makePick(
 export async function getLeaderboard(
   competitionCode?: string
 ) {
-  const c = await getCompetition(competitionCode)
+  const c = await getCompetition(
+    competitionCode
+  )
 
   const entries = await rest<Entry[]>(
     `entries?competition_id=eq.${encodeURIComponent(
@@ -484,7 +577,8 @@ export async function getLeaderboard(
 
     picks: picks
       .filter(
-        (p) => p.entry_id === e.id
+        (p) =>
+          p.entry_id === e.id
       )
       .sort(
         (a, b) => a.round - b.round
