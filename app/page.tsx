@@ -60,8 +60,19 @@ export default async function Home({
     )
   }
 
+  /*
+   * IMPORTANT:
+   *
+   * If a league code is present in the URL,
+   * this is a shared league link.
+   *
+   * We deliberately ignore any existing
+   * browser entry cookie so a different
+   * person can join the league.
+   */
   const entry = await getCurrentEntry(
-    competition.code
+    competition.code,
+    Boolean(leagueCode)
   )
 
   if (!entry) {
