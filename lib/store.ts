@@ -8,8 +8,9 @@ const SUPABASE_KEY =
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
   "sb_publishable_-guOZ0scebhQqlluOl8Tmw_QiOrK32c"
 
-const COOKIE = "lms_entry_id"
-const CODE = "LMS-PL"
+const ENTRY_COOKIE = "lms_entry_id"
+const COMPETITION_COOKIE = "lms_competition_code"
+const DEFAULT_CODE = "LMS-PL"
 
 function authHeaders() {
   return {
@@ -76,25 +77,133 @@ export type Fixture = {
   status: string
 }
 
-export async function getCompetition(): Promise<Competition> {
+function cleanCode(code?: string | null) {
+  return (code || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9-]/g, "")
+}
+
+async function setCompetitionCookie(code: string) {
+  const jar = await cookies()
+
+  jar.set(COMPETITION_COOKIE, code, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 60 * 60 * 24 * 365,
+    path: "/",
+  })
+}
+
+async function setEntryCookie(id: string) {
+  const jar = await cookies()
+
+  jar.set(ENTRY_COOKIE, id, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 60 * 60 * 24 * 365,
+    path: "/",
+  })
+}
+
+function newLeagueCode() {
+  return crypto
+    .randomUUID()
+    .replace(/-/g, "")
+    .slice(0, 6)
+    .toUpperCase()
+}
+
+export async function getCompetition(
+  requestedCode?: string
+): Promise<Competition> {
+  const jar = await cookies()
+  const cookieCode = jar.get(COMPETITION_COOKIE)?.value
+
+  const code = cleanCode(
+    requestedCode || cookieCode || DEFAULT_CODE
+  )
+
   const rows = await rest<Competition[]>(
     `competitions?code=eq.${encodeURIComponent(
-      CODE
+      code
     )}&select=*&limit=1`
   )
 
   if (!rows[0]) {
-    throw new Error("Competition has not been created")
+    throw new Error("That league could not be found.")
   }
 
   return rows[0]
 }
 
-export async function getCurrentEntry(): Promise<Entry | null> {
-  const c = await getCompetition()
+export async function createCompetition(
+  leagueName: string
+): Promise<Competition> {
+  const name = leagueName.trim().slice(0, 60)
+
+  if (!name) {
+    throw new Error("Please enter a league name.")
+  }
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const code = newLeagueCode()
+
+    try {
+      const rows = await rest<Competition[]>(
+        "competitions?select=*",
+        {
+          method: "POST",
+          headers: {
+            Prefer: "return=representation",
+          },
+          body: JSON.stringify({
+            id: crypto.randomUUID(),
+            code,
+            name,
+            status: "active",
+            round: 1,
+          }),
+        }
+      )
+
+      if (!rows[0]) {
+        throw new Error("The league was not created.")
+      }
+
+      await setCompetitionCookie(rows[0].code)
+
+      return rows[0]
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (
+          error.message.includes("409") ||
+          error.message.includes("duplicate") ||
+          error.message.includes("unique")
+        )
+      ) {
+        continue
+      }
+
+      throw error
+    }
+  }
+
+  throw new Error(
+    "Could not create a unique league code. Please try again."
+  )
+}
+
+export async function getCurrentEntry(
+  competitionCode?: string
+): Promise<Entry | null> {
+  const c = await getCompetition(competitionCode)
 
   const jar = await cookies()
-  const id = jar.get(COOKIE)?.value
+  const id = jar.get(ENTRY_COOKIE)?.value
 
   if (!id) return null
 
@@ -110,22 +219,20 @@ export async function getCurrentEntry(): Promise<Entry | null> {
 }
 
 export async function joinCompetition(
-  name: string
+  name: string,
+  competitionCode?: string
 ): Promise<Entry> {
-  const c = await getCompetition()
+  const c = await getCompetition(competitionCode)
 
-  const cleanName = name.trim()
+  const cleanName = name.trim().slice(0, 40)
 
   if (!cleanName) {
     throw new Error("Please enter your name.")
   }
 
   /*
-   * First check whether this manager already exists
-   * in the current competition.
-   *
-   * This prevents the database 409 duplicate-name error
-   * when a returning player enters their name again.
+   * Returning player:
+   * find their existing entry in THIS league.
    */
   const existing = await rest<Entry[]>(
     `entries?competition_id=eq.${encodeURIComponent(
@@ -136,28 +243,20 @@ export async function joinCompetition(
   )
 
   if (existing[0]) {
-    const entry = existing[0]
+    await setCompetitionCookie(c.code)
+    await setEntryCookie(existing[0].id)
 
-    const jar = await cookies()
-
-    jar.set(COOKIE, entry.id, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24 * 365,
-    })
-
-    return entry
+    return existing[0]
   }
 
   /*
-   * No existing manager found, so create a new entry.
+   * New player.
    */
   const id = crypto.randomUUID()
 
   try {
     const rows = await rest<Entry[]>(
-      `entries?select=*`,
+      "entries?select=*",
       {
         method: "POST",
         headers: {
@@ -172,23 +271,20 @@ export async function joinCompetition(
       }
     )
 
-    const jar = await cookies()
+    if (!rows[0]) {
+      throw new Error(
+        "Your league entry could not be created."
+      )
+    }
 
-    jar.set(COOKIE, id, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24 * 365,
-    })
+    await setCompetitionCookie(c.code)
+    await setEntryCookie(id)
 
     return rows[0]
   } catch (error) {
     /*
-     * Safety net for two join requests happening at almost
+     * Safety net for two requests arriving at almost
      * exactly the same time.
-     *
-     * If Supabase returns the duplicate-name constraint error,
-     * find the entry that already exists and use it.
      */
     if (
       error instanceof Error &&
@@ -205,14 +301,8 @@ export async function joinCompetition(
       )
 
       if (duplicate[0]) {
-        const jar = await cookies()
-
-        jar.set(COOKIE, duplicate[0].id, {
-          httpOnly: true,
-          sameSite: "lax",
-          secure: process.env.NODE_ENV === "production",
-          maxAge: 60 * 60 * 24 * 365,
-        })
+        await setCompetitionCookie(c.code)
+        await setEntryCookie(duplicate[0].id)
 
         return duplicate[0]
       }
@@ -233,25 +323,27 @@ export async function getPicks(
 }
 
 export async function getRoundPicks(
-  round: number
+  round: number,
+  competitionCode?: string
 ): Promise<Pick[]> {
-  const c = await getCompetition()
+  const c = await getCompetition(competitionCode)
+
+  const entries = await rest<Entry[]>(
+    `entries?competition_id=eq.${encodeURIComponent(
+      c.id
+    )}&select=id`
+  )
+
+  if (!entries.length) return []
+
+  const entryIds = entries
+    .map((entry) => entry.id)
+    .join(",")
 
   return rest<Pick[]>(
-    `picks?round=eq.${round}&select=*`
+    `picks?round=eq.${round}&entry_id=in.(${entryIds})&select=*`
   )
 }
-
-/*
- * football-data.org uses slightly different team names
- * from the names displayed in our app.
- *
- * Examples:
- * Arsenal FC -> Arsenal
- * Manchester United FC -> Manchester United
- * AFC Bournemouth -> Bournemouth
- * Brighton & Hove Albion FC -> Brighton & Hove Albion
- */
 
 function canonicalTeamName(name: string): string {
   const cleaned = name
@@ -285,13 +377,14 @@ export async function getFixtures(
 
 export async function makePick(
   entry: Entry,
-  team: { name: string }
+  team: { name: string },
+  competitionCode?: string
 ) {
   if (!entry.alive) {
     throw new Error("You have been eliminated.")
   }
 
-  const c = await getCompetition()
+  const c = await getCompetition(competitionCode)
 
   if (c.status !== "active") {
     throw new Error("The competition has finished.")
@@ -306,7 +399,9 @@ export async function makePick(
   )
 
   if (previous.length) {
-    throw new Error("You have already used that team.")
+    throw new Error(
+      "You have already used that team."
+    )
   }
 
   const existing = await rest<Pick[]>(
@@ -346,7 +441,7 @@ export async function makePick(
     )
   }
 
-  await rest(`picks`, {
+  await rest("picks", {
     method: "POST",
     headers: {
       Prefer: "return=minimal",
@@ -363,8 +458,10 @@ export async function makePick(
   })
 }
 
-export async function getLeaderboard() {
-  const c = await getCompetition()
+export async function getLeaderboard(
+  competitionCode?: string
+) {
+  const c = await getCompetition(competitionCode)
 
   const entries = await rest<Entry[]>(
     `entries?competition_id=eq.${encodeURIComponent(
@@ -373,18 +470,22 @@ export async function getLeaderboard() {
   )
 
   const picks = await rest<Pick[]>(
-    `picks?select=*`
+    "picks?select=*"
   )
 
   return entries.map((e) => ({
     ...e,
+
     wins: picks.filter(
       (p) =>
         p.entry_id === e.id &&
         p.result === "win"
     ).length,
+
     picks: picks
-      .filter((p) => p.entry_id === e.id)
+      .filter(
+        (p) => p.entry_id === e.id
+      )
       .sort(
         (a, b) => a.round - b.round
       ),
