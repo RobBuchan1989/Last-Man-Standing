@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic"
 
 type HomeProps = {
   searchParams?: Promise<{
-    league?: string
+    league?: string | string[]
   }>
 }
 
@@ -25,13 +25,21 @@ export default async function Home({
     ? await searchParams
     : {}
 
+  const rawLeague = params?.league
+
   const leagueCode =
-    params.league?.trim().toUpperCase() || undefined
+    typeof rawLeague === "string"
+      ? rawLeague.trim().toUpperCase()
+      : Array.isArray(rawLeague)
+        ? rawLeague[0]?.trim().toUpperCase()
+        : undefined
 
   let competition
 
   try {
-    competition = await getCompetition(leagueCode)
+    competition = await getCompetition(
+      leagueCode || undefined
+    )
   } catch {
     return (
       <>
@@ -65,7 +73,9 @@ export default async function Home({
           gameName={competition.name}
           round={competition.round}
           defaultName=""
-          competitionCode={competition.code}
+          competitionCode={
+            leagueCode || undefined
+          }
         />
       </>
     )
