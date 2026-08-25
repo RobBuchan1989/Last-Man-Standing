@@ -139,11 +139,21 @@ function footballDataHeaders() {
   }
 }
 
+/*
+ * IMPORTANT:
+ *
+ * Do NOT hard-code a Premier League season here.
+ *
+ * football-data.org automatically uses the
+ * currently active season when no season filter
+ * is supplied.
+ */
+
 async function getLivePremierLeagueMatches(): Promise<
   FootballDataMatch[]
 > {
   const res = await fetch(
-    "https://api.football-data.org/v4/competitions/PL/matches?season=2026",
+    "https://api.football-data.org/v4/competitions/PL/matches",
     {
       headers:
         footballDataHeaders(),
@@ -164,8 +174,9 @@ async function getLivePremierLeagueMatches(): Promise<
 }
 
 /*
- * Football-data.org and our UI use slightly
- * different spellings for some club names.
+ * ------------------------------------------------------------
+ * TEAM NAME NORMALISATION
+ * ------------------------------------------------------------
  */
 
 function canonicalTeamName(
@@ -188,61 +199,61 @@ function canonicalTeamName(
     "Brighton and Hove Albion":
       "Brighton & Hove Albion",
 
-    "Manchester City FC":
+    "Manchester City":
       "Manchester City",
 
-    "Manchester United FC":
+    "Manchester United":
       "Manchester United",
 
-    "Liverpool FC":
+    "Liverpool":
       "Liverpool",
 
-    "Chelsea FC":
+    "Chelsea":
       "Chelsea",
 
-    "Arsenal FC":
+    "Arsenal":
       "Arsenal",
 
-    "Everton FC":
+    "Everton":
       "Everton",
 
-    "Tottenham Hotspur FC":
+    "Tottenham Hotspur":
       "Tottenham Hotspur",
 
-    "Newcastle United FC":
+    "Newcastle United":
       "Newcastle United",
 
-    "West Ham United FC":
+    "West Ham United":
       "West Ham United",
 
-    "Aston Villa FC":
+    "Aston Villa":
       "Aston Villa",
 
-    "Crystal Palace FC":
+    "Crystal Palace":
       "Crystal Palace",
 
-    "Fulham FC":
+    "Fulham":
       "Fulham",
 
-    "Brentford FC":
+    "Brentford":
       "Brentford",
 
-    "Bournemouth FC":
+    "Bournemouth":
       "Bournemouth",
 
-    "Leeds United FC":
+    "Leeds United":
       "Leeds United",
 
-    "Nottingham Forest FC":
+    "Nottingham Forest":
       "Nottingham Forest",
 
-    "Wolverhampton Wanderers FC":
+    "Wolverhampton Wanderers":
       "Wolverhampton Wanderers",
 
-    "Burnley FC":
+    "Burnley":
       "Burnley",
 
-    "Sunderland AFC":
+    "Sunderland":
       "Sunderland",
   }
 
@@ -256,11 +267,6 @@ function fixtureStatus(
     .trim()
     .toUpperCase()
 }
-
-/*
- * Convert football-data.org matches into
- * the Fixture shape used throughout the app.
- */
 
 function convertMatch(
   match: FootballDataMatch
@@ -301,7 +307,7 @@ function convertMatch(
 
 /*
  * ------------------------------------------------------------
- * AUTOMATIC ROUND DETECTION
+ * FIXTURE STATUS HELPERS
  * ------------------------------------------------------------
  */
 
@@ -330,10 +336,44 @@ function isFinishedFixtureStatus(
     "COMPLETED",
     "CANCELLED",
     "ABANDONED",
+    "AWARDED",
   ].includes(
     fixtureStatus(status)
   )
 }
+
+function isOpenFixture(
+  fixture: Fixture
+) {
+  const status =
+    fixtureStatus(
+      fixture.status
+    )
+
+  if (
+    isLiveFixtureStatus(status)
+  ) {
+    return true
+  }
+
+  if (
+    isFinishedFixtureStatus(status)
+  ) {
+    return false
+  }
+
+  return (
+    new Date(
+      fixture.kickoff
+    ).getTime() > Date.now()
+  )
+}
+
+/*
+ * ------------------------------------------------------------
+ * AUTOMATIC ROUND DETECTION
+ * ------------------------------------------------------------
+ */
 
 async function getAutomaticRound(
   fallbackRound: number
@@ -352,51 +392,19 @@ async function getAutomaticRound(
     return fallbackRound
   }
 
-  const now = Date.now()
-
-  /*
-   * Find the first matchweek which contains:
-   *
-   * - an upcoming fixture, OR
-   * - a live fixture.
-   *
-   * Finished matchweeks are skipped.
-   */
-
   const activeRounds = fixtures
-    .filter((fixture) => {
-      if (
-        isFinishedFixtureStatus(
-          fixture.status
-        )
-      ) {
-        return false
-      }
-
-      if (
-        isLiveFixtureStatus(
-          fixture.status
-        )
-      ) {
-        return true
-      }
-
-      return (
-        new Date(
-          fixture.kickoff
-        ).getTime() > now
-      )
-    })
+    .filter(isOpenFixture)
     .map(
       (fixture) => fixture.round
     )
 
   if (!activeRounds.length) {
-    return Math.max(
-      ...fixtures.map(
-        (fixture) => fixture.round
-      )
-    )
+    /*
+     * If everything returned by the API is finished,
+     * keep the current LMS round rather than suddenly
+     * declaring the whole competition finished.
+     */
+    return fallbackRound
   }
 
   return Math.min(
@@ -404,12 +412,22 @@ async function getAutomaticRound(
   )
 }
 
+/*
+ * ------------------------------------------------------------
+ * SYNCHRONISE LMS ROUND + STATUS
+ * ------------------------------------------------------------
+ */
+
 async function syncCompetitionRound(
   competition: Competition
 ): Promise<Competition> {
   let automaticRound: number
+  let matches: FootballDataMatch[]
 
   try {
+    matches =
+      await getLivePremierLeagueMatches()
+
     automaticRound =
       await getAutomaticRound(
         competition.round
@@ -417,14 +435,40 @@ async function syncCompetitionRound(
   } catch {
     /*
      * If the football API is temporarily
-     * unavailable, keep the last known round.
+     * unavailable, keep the last known state.
      */
     return competition
   }
 
-  if (
-    automaticRound === competition.round
-  ) {
+  const fixtures = matches
+    .map(convertMatch)
+    .filter(
+      (fixture): fixture is Fixture =>
+        fixture !== null
+    )
+
+  const hasOpenFixtures =
+    fixtures.some(isOpenFixture)
+
+  /*
+   * If there are current/upcoming Premier League
+   * fixtures, the LMS competition must be active.
+   *
+   * This also repairs leagues that were accidentally
+   * marked "finished" by an earlier version.
+   */
+  const nextStatus =
+    hasOpenFixtures
+      ? "active"
+      : competition.status
+
+  const needsUpdate =
+    automaticRound !==
+      competition.round ||
+    competition.status !==
+      nextStatus
+
+  if (!needsUpdate) {
     return competition
   }
 
@@ -440,20 +484,30 @@ async function syncCompetitionRound(
             Prefer:
               "return=representation",
           },
-          body: JSON.stringify({
-            round: automaticRound,
-          }),
+          body:
+            JSON.stringify({
+              round:
+                automaticRound,
+              status:
+                nextStatus,
+            }),
         }
       )
 
     return rows[0] ?? {
       ...competition,
-      round: automaticRound,
+      round:
+        automaticRound,
+      status:
+        nextStatus,
     }
   } catch {
     return {
       ...competition,
-      round: automaticRound,
+      round:
+        automaticRound,
+      status:
+        nextStatus,
     }
   }
 }
@@ -594,10 +648,12 @@ export async function createCompetition(
             },
             body:
               JSON.stringify({
-                id: crypto.randomUUID(),
+                id:
+                  crypto.randomUUID(),
                 code,
                 name,
-                status: "active",
+                status:
+                  "active",
                 round: 1,
               }),
           }
@@ -747,8 +803,10 @@ export async function joinCompetition(
               id,
               competition_id:
                 c.id,
-              name: cleanName,
-              alive: true,
+              name:
+                cleanName,
+              alive:
+                true,
             }),
         }
       )
@@ -853,14 +911,6 @@ export async function getRoundPicks(
  * ------------------------------------------------------------
  * FIXTURES
  * ------------------------------------------------------------
- *
- * IMPORTANT:
- *
- * Fixtures now come directly from
- * football-data.org.
- *
- * The old Supabase fixture table is
- * no longer used for the schedule.
  */
 
 export async function getFixtures(
@@ -913,11 +963,25 @@ export async function makePick(
       competitionCode
     )
 
-  if (
-    c.status !== "active"
-  ) {
+  /*
+   * IMPORTANT:
+   *
+   * We no longer blindly trust the Supabase
+   * competition status here.
+   *
+   * The presence of valid current/upcoming
+   * Premier League fixtures is what determines
+   * whether a pick can be made.
+   */
+
+  const fixtures =
+    await getFixtures(
+      c.round
+    )
+
+  if (!fixtures.length) {
     throw new Error(
-      "The competition has finished."
+      "There are no fixtures available for the current round."
     )
   }
 
@@ -950,11 +1014,6 @@ export async function makePick(
       "Your pick is already locked for this round."
     )
   }
-
-  const fixtures =
-    await getFixtures(
-      c.round
-    )
 
   const selectedTeam =
     canonicalTeamName(
@@ -1001,15 +1060,6 @@ export async function makePick(
       "That fixture has already kicked off, so picks are locked."
     )
   }
-
-  /*
-   * We deliberately do not write the API's
-   * numeric fixture ID into fixture_id here.
-   *
-   * Your existing Supabase fixture_id column
-   * may be UUID-based. The team + round already
-   * uniquely identifies the pick for our game.
-   */
 
   await rest("picks", {
     method: "POST",
