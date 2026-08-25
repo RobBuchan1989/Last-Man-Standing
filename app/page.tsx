@@ -1,142 +1,214 @@
-import {
-  getCompetition,
-  getCurrentEntry,
-  getPicks,
-  getLeaderboard,
-  getFixtures,
-} from "@/lib/store"
+import { getCompetition, getCurrentEntry, getFixtures, getLeaderboard, getPicks } from "@/lib/store"
 import { teams } from "@/lib/teams"
-import { JoinGame } from "@/components/join-game"
-import { GameDashboard } from "@/components/game-dashboard"
-import { SiteHeader } from "@/components/site-header"
+
+import JoinGame from "@/components/JoinGame"
+import GameDashboard from "@/components/GameDashboard"
+import SiteHeader from "@/components/SiteHeader"
 
 export const dynamic = "force-dynamic"
+export const revalidate = 0
 
 type HomeProps = {
   searchParams?: Promise<{
     league?: string | string[]
-    join?: string | string[]
   }>
 }
 
 export default async function Home({
   searchParams,
 }: HomeProps) {
+  /*
+   * ------------------------------------------------------------
+   * LEAGUE CODE
+   * ------------------------------------------------------------
+   *
+   * Normal URL:
+   *
+   * https://your-site.com
+   *
+   * Uses the player's existing league cookie.
+   *
+   * Shared league URL:
+   *
+   * https://your-site.com/?league=F34BD5
+   *
+   * Explicitly loads that league and shows the join screen.
+   *
+   * This is important because another person may already
+   * have an entry cookie in their browser.
+   */
+
   const params = searchParams
     ? await searchParams
     : {}
 
-  const rawLeague = params?.league
-  const rawJoin = params?.join
+  let leagueCode: string | undefined
 
-  const leagueCode =
+  const rawLeague =
+    params?.league
+
+  if (
     typeof rawLeague === "string"
-      ? rawLeague.trim().toUpperCase()
-      : Array.isArray(rawLeague)
-        ? rawLeague[0]?.trim().toUpperCase()
-        : undefined
+  ) {
+    leagueCode =
+      rawLeague
+        .trim()
+        .toUpperCase()
+  } else if (
+    Array.isArray(rawLeague) &&
+    rawLeague.length > 0
+  ) {
+    leagueCode =
+      rawLeague[0]
+        ?.trim()
+        .toUpperCase()
+  }
 
-  const joinMode =
-    rawJoin === "1" ||
-    (Array.isArray(rawJoin) &&
-      rawJoin[0] === "1")
+  /*
+   * ------------------------------------------------------------
+   * GET COMPETITION
+   * ------------------------------------------------------------
+   */
 
   let competition
 
   try {
-    competition = await getCompetition(
-      leagueCode || undefined
-    )
+    competition =
+      await getCompetition(
+        leagueCode
+      )
   } catch {
     return (
-      <>
+      <main>
         <SiteHeader />
 
-        <main className="mx-auto max-w-2xl px-4 py-12">
-          <div className="rounded-lg border border-border bg-card p-6 text-center">
-            <h1 className="font-display text-3xl uppercase">
+        <div className="mx-auto max-w-3xl px-6 py-16">
+          <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-8 text-center">
+            <h1 className="text-2xl font-bold text-white">
               League not found
             </h1>
 
-            <p className="mt-3 text-muted-foreground">
-              That league link or join code is not valid.
+            <p className="mt-3 text-slate-300">
+              The league code you entered could not
+              be found. Please check the league link
+              and try again.
             </p>
           </div>
-        </main>
-      </>
+        </div>
+      </main>
     )
   }
 
   /*
-   * A shared invite link uses:
+   * ------------------------------------------------------------
+   * CURRENT PLAYER
+   * ------------------------------------------------------------
    *
-   * ?league=CODE&join=1
+   * IMPORTANT:
    *
-   * This deliberately shows the join screen.
+   * If leagueCode exists in the URL, this is a
+   * shared league/join link.
+   *
+   * We deliberately IGNORE any existing browser
+   * entry cookie so that:
+   *
+   * Test Manager 4
+   * Test Manager 5
+   * Test Manager 6
+   *
+   * can all use the same league link.
+   *
+   * Without this, the browser could automatically
+   * log the next person into the previous player's
+   * account.
    */
-  if (leagueCode && joinMode) {
-    return (
-      <>
-        <SiteHeader />
 
-        <JoinGame
-          gameName={competition.name}
-          round={competition.round}
-          defaultName=""
-          competitionCode={competition.code}
-        />
-      </>
+  const entry =
+    await getCurrentEntry(
+      competition.code,
+      Boolean(leagueCode)
     )
-  }
 
   /*
-   * Normal page load:
-   * use the existing browser entry if one exists
-   * for this league.
+   * ------------------------------------------------------------
+   * JOIN SCREEN
+   * ------------------------------------------------------------
+   *
+   * If there is no current entry, show the join screen.
+   *
+   * This will happen:
+   *
+   * - for a brand-new player
+   * - when using a shared ?league=CODE link
+   * - when the browser has no entry cookie
    */
-  const entry = await getCurrentEntry(
-    competition.code
-  )
 
   if (!entry) {
     return (
-      <>
+      <main>
         <SiteHeader />
 
         <JoinGame
-          gameName={competition.name}
-          round={competition.round}
+          gameName={
+            competition.name
+          }
+          round={
+            competition.round
+          }
           defaultName=""
           competitionCode={
-            leagueCode || undefined
+            competition.code
           }
         />
-      </>
+      </main>
     )
   }
+
+  /*
+   * ------------------------------------------------------------
+   * LOAD PLAYER DATA
+   * ------------------------------------------------------------
+   */
 
   const [
     picks,
     leaderboard,
     fixtures,
-  ] = await Promise.all([
-    getPicks(entry.id),
-    getLeaderboard(competition.code),
-    getFixtures(competition.round),
-  ])
+  ] =
+    await Promise.all([
+      getPicks(entry.id),
+
+      getLeaderboard(
+        competition.code
+      ),
+
+      getFixtures(
+        competition.round
+      ),
+    ])
+
+  /*
+   * ------------------------------------------------------------
+   * MAIN GAME
+   * ------------------------------------------------------------
+   */
 
   return (
-    <>
+    <main>
       <SiteHeader />
 
       <GameDashboard
-        competition={competition}
+        competition={
+          competition
+        }
         entry={entry}
         teams={teams}
         picks={picks}
-        leaderboard={leaderboard}
+        leaderboard={
+          leaderboard
+        }
         fixtures={fixtures}
       />
-    </>
+    </main>
   )
 }
