@@ -43,6 +43,7 @@ async function rest<T>(
   }
 
   const text = await res.text()
+
   return (text
     ? JSON.parse(text)
     : null) as T
@@ -132,6 +133,7 @@ export async function getCompetition(
   requestedCode?: string
 ): Promise<Competition> {
   const jar = await cookies()
+
   const cookieCode =
     jar.get(COMPETITION_COOKIE)?.value
 
@@ -239,18 +241,18 @@ export async function getCurrentEntry(
   )
 
   /*
-   * If a player arrives through a shared
-   * league link, deliberately ignore any
-   * existing browser entry cookie.
+   * Shared join links deliberately ignore
+   * the existing browser entry.
    *
-   * This allows another person using the
-   * same link to enter their own name.
+   * This allows another person to use the
+   * same league link and enter their own name.
    */
   if (ignoreExistingEntry) {
     return null
   }
 
   const jar = await cookies()
+
   const id =
     jar.get(ENTRY_COOKIE)?.value
 
@@ -287,14 +289,22 @@ export async function joinCompetition(
 
   /*
    * Returning player:
-   * find their existing entry in THIS league.
+   *
+   * Match the name case-insensitively.
+   *
+   * This prevents:
+   * Test Manager 3
+   * test manager 3
+   * TEST MANAGER 3
+   *
+   * from becoming separate entries.
    */
   const existing = await rest<Entry[]>(
     `entries?competition_id=eq.${encodeURIComponent(
       c.id
-    )}&name=eq.${encodeURIComponent(
+    )}&name=ilike.${encodeURIComponent(
       cleanName
-    )}&select=*&limit=1`
+    )}&select=*&order=created_at.asc&limit=1`
   )
 
   if (existing[0]) {
@@ -360,9 +370,9 @@ export async function joinCompetition(
         await rest<Entry[]>(
           `entries?competition_id=eq.${encodeURIComponent(
             c.id
-          )}&name=eq.${encodeURIComponent(
+          )}&name=ilike.${encodeURIComponent(
             cleanName
-          )}&select=*&limit=1`
+          )}&select=*&order=created_at.asc&limit=1`
         )
 
       if (duplicate[0]) {
@@ -476,9 +486,9 @@ export async function makePick(
   }
 
   const previous = await rest<Pick[]>(
-    `picks?entry_id=eq.${encodeURIComponent(
+    `picks?entry_id=${encodeURIComponent(
       entry.id
-    )}&team=eq.${encodeURIComponent(
+    )}&team=${encodeURIComponent(
       team.name
     )}&select=id&limit=1`
   )
@@ -490,7 +500,7 @@ export async function makePick(
   }
 
   const existing = await rest<Pick[]>(
-    `picks?entry_id=eq.${encodeURIComponent(
+    `picks?entry_id=${encodeURIComponent(
       entry.id
     )}&round=eq.${c.round}&select=id&limit=1`
   )
@@ -501,9 +511,8 @@ export async function makePick(
     )
   }
 
-  const fixtures = await getFixtures(
-    c.round
-  )
+  const fixtures =
+    await getFixtures(c.round)
 
   const fixture = fixtures.find(
     (f) =>
@@ -518,8 +527,9 @@ export async function makePick(
   }
 
   if (
-    new Date(fixture.kickoff).getTime() <=
-      Date.now() ||
+    new Date(
+      fixture.kickoff
+    ).getTime() <= Date.now() ||
     [
       "FINISHED",
       "IN_PLAY",
@@ -581,7 +591,8 @@ export async function getLeaderboard(
           p.entry_id === e.id
       )
       .sort(
-        (a, b) => a.round - b.round
+        (a, b) =>
+          a.round - b.round
       ),
   }))
 }
