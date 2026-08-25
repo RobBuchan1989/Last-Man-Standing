@@ -8,10 +8,6 @@ import {
   makePick,
 } from "@/lib/store"
 
-import { teams } from "@/lib/teams"
-
-import { revalidatePath } from "next/cache"
-
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 
@@ -28,32 +24,26 @@ function getLeagueCode(
     return value.trim().toUpperCase()
   }
 
-  if (Array.isArray(value) && value.length) {
+  if (Array.isArray(value) && value.length > 0) {
     return value[0]?.trim().toUpperCase()
   }
 
   return undefined
 }
 
-async function joinAction(
-  formData: FormData
-) {
+async function joinAction(formData: FormData) {
   "use server"
 
-  const name =
-    String(
-      formData.get("name") || ""
-    ).trim()
+  const name = String(
+    formData.get("name") || ""
+  ).trim()
 
-  const league =
-    String(
-      formData.get("league") || ""
-    ).trim()
+  const league = String(
+    formData.get("league") || ""
+  ).trim()
 
   if (!name) {
-    throw new Error(
-      "Please enter your name."
-    )
+    throw new Error("Please enter your name.")
   }
 
   await joinCompetition(
@@ -61,33 +51,39 @@ async function joinAction(
     league || undefined
   )
 
-  revalidatePath("/")
+  /*
+   * IMPORTANT:
+   *
+   * The shared ?league=CODE URL deliberately
+   * ignores the existing player cookie.
+   *
+   * After joining, redirect to the normal URL
+   * so the newly-created player's cookie is used.
+   */
+  const { redirect } = await import(
+    "next/navigation"
+  )
+
+  redirect("/")
 }
 
-async function pickAction(
-  formData: FormData
-) {
+async function pickAction(formData: FormData) {
   "use server"
 
-  const entryId =
-    String(
-      formData.get("entryId") || ""
-    )
+  const entryId = String(
+    formData.get("entryId") || ""
+  )
 
-  const teamName =
-    String(
-      formData.get("team") || ""
-    )
+  const teamName = String(
+    formData.get("team") || ""
+  )
 
-  const league =
-    String(
-      formData.get("league") || ""
-    ).trim()
+  const league = String(
+    formData.get("league") || ""
+  ).trim()
 
   if (!entryId || !teamName) {
-    throw new Error(
-      "Invalid pick."
-    )
+    throw new Error("Invalid pick.")
   }
 
   const competition =
@@ -113,21 +109,22 @@ async function pickAction(
     competition.code
   )
 
-  revalidatePath("/")
+  const { redirect } = await import(
+    "next/navigation"
+  )
+
+  redirect("/")
 }
 
 export default async function Home({
   searchParams,
 }: HomeProps) {
-  const params =
-    searchParams
-      ? await searchParams
-      : {}
+  const params = searchParams
+    ? await searchParams
+    : {}
 
   const leagueCode =
-    getLeagueCode(
-      params?.league
-    )
+    getLeagueCode(params?.league)
 
   let competition
 
@@ -158,9 +155,9 @@ export default async function Home({
             </h2>
 
             <p className="mt-3 text-slate-300">
-              The league code could not be
-              found. Please check the league
-              link and try again.
+              The league code could not be found.
+              Please check the league link and try
+              again.
             </p>
           </div>
         </div>
@@ -169,21 +166,19 @@ export default async function Home({
   }
 
   /*
-   * IMPORTANT:
+   * ----------------------------------------------------------
+   * CURRENT PLAYER
+   * ----------------------------------------------------------
    *
-   * A URL containing ?league=CODE is ALWAYS
-   * treated as a join link.
+   * If ?league=CODE is present, deliberately ignore
+   * the existing browser player cookie.
    *
-   * This deliberately ignores the browser's
-   * existing player cookie.
-   *
-   * Therefore:
+   * This allows the same shared link to be used by:
    *
    * Test Manager 4
    * Test Manager 5
    * Test Manager 6
-   *
-   * can all use the same URL.
+   * etc.
    */
 
   const entry =
@@ -219,22 +214,22 @@ export default async function Home({
               JOIN LEAGUE
             </div>
 
-            <h2 className="mt-2 text-4xl font-black">
+            <h2 className="mt-2 text-5xl font-black">
               {competition.name}
             </h2>
 
-            <p className="mt-4 text-slate-400">
+            <p className="mt-5 text-2xl text-slate-400">
               Round {competition.round}
             </p>
 
-            <p className="mt-6 text-slate-300">
-              Enter your name to join this
-              Last Man Standing competition.
+            <p className="mt-8 text-xl text-slate-300">
+              Enter your name to join this Last Man
+              Standing competition.
             </p>
 
             <form
               action={joinAction}
-              className="mt-8"
+              className="mt-10"
             >
               <input
                 type="hidden"
@@ -242,7 +237,7 @@ export default async function Home({
                 value={competition.code}
               />
 
-              <label className="mb-2 block text-sm font-semibold text-slate-300">
+              <label className="mb-3 block text-xl font-semibold text-slate-300">
                 Your name
               </label>
 
@@ -251,18 +246,18 @@ export default async function Home({
                 required
                 maxLength={40}
                 placeholder="e.g. Test Manager 5"
-                className="w-full rounded-xl border border-white/10 bg-[#0e141d] px-4 py-4 text-white outline-none focus:border-green-400"
+                className="w-full rounded-2xl border border-white/10 bg-[#0e141d] px-5 py-5 text-xl text-white outline-none focus:border-green-400"
               />
 
               <button
                 type="submit"
-                className="mt-4 w-full rounded-xl bg-green-400 px-5 py-4 font-black text-[#07110b] transition hover:bg-green-300"
+                className="mt-5 w-full rounded-2xl bg-green-400 px-5 py-6 text-2xl font-black text-[#07110b] transition hover:bg-green-300"
               >
                 JOIN LEAGUE
               </button>
             </form>
 
-            <div className="mt-6 rounded-xl bg-[#0e141d] p-4 text-sm text-slate-400">
+            <div className="mt-8 rounded-2xl bg-[#0e141d] p-5 text-lg text-slate-400">
               League code:
               <strong className="ml-2 text-white">
                 {competition.code}
@@ -284,16 +279,15 @@ export default async function Home({
     picks,
     leaderboard,
     fixtures,
-  ] =
-    await Promise.all([
-      getPicks(entry.id),
-      getLeaderboard(
-        competition.code
-      ),
-      getFixtures(
-        competition.round
-      ),
-    ])
+  ] = await Promise.all([
+    getPicks(entry.id),
+    getLeaderboard(
+      competition.code
+    ),
+    getFixtures(
+      competition.round
+    ),
+  ])
 
   const usedTeams =
     picks.map(
@@ -309,7 +303,7 @@ export default async function Home({
 
   /*
    * ----------------------------------------------------------
-   * GAME
+   * MAIN GAME
    * ----------------------------------------------------------
    */
 
@@ -341,10 +335,14 @@ export default async function Home({
 
       <div className="mx-auto max-w-7xl px-6 py-8">
         <div className="grid gap-8 lg:grid-cols-[1.7fr_1fr]">
+
           {/* GAME */}
+
           <section>
             <div className="rounded-2xl border border-white/10 bg-[#151b25] p-7">
+
               <div className="flex items-start justify-between gap-6">
+
                 <div>
                   <div className="text-sm font-bold tracking-[0.3em] text-green-400">
                     ROUND {competition.round}
@@ -370,10 +368,12 @@ export default async function Home({
                     {competition.code}
                   </div>
                 </div>
+
               </div>
 
               {currentPick ? (
                 <div className="mt-8 rounded-xl border border-green-400/40 bg-green-400/10 p-5">
+
                   <div className="text-sm font-bold text-green-400">
                     PICK LOCKED
                   </div>
@@ -386,31 +386,36 @@ export default async function Home({
                     Your Round {competition.round}
                     pick has been saved.
                   </div>
+
                 </div>
               ) : !entry.alive ? (
                 <div className="mt-8 rounded-xl border border-red-500/40 bg-red-500/10 p-5">
+
                   <div className="text-2xl font-black text-red-400">
                     YOU ARE OUT
                   </div>
+
                 </div>
               ) : (
                 <div className="mt-8 grid gap-4 sm:grid-cols-2">
+
                   {fixtures.map(
                     (fixture) => {
+
                       const homeTeam =
                         fixture.home_team
 
                       const awayTeam =
                         fixture.away_team
 
-                      const fixtureTeams =
-                        [
-                          homeTeam,
-                          awayTeam,
-                        ]
+                      const fixtureTeams = [
+                        homeTeam,
+                        awayTeam,
+                      ]
 
                       return fixtureTeams.map(
                         (teamName) => {
+
                           const used =
                             usedTeams.includes(
                               teamName
@@ -423,6 +428,7 @@ export default async function Home({
                                 pickAction
                               }
                             >
+
                               <input
                                 type="hidden"
                                 name="entryId"
@@ -458,8 +464,11 @@ export default async function Home({
                                     : "border-white/10 bg-[#151b25] hover:border-green-400 hover:bg-[#202733]"
                                 }`}
                               >
+
                                 <div className="flex items-center justify-between gap-4">
+
                                   <div>
+
                                     <div className="text-xl font-black">
                                       {
                                         teamName
@@ -475,6 +484,7 @@ export default async function Home({
                                         awayTeam
                                       }
                                     </div>
+
                                   </div>
 
                                   <span className="text-sm font-bold text-slate-400">
@@ -482,14 +492,18 @@ export default async function Home({
                                       ? "USED"
                                       : "PICK"}
                                   </span>
+
                                 </div>
+
                               </button>
+
                             </form>
                           )
                         }
                       )
                     }
                   )}
+
                 </div>
               )}
 
@@ -500,13 +514,18 @@ export default async function Home({
                   {competition.round}.
                 </div>
               )}
+
             </div>
           </section>
 
           {/* SIDEBAR */}
+
           <aside>
+
             <div className="rounded-2xl border border-white/10 bg-[#151b25] p-6">
+
               <div className="flex items-center justify-between">
+
                 <h2 className="text-2xl font-black">
                   LEADERBOARD
                 </h2>
@@ -520,21 +539,27 @@ export default async function Home({
                   }{" "}
                   alive
                 </span>
+
               </div>
 
               <div className="mt-5 space-y-3">
+
                 {leaderboard.map(
                   (player, index) => (
+
                     <div
                       key={player.id}
                       className="rounded-xl bg-[#1c222d] p-4"
                     >
+
                       <div className="flex items-center gap-4">
+
                         <div className="text-slate-500">
                           {index + 1}
                         </div>
 
                         <div className="min-w-0 flex-1">
+
                           <div className="font-bold">
                             {
                               player.name
@@ -548,6 +573,7 @@ export default async function Home({
                             }{" "}
                             picks
                           </div>
+
                         </div>
 
                         <div
@@ -561,19 +587,26 @@ export default async function Home({
                             ? "ALIVE"
                             : "OUT"}
                         </div>
+
                       </div>
+
                     </div>
+
                   )
                 )}
+
               </div>
+
             </div>
 
             <div className="mt-6 rounded-2xl border border-white/10 bg-[#151b25] p-6">
+
               <h2 className="text-2xl font-black">
                 RULES
               </h2>
 
               <ul className="mt-4 space-y-3 text-slate-400">
+
                 <li>
                   • Pick one Premier League
                   team each round.
@@ -592,9 +625,13 @@ export default async function Home({
                   • You cannot use the same
                   team twice.
                 </li>
+
               </ul>
+
             </div>
+
           </aside>
+
         </div>
       </div>
     </main>
