@@ -5,7 +5,6 @@ import {
   createCompetition,
   joinCompetition,
   makePick,
-  getCurrentEntry,
 } from "@/lib/store"
 
 export async function joinGameAction(
@@ -13,7 +12,6 @@ export async function joinGameAction(
   competitionCode?: string
 ) {
   const name = displayName.trim().slice(0, 40)
-  const code = competitionCode?.trim().toUpperCase() || undefined
 
   if (!name) {
     return {
@@ -23,26 +21,17 @@ export async function joinGameAction(
 
   try {
     /*
-     * If a league code is supplied, this is a shared
-     * mini-league join link.
+     * When a league code is supplied, this is an
+     * explicit join request from a shared invite link.
      *
-     * Do NOT reuse an existing browser entry from
-     * another league. The person using the link must
-     * be allowed to join this league as a new manager.
+     * DO NOT check the existing browser entry first.
+     * We want to allow another manager to join the
+     * same league from the same browser.
      */
-    const existing = await getCurrentEntry(
-      code,
-      Boolean(code)
+    await joinCompetition(
+      name,
+      competitionCode
     )
-
-    if (existing) {
-      return {
-        ok: true,
-        returning: true,
-      }
-    }
-
-    await joinCompetition(name, code)
 
     revalidatePath("/")
 
@@ -63,11 +52,13 @@ export async function createLeagueAction(
   leagueName: string,
   managerName: string
 ) {
-  const cleanLeagueName =
-    leagueName.trim().slice(0, 60)
+  const cleanLeagueName = leagueName
+    .trim()
+    .slice(0, 60)
 
-  const cleanManagerName =
-    managerName.trim().slice(0, 40)
+  const cleanManagerName = managerName
+    .trim()
+    .slice(0, 40)
 
   if (!cleanLeagueName) {
     return {
@@ -82,16 +73,11 @@ export async function createLeagueAction(
   }
 
   try {
-    /*
-     * Create the new private league.
-     */
     const competition =
-      await createCompetition(cleanLeagueName)
+      await createCompetition(
+        cleanLeagueName
+      )
 
-    /*
-     * Automatically add the creator to the
-     * newly created league.
-     */
     await joinCompetition(
       cleanManagerName,
       competition.code
@@ -117,6 +103,9 @@ export async function createLeagueAction(
 export async function makePickAction(
   team: { name: string }
 ) {
+  const { getCurrentEntry } =
+    await import("@/lib/store")
+
   const entry = await getCurrentEntry()
 
   if (!entry) {
