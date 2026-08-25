@@ -129,6 +129,180 @@ function newLeagueCode() {
     .toUpperCase()
 }
 
+/*
+ * ------------------------------------------------------------
+ * AUTOMATIC ROUND DETECTION
+ * ------------------------------------------------------------
+ *
+ * The competition's stored round is only a cached value.
+ *
+ * Every time the competition is loaded we check the fixture
+ * table and determine which Premier League matchweek is
+ * currently active.
+ *
+ * This means:
+ *
+ * Round 1 finished
+ *       ↓
+ * Round 2 has future fixtures
+ *       ↓
+ * competition.round automatically becomes 2
+ *
+ * No manual round updates are required.
+ */
+
+function isLiveFixtureStatus(
+  status: string
+) {
+  const value = status
+    .trim()
+    .toUpperCase()
+
+  return [
+    "IN_PLAY",
+    "LIVE",
+    "PAUSED",
+    "HALFTIME",
+    "1H",
+    "2H",
+    "EXTRA_TIME",
+  ].includes(value)
+}
+
+function isFinishedFixtureStatus(
+  status: string
+) {
+  const value = status
+    .trim()
+    .toUpperCase()
+
+  return [
+    "FINISHED",
+    "FT",
+    "COMPLETED",
+    "CANCELLED",
+    "ABANDONED",
+  ].includes(value)
+}
+
+async function getAutomaticRound(
+  fallbackRound: number
+): Promise<number> {
+  const fixtures = await rest<
+    Array<{
+      round: number
+      kickoff: string
+      status: string
+    }>
+  >(
+    "fixtures?select=round,kickoff,status&order=round.asc,kickoff.asc"
+  )
+
+  if (!fixtures.length) {
+    return fallbackRound
+  }
+
+  const now = Date.now()
+
+  /*
+   * Find the first round which still contains:
+   *
+   * 1. A future fixture, or
+   * 2. A fixture currently being played.
+   *
+   * Once every fixture in a round has finished,
+   * that round is skipped automatically.
+   */
+  const activeRounds = fixtures
+    .filter((fixture) => {
+      const kickoff = new Date(
+        fixture.kickoff
+      ).getTime()
+
+      if (
+        isFinishedFixtureStatus(
+          fixture.status
+        )
+      ) {
+        return false
+      }
+
+      if (
+        isLiveFixtureStatus(
+          fixture.status
+        )
+      ) {
+        return true
+      }
+
+      return kickoff > now
+    })
+    .map(
+      (fixture) => fixture.round
+    )
+
+  if (!activeRounds.length) {
+    /*
+     * If the season has completely finished,
+     * keep the final known round.
+     */
+    return Math.max(
+      ...fixtures.map(
+        (fixture) => fixture.round
+      )
+    )
+  }
+
+  return Math.min(...activeRounds)
+}
+
+async function syncCompetitionRound(
+  competition: Competition
+): Promise<Competition> {
+  const automaticRound =
+    await getAutomaticRound(
+      competition.round
+    )
+
+  if (
+    automaticRound === competition.round
+  ) {
+    return competition
+  }
+
+  /*
+   * Save the automatically detected round
+   * back to Supabase.
+   */
+  const rows =
+    await rest<Competition[]>(
+      `competitions?id=eq.${encodeURIComponent(
+        competition.id
+      )}&select=*`,
+      {
+        method: "PATCH",
+        headers: {
+          Prefer:
+            "return=representation",
+        },
+        body: JSON.stringify({
+          round: automaticRound,
+        }),
+      }
+    )
+
+  return rows[0] ?? {
+    ...competition,
+    round: automaticRound,
+  }
+}
+
+/*
+ * ------------------------------------------------------------
+ * COMPETITION
+ * ------------------------------------------------------------
+ */
+
 export async function getCompetition(
   requestedCode?: string
 ): Promise<Competition> {
@@ -155,7 +329,11 @@ export async function getCompetition(
     )
   }
 
-  return rows[0]
+  /*
+   * Automatically determine whether the
+   * competition has moved to a new round.
+   */
+  return syncCompetitionRound(rows[0])
 }
 
 export async function createCompetition(
@@ -208,7 +386,14 @@ export async function createCompetition(
         rows[0].code
       )
 
-      return rows[0]
+      /*
+       * Run the automatic round check immediately.
+       * This means a newly created league does not
+       * necessarily get stuck on Round 1.
+       */
+      return syncCompetitionRound(
+        rows[0]
+      )
     } catch (error) {
       if (
         error instanceof Error &&
@@ -232,6 +417,12 @@ export async function createCompetition(
   )
 }
 
+/*
+ * ------------------------------------------------------------
+ * ENTRIES
+ * ------------------------------------------------------------
+ */
+
 export async function getCurrentEntry(
   competitionCode?: string,
   ignoreExistingEntry = false
@@ -240,13 +431,6 @@ export async function getCurrentEntry(
     competitionCode
   )
 
-  /*
-   * Shared join links deliberately ignore
-   * the existing browser entry.
-   *
-   * This allows another person to use the
-   * same league link and enter their own name.
-   */
   if (ignoreExistingEntry) {
     return null
   }
@@ -291,13 +475,6 @@ export async function joinCompetition(
    * Returning player:
    *
    * Match the name case-insensitively.
-   *
-   * This prevents:
-   * Test Manager 3
-   * test manager 3
-   * TEST MANAGER 3
-   *
-   * from becoming separate entries.
    */
   const existing = await rest<Entry[]>(
     `entries?competition_id=eq.${encodeURIComponent(
@@ -319,9 +496,6 @@ export async function joinCompetition(
     return existing[0]
   }
 
-  /*
-   * New player.
-   */
   const id = crypto.randomUUID()
 
   try {
@@ -356,10 +530,6 @@ export async function joinCompetition(
 
     return rows[0]
   } catch (error) {
-    /*
-     * Safety net for two requests arriving
-     * at almost exactly the same time.
-     */
     if (
       error instanceof Error &&
       error.message.includes(
@@ -391,6 +561,12 @@ export async function joinCompetition(
     throw error
   }
 }
+
+/*
+ * ------------------------------------------------------------
+ * PICKS
+ * ------------------------------------------------------------
+ */
 
 export async function getPicks(
   entryId: string
@@ -426,6 +602,12 @@ export async function getRoundPicks(
     `picks?round=eq.${round}&entry_id=in.(${entryIds})&select=*`
   )
 }
+
+/*
+ * ------------------------------------------------------------
+ * TEAM / FIXTURE HELPERS
+ * ------------------------------------------------------------
+ */
 
 function canonicalTeamName(
   name: string
@@ -464,6 +646,12 @@ export async function getFixtures(
   }))
 }
 
+/*
+ * ------------------------------------------------------------
+ * MAKE PICK
+ * ------------------------------------------------------------
+ */
+
 export async function makePick(
   entry: Entry,
   team: { name: string },
@@ -475,6 +663,12 @@ export async function makePick(
     )
   }
 
+  /*
+   * IMPORTANT:
+   *
+   * getCompetition() automatically syncs
+   * the current round before we make the pick.
+   */
   const c = await getCompetition(
     competitionCode
   )
@@ -516,8 +710,14 @@ export async function makePick(
 
   const fixture = fixtures.find(
     (f) =>
-      f.home_team === team.name ||
-      f.away_team === team.name
+      f.home_team ===
+        canonicalTeamName(
+          team.name
+        ) ||
+      f.away_team ===
+        canonicalTeamName(
+          team.name
+        )
   )
 
   if (!fixture) {
@@ -526,6 +726,18 @@ export async function makePick(
     )
   }
 
+  const fixtureStatus =
+    fixture.status
+      .trim()
+      .toUpperCase()
+
+  /*
+   * Picks are locked once:
+   *
+   * - kick-off has passed
+   * - match is live
+   * - match is finished
+   */
   if (
     new Date(
       fixture.kickoff
@@ -533,8 +745,13 @@ export async function makePick(
     [
       "FINISHED",
       "IN_PLAY",
+      "LIVE",
       "PAUSED",
-    ].includes(fixture.status)
+      "HALFTIME",
+      "1H",
+      "2H",
+      "EXTRA_TIME",
+    ].includes(fixtureStatus)
   ) {
     throw new Error(
       "That fixture has already kicked off, so picks are locked."
@@ -550,7 +767,9 @@ export async function makePick(
       id: crypto.randomUUID(),
       entry_id: entry.id,
       round: c.round,
-      team: team.name,
+      team: canonicalTeamName(
+        team.name
+      ),
       fixture_id: fixture.id,
       locked_at:
         new Date().toISOString(),
@@ -558,6 +777,12 @@ export async function makePick(
     }),
   })
 }
+
+/*
+ * ------------------------------------------------------------
+ * LEADERBOARD
+ * ------------------------------------------------------------
+ */
 
 export async function getLeaderboard(
   competitionCode?: string
