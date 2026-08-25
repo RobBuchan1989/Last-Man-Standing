@@ -31,16 +31,23 @@ export function JoinGame({
 }) {
   const router = useRouter()
 
-  const [name, setName] = useState(defaultName)
-  const [leagueName, setLeagueName] = useState("")
-  const [joinCode, setJoinCode] = useState(
-    competitionCode || ""
-  )
+  const [name, setName] =
+    useState(defaultName)
 
-  const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
+  const [leagueName, setLeagueName] =
+    useState("")
 
-  const [pending, startTransition] = useTransition()
+  const [joinCode, setJoinCode] =
+    useState(competitionCode || "")
+
+  const [error, setError] =
+    useState<string | null>(null)
+
+  const [notice, setNotice] =
+    useState<string | null>(null)
+
+  const [pending, startTransition] =
+    useTransition()
 
   const handleJoin = () => {
     setError(null)
@@ -48,18 +55,25 @@ export function JoinGame({
 
     startTransition(async () => {
       const code =
-        joinCode.trim().toUpperCase() || undefined
+        joinCode.trim().toUpperCase() ||
+        undefined
 
-      const res = await joinGameAction(
-        name,
-        code
-      )
+      const res =
+        await joinGameAction(
+          name,
+          code
+        )
 
       if (res?.error) {
         setError(res.error)
         return
       }
 
+      /*
+       * Remove join=1 after joining.
+       * This allows the normal page to load
+       * the manager's newly-created entry.
+       */
       router.push(
         code
           ? `/?league=${encodeURIComponent(code)}`
@@ -75,10 +89,11 @@ export function JoinGame({
     setNotice(null)
 
     startTransition(async () => {
-      const res = await createLeagueAction(
-        leagueName,
-        name
-      )
+      const res =
+        await createLeagueAction(
+          leagueName,
+          name
+        )
 
       if (res?.error) {
         setError(res.error)
@@ -92,13 +107,14 @@ export function JoinGame({
         return
       }
 
-      // Show the code briefly while redirecting.
       setNotice(
         `League created! Your join code is ${res.code}.`
       )
 
       router.push(
-        `/?league=${encodeURIComponent(res.code)}`
+        `/?league=${encodeURIComponent(
+          res.code
+        )}`
       )
 
       router.refresh()
@@ -192,7 +208,7 @@ export function JoinGame({
 
         <Button
           onClick={handleJoin}
-          disabled={pending}
+          disabled={pending || !name.trim()}
           className="mt-4 w-full font-display text-base uppercase tracking-wide"
         >
           {pending
@@ -228,7 +244,9 @@ export function JoinGame({
               id="leagueName"
               value={leagueName}
               onChange={(e) =>
-                setLeagueName(e.target.value)
+                setLeagueName(
+                  e.target.value
+                )
               }
               maxLength={60}
               placeholder="e.g. Saturday Football"
