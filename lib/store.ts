@@ -8,6 +8,9 @@ const SUPABASE_KEY =
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
   "sb_publishable_-guOZ0scebhQqlluOl8Tmw_QiOrK32c"
 
+const FOOTBALL_DATA_API_TOKEN =
+  process.env.FOOTBALL_DATA_API_TOKEN
+
 const ENTRY_COOKIE = "lms_entry_id"
 const COMPETITION_COOKIE = "lms_competition_code"
 const DEFAULT_CODE = "LMS-PL"
@@ -49,6 +52,12 @@ async function rest<T>(
     : null) as T
 }
 
+/*
+ * ------------------------------------------------------------
+ * TYPES
+ * ------------------------------------------------------------
+ */
+
 export type Competition = {
   id: string
   code: string
@@ -86,78 +95,219 @@ export type Fixture = {
   status: string
 }
 
-function cleanCode(code?: string | null) {
-  return (code || "")
+/*
+ * ------------------------------------------------------------
+ * FOOTBALL DATA API
+ * ------------------------------------------------------------
+ */
+
+type FootballDataMatch = {
+  id: number
+  matchday: number | null
+  utcDate: string
+  status: string
+  homeTeam: {
+    name: string
+    shortName?: string
+  }
+  awayTeam: {
+    name: string
+    shortName?: string
+  }
+  score?: {
+    fullTime?: {
+      home: number | null
+      away: number | null
+    }
+  }
+}
+
+type FootballDataResponse = {
+  matches: FootballDataMatch[]
+}
+
+function footballDataHeaders() {
+  if (!FOOTBALL_DATA_API_TOKEN) {
+    throw new Error(
+      "FOOTBALL_DATA_API_TOKEN is not configured."
+    )
+  }
+
+  return {
+    "X-Auth-Token":
+      FOOTBALL_DATA_API_TOKEN,
+  }
+}
+
+async function getLivePremierLeagueMatches(): Promise<
+  FootballDataMatch[]
+> {
+  const res = await fetch(
+    "https://api.football-data.org/v4/competitions/PL/matches?season=2026",
+    {
+      headers:
+        footballDataHeaders(),
+      cache: "no-store",
+    }
+  )
+
+  if (!res.ok) {
+    throw new Error(
+      `Football data API error ${res.status}: ${await res.text()}`
+    )
+  }
+
+  const data =
+    (await res.json()) as FootballDataResponse
+
+  return data.matches || []
+}
+
+/*
+ * Football-data.org and our UI use slightly
+ * different spellings for some club names.
+ */
+
+function canonicalTeamName(
+  name: string
+): string {
+  const cleaned = name
+    .replace(/\./g, "")
+    .replace(/\bFC\b/gi, "")
+    .replace(/\bAFC\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim()
+
+  const aliases: Record<
+    string,
+    string
+  > = {
+    "Brighton Hove Albion":
+      "Brighton & Hove Albion",
+
+    "Brighton and Hove Albion":
+      "Brighton & Hove Albion",
+
+    "Manchester City FC":
+      "Manchester City",
+
+    "Manchester United FC":
+      "Manchester United",
+
+    "Liverpool FC":
+      "Liverpool",
+
+    "Chelsea FC":
+      "Chelsea",
+
+    "Arsenal FC":
+      "Arsenal",
+
+    "Everton FC":
+      "Everton",
+
+    "Tottenham Hotspur FC":
+      "Tottenham Hotspur",
+
+    "Newcastle United FC":
+      "Newcastle United",
+
+    "West Ham United FC":
+      "West Ham United",
+
+    "Aston Villa FC":
+      "Aston Villa",
+
+    "Crystal Palace FC":
+      "Crystal Palace",
+
+    "Fulham FC":
+      "Fulham",
+
+    "Brentford FC":
+      "Brentford",
+
+    "Bournemouth FC":
+      "Bournemouth",
+
+    "Leeds United FC":
+      "Leeds United",
+
+    "Nottingham Forest FC":
+      "Nottingham Forest",
+
+    "Wolverhampton Wanderers FC":
+      "Wolverhampton Wanderers",
+
+    "Burnley FC":
+      "Burnley",
+
+    "Sunderland AFC":
+      "Sunderland",
+  }
+
+  return aliases[cleaned] ?? cleaned
+}
+
+function fixtureStatus(
+  status: string
+): string {
+  return status
     .trim()
     .toUpperCase()
-    .replace(/[^A-Z0-9-]/g, "")
 }
 
-async function setCompetitionCookie(
-  code: string
-) {
-  const jar = await cookies()
+/*
+ * Convert football-data.org matches into
+ * the Fixture shape used throughout the app.
+ */
 
-  jar.set(COMPETITION_COOKIE, code, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure:
-      process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24 * 365,
-    path: "/",
-  })
-}
+function convertMatch(
+  match: FootballDataMatch
+): Fixture | null {
+  if (!match.matchday) {
+    return null
+  }
 
-async function setEntryCookie(id: string) {
-  const jar = await cookies()
+  return {
+    id: String(match.id),
 
-  jar.set(ENTRY_COOKIE, id, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure:
-      process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24 * 365,
-    path: "/",
-  })
-}
+    round: match.matchday,
 
-function newLeagueCode() {
-  return crypto
-    .randomUUID()
-    .replace(/-/g, "")
-    .slice(0, 6)
-    .toUpperCase()
+    home_team:
+      canonicalTeamName(
+        match.homeTeam.name
+      ),
+
+    away_team:
+      canonicalTeamName(
+        match.awayTeam.name
+      ),
+
+    kickoff: match.utcDate,
+
+    home_score:
+      match.score?.fullTime?.home ??
+      null,
+
+    away_score:
+      match.score?.fullTime?.away ??
+      null,
+
+    status:
+      fixtureStatus(match.status),
+  }
 }
 
 /*
  * ------------------------------------------------------------
  * AUTOMATIC ROUND DETECTION
  * ------------------------------------------------------------
- *
- * The competition's stored round is only a cached value.
- *
- * Every time the competition is loaded we check the fixture
- * table and determine which Premier League matchweek is
- * currently active.
- *
- * This means:
- *
- * Round 1 finished
- *       ↓
- * Round 2 has future fixtures
- *       ↓
- * competition.round automatically becomes 2
- *
- * No manual round updates are required.
  */
 
 function isLiveFixtureStatus(
   status: string
 ) {
-  const value = status
-    .trim()
-    .toUpperCase()
-
   return [
     "IN_PLAY",
     "LIVE",
@@ -166,37 +316,37 @@ function isLiveFixtureStatus(
     "1H",
     "2H",
     "EXTRA_TIME",
-  ].includes(value)
+  ].includes(
+    fixtureStatus(status)
+  )
 }
 
 function isFinishedFixtureStatus(
   status: string
 ) {
-  const value = status
-    .trim()
-    .toUpperCase()
-
   return [
     "FINISHED",
     "FT",
     "COMPLETED",
     "CANCELLED",
     "ABANDONED",
-  ].includes(value)
+  ].includes(
+    fixtureStatus(status)
+  )
 }
 
 async function getAutomaticRound(
   fallbackRound: number
 ): Promise<number> {
-  const fixtures = await rest<
-    Array<{
-      round: number
-      kickoff: string
-      status: string
-    }>
-  >(
-    "fixtures?select=round,kickoff,status&order=round.asc,kickoff.asc"
-  )
+  const matches =
+    await getLivePremierLeagueMatches()
+
+  const fixtures = matches
+    .map(convertMatch)
+    .filter(
+      (fixture): fixture is Fixture =>
+        fixture !== null
+    )
 
   if (!fixtures.length) {
     return fallbackRound
@@ -205,20 +355,16 @@ async function getAutomaticRound(
   const now = Date.now()
 
   /*
-   * Find the first round which still contains:
+   * Find the first matchweek which contains:
    *
-   * 1. A future fixture, or
-   * 2. A fixture currently being played.
+   * - an upcoming fixture, OR
+   * - a live fixture.
    *
-   * Once every fixture in a round has finished,
-   * that round is skipped automatically.
+   * Finished matchweeks are skipped.
    */
+
   const activeRounds = fixtures
     .filter((fixture) => {
-      const kickoff = new Date(
-        fixture.kickoff
-      ).getTime()
-
       if (
         isFinishedFixtureStatus(
           fixture.status
@@ -235,17 +381,17 @@ async function getAutomaticRound(
         return true
       }
 
-      return kickoff > now
+      return (
+        new Date(
+          fixture.kickoff
+        ).getTime() > now
+      )
     })
     .map(
       (fixture) => fixture.round
     )
 
   if (!activeRounds.length) {
-    /*
-     * If the season has completely finished,
-     * keep the final known round.
-     */
     return Math.max(
       ...fixtures.map(
         (fixture) => fixture.round
@@ -253,16 +399,28 @@ async function getAutomaticRound(
     )
   }
 
-  return Math.min(...activeRounds)
+  return Math.min(
+    ...activeRounds
+  )
 }
 
 async function syncCompetitionRound(
   competition: Competition
 ): Promise<Competition> {
-  const automaticRound =
-    await getAutomaticRound(
-      competition.round
-    )
+  let automaticRound: number
+
+  try {
+    automaticRound =
+      await getAutomaticRound(
+        competition.round
+      )
+  } catch {
+    /*
+     * If the football API is temporarily
+     * unavailable, keep the last known round.
+     */
+    return competition
+  }
 
   if (
     automaticRound === competition.round
@@ -270,30 +428,33 @@ async function syncCompetitionRound(
     return competition
   }
 
-  /*
-   * Save the automatically detected round
-   * back to Supabase.
-   */
-  const rows =
-    await rest<Competition[]>(
-      `competitions?id=eq.${encodeURIComponent(
-        competition.id
-      )}&select=*`,
-      {
-        method: "PATCH",
-        headers: {
-          Prefer:
-            "return=representation",
-        },
-        body: JSON.stringify({
-          round: automaticRound,
-        }),
-      }
-    )
+  try {
+    const rows =
+      await rest<Competition[]>(
+        `competitions?id=eq.${encodeURIComponent(
+          competition.id
+        )}&select=*`,
+        {
+          method: "PATCH",
+          headers: {
+            Prefer:
+              "return=representation",
+          },
+          body: JSON.stringify({
+            round: automaticRound,
+          }),
+        }
+      )
 
-  return rows[0] ?? {
-    ...competition,
-    round: automaticRound,
+    return rows[0] ?? {
+      ...competition,
+      round: automaticRound,
+    }
+  } catch {
+    return {
+      ...competition,
+      round: automaticRound,
+    }
   }
 }
 
@@ -303,13 +464,77 @@ async function syncCompetitionRound(
  * ------------------------------------------------------------
  */
 
+function cleanCode(
+  code?: string | null
+) {
+  return (code || "")
+    .trim()
+    .toUpperCase()
+    .replace(
+      /[^A-Z0-9-]/g,
+      ""
+    )
+}
+
+async function setCompetitionCookie(
+  code: string
+) {
+  const jar = await cookies()
+
+  jar.set(
+    COMPETITION_COOKIE,
+    code,
+    {
+      httpOnly: true,
+      sameSite: "lax",
+      secure:
+        process.env.NODE_ENV ===
+        "production",
+      maxAge:
+        60 * 60 * 24 * 365,
+      path: "/",
+    }
+  )
+}
+
+async function setEntryCookie(
+  id: string
+) {
+  const jar = await cookies()
+
+  jar.set(
+    ENTRY_COOKIE,
+    id,
+    {
+      httpOnly: true,
+      sameSite: "lax",
+      secure:
+        process.env.NODE_ENV ===
+        "production",
+      maxAge:
+        60 * 60 * 24 * 365,
+      path: "/",
+    }
+  )
+}
+
+function newLeagueCode() {
+  return crypto
+    .randomUUID()
+    .replace(/-/g, "")
+    .slice(0, 6)
+    .toUpperCase()
+}
+
 export async function getCompetition(
   requestedCode?: string
 ): Promise<Competition> {
   const jar = await cookies()
 
   const cookieCode =
-    jar.get(COMPETITION_COOKIE)?.value
+    jar.get(
+      COMPETITION_COOKIE
+    )?.value
 
   const code = cleanCode(
     requestedCode ||
@@ -317,11 +542,12 @@ export async function getCompetition(
       DEFAULT_CODE
   )
 
-  const rows = await rest<Competition[]>(
-    `competitions?code=eq.${encodeURIComponent(
-      code
-    )}&select=*&limit=1`
-  )
+  const rows =
+    await rest<Competition[]>(
+      `competitions?code=eq.${encodeURIComponent(
+        code
+      )}&select=*&limit=1`
+    )
 
   if (!rows[0]) {
     throw new Error(
@@ -329,19 +555,18 @@ export async function getCompetition(
     )
   }
 
-  /*
-   * Automatically determine whether the
-   * competition has moved to a new round.
-   */
-  return syncCompetitionRound(rows[0])
+  return syncCompetitionRound(
+    rows[0]
+  )
 }
 
 export async function createCompetition(
   leagueName: string
 ): Promise<Competition> {
-  const name = leagueName
-    .trim()
-    .slice(0, 60)
+  const name =
+    leagueName
+      .trim()
+      .slice(0, 60)
 
   if (!name) {
     throw new Error(
@@ -354,7 +579,8 @@ export async function createCompetition(
     attempt < 5;
     attempt += 1
   ) {
-    const code = newLeagueCode()
+    const code =
+      newLeagueCode()
 
     try {
       const rows =
@@ -366,13 +592,14 @@ export async function createCompetition(
               Prefer:
                 "return=representation",
             },
-            body: JSON.stringify({
-              id: crypto.randomUUID(),
-              code,
-              name,
-              status: "active",
-              round: 1,
-            }),
+            body:
+              JSON.stringify({
+                id: crypto.randomUUID(),
+                code,
+                name,
+                status: "active",
+                round: 1,
+              }),
           }
         )
 
@@ -386,11 +613,6 @@ export async function createCompetition(
         rows[0].code
       )
 
-      /*
-       * Run the automatic round check immediately.
-       * This means a newly created league does not
-       * necessarily get stuck on Round 1.
-       */
       return syncCompetitionRound(
         rows[0]
       )
@@ -398,11 +620,15 @@ export async function createCompetition(
       if (
         error instanceof Error &&
         (
-          error.message.includes("409") ||
+          error.message.includes(
+            "409"
+          ) ||
           error.message.includes(
             "duplicate"
           ) ||
-          error.message.includes("unique")
+          error.message.includes(
+            "unique"
+          )
         )
       ) {
         continue
@@ -427,28 +653,37 @@ export async function getCurrentEntry(
   competitionCode?: string,
   ignoreExistingEntry = false
 ): Promise<Entry | null> {
-  const c = await getCompetition(
-    competitionCode
-  )
+  const c =
+    await getCompetition(
+      competitionCode
+    )
 
-  if (ignoreExistingEntry) {
+  if (
+    ignoreExistingEntry
+  ) {
     return null
   }
 
-  const jar = await cookies()
+  const jar =
+    await cookies()
 
   const id =
-    jar.get(ENTRY_COOKIE)?.value
+    jar.get(
+      ENTRY_COOKIE
+    )?.value
 
-  if (!id) return null
+  if (!id) {
+    return null
+  }
 
-  const rows = await rest<Entry[]>(
-    `entries?id=eq.${encodeURIComponent(
-      id
-    )}&competition_id=eq.${encodeURIComponent(
-      c.id
-    )}&select=*&limit=1`
-  )
+  const rows =
+    await rest<Entry[]>(
+      `entries?id=eq.${encodeURIComponent(
+        id
+      )}&competition_id=eq.${encodeURIComponent(
+        c.id
+      )}&select=*&limit=1`
+    )
 
   return rows[0] ?? null
 }
@@ -457,13 +692,15 @@ export async function joinCompetition(
   name: string,
   competitionCode?: string
 ): Promise<Entry> {
-  const c = await getCompetition(
-    competitionCode
-  )
+  const c =
+    await getCompetition(
+      competitionCode
+    )
 
-  const cleanName = name
-    .trim()
-    .slice(0, 40)
+  const cleanName =
+    name
+      .trim()
+      .slice(0, 40)
 
   if (!cleanName) {
     throw new Error(
@@ -471,18 +708,14 @@ export async function joinCompetition(
     )
   }
 
-  /*
-   * Returning player:
-   *
-   * Match the name case-insensitively.
-   */
-  const existing = await rest<Entry[]>(
-    `entries?competition_id=eq.${encodeURIComponent(
-      c.id
-    )}&name=ilike.${encodeURIComponent(
-      cleanName
-    )}&select=*&order=created_at.asc&limit=1`
-  )
+  const existing =
+    await rest<Entry[]>(
+      `entries?competition_id=eq.${encodeURIComponent(
+        c.id
+      )}&name=ilike.${encodeURIComponent(
+        cleanName
+      )}&select=*&order=created_at.asc&limit=1`
+    )
 
   if (existing[0]) {
     await setCompetitionCookie(
@@ -496,25 +729,29 @@ export async function joinCompetition(
     return existing[0]
   }
 
-  const id = crypto.randomUUID()
+  const id =
+    crypto.randomUUID()
 
   try {
-    const rows = await rest<Entry[]>(
-      "entries?select=*",
-      {
-        method: "POST",
-        headers: {
-          Prefer:
-            "return=representation",
-        },
-        body: JSON.stringify({
-          id,
-          competition_id: c.id,
-          name: cleanName,
-          alive: true,
-        }),
-      }
-    )
+    const rows =
+      await rest<Entry[]>(
+        "entries?select=*",
+        {
+          method: "POST",
+          headers: {
+            Prefer:
+              "return=representation",
+          },
+          body:
+            JSON.stringify({
+              id,
+              competition_id:
+                c.id,
+              name: cleanName,
+              alive: true,
+            }),
+        }
+      )
 
     if (!rows[0]) {
       throw new Error(
@@ -526,7 +763,9 @@ export async function joinCompetition(
       c.code
     )
 
-    await setEntryCookie(id)
+    await setEntryCookie(
+      id
+    )
 
     return rows[0]
   } catch (error) {
@@ -582,21 +821,28 @@ export async function getRoundPicks(
   round: number,
   competitionCode?: string
 ): Promise<Pick[]> {
-  const c = await getCompetition(
-    competitionCode
-  )
+  const c =
+    await getCompetition(
+      competitionCode
+    )
 
-  const entries = await rest<Entry[]>(
-    `entries?competition_id=eq.${encodeURIComponent(
-      c.id
-    )}&select=id`
-  )
+  const entries =
+    await rest<Entry[]>(
+      `entries?competition_id=eq.${encodeURIComponent(
+        c.id
+      )}&select=id`
+    )
 
-  if (!entries.length) return []
+  if (!entries.length) {
+    return []
+  }
 
-  const entryIds = entries
-    .map((entry) => entry.id)
-    .join(",")
+  const entryIds =
+    entries
+      .map(
+        (entry) => entry.id
+      )
+      .join(",")
 
   return rest<Pick[]>(
     `picks?round=eq.${round}&entry_id=in.(${entryIds})&select=*`
@@ -605,45 +851,44 @@ export async function getRoundPicks(
 
 /*
  * ------------------------------------------------------------
- * TEAM / FIXTURE HELPERS
+ * FIXTURES
  * ------------------------------------------------------------
+ *
+ * IMPORTANT:
+ *
+ * Fixtures now come directly from
+ * football-data.org.
+ *
+ * The old Supabase fixture table is
+ * no longer used for the schedule.
  */
-
-function canonicalTeamName(
-  name: string
-): string {
-  const cleaned = name
-    .replace(/\./g, "")
-    .replace(/\bFC\b/gi, "")
-    .replace(/\bAFC\b/gi, "")
-    .replace(/\s+/g, " ")
-    .trim()
-
-  const aliases: Record<
-    string,
-    string
-  > = {
-    "Brighton and Hove Albion":
-      "Brighton & Hove Albion",
-  }
-
-  return aliases[cleaned] ?? cleaned
-}
 
 export async function getFixtures(
   round: number
 ): Promise<Fixture[]> {
-  const rows = await rest<Fixture[]>(
-    `fixtures?round=eq.${round}&select=*&order=kickoff.asc`
-  )
+  const matches =
+    await getLivePremierLeagueMatches()
 
-  return rows.map((f) => ({
-    ...f,
-    home_team:
-      canonicalTeamName(f.home_team),
-    away_team:
-      canonicalTeamName(f.away_team),
-  }))
+  return matches
+    .filter(
+      (match) =>
+        match.matchday ===
+        round
+    )
+    .map(convertMatch)
+    .filter(
+      (fixture): fixture is Fixture =>
+        fixture !== null
+    )
+    .sort(
+      (a, b) =>
+        new Date(
+          a.kickoff
+        ).getTime() -
+        new Date(
+          b.kickoff
+        ).getTime()
+    )
 }
 
 /*
@@ -663,29 +908,29 @@ export async function makePick(
     )
   }
 
-  /*
-   * IMPORTANT:
-   *
-   * getCompetition() automatically syncs
-   * the current round before we make the pick.
-   */
-  const c = await getCompetition(
-    competitionCode
-  )
+  const c =
+    await getCompetition(
+      competitionCode
+    )
 
-  if (c.status !== "active") {
+  if (
+    c.status !== "active"
+  ) {
     throw new Error(
       "The competition has finished."
     )
   }
 
-  const previous = await rest<Pick[]>(
-    `picks?entry_id=${encodeURIComponent(
-      entry.id
-    )}&team=${encodeURIComponent(
-      team.name
-    )}&select=id&limit=1`
-  )
+  const previous =
+    await rest<Pick[]>(
+      `picks?entry_id=${encodeURIComponent(
+        entry.id
+      )}&team=eq.${encodeURIComponent(
+        canonicalTeamName(
+          team.name
+        )
+      )}&select=id&limit=1`
+    )
 
   if (previous.length) {
     throw new Error(
@@ -693,11 +938,12 @@ export async function makePick(
     )
   }
 
-  const existing = await rest<Pick[]>(
-    `picks?entry_id=${encodeURIComponent(
-      entry.id
-    )}&round=eq.${c.round}&select=id&limit=1`
-  )
+  const existing =
+    await rest<Pick[]>(
+      `picks?entry_id=${encodeURIComponent(
+        entry.id
+      )}&round=eq.${c.round}&select=id&limit=1`
+    )
 
   if (existing.length) {
     throw new Error(
@@ -706,42 +952,40 @@ export async function makePick(
   }
 
   const fixtures =
-    await getFixtures(c.round)
+    await getFixtures(
+      c.round
+    )
 
-  const fixture = fixtures.find(
-    (f) =>
-      f.home_team ===
-        canonicalTeamName(
-          team.name
-        ) ||
-      f.away_team ===
-        canonicalTeamName(
-          team.name
-        )
-  )
+  const selectedTeam =
+    canonicalTeamName(
+      team.name
+    )
+
+  const fixture =
+    fixtures.find(
+      (f) =>
+        f.home_team ===
+          selectedTeam ||
+        f.away_team ===
+          selectedTeam
+    )
 
   if (!fixture) {
     throw new Error(
-      "That team does not have a fixture in the current round yet. Try again shortly."
+      "That team does not have a fixture in the current round."
     )
   }
 
-  const fixtureStatus =
-    fixture.status
-      .trim()
-      .toUpperCase()
+  const status =
+    fixtureStatus(
+      fixture.status
+    )
 
-  /*
-   * Picks are locked once:
-   *
-   * - kick-off has passed
-   * - match is live
-   * - match is finished
-   */
   if (
     new Date(
       fixture.kickoff
-    ).getTime() <= Date.now() ||
+    ).getTime() <=
+      Date.now() ||
     [
       "FINISHED",
       "IN_PLAY",
@@ -751,30 +995,48 @@ export async function makePick(
       "1H",
       "2H",
       "EXTRA_TIME",
-    ].includes(fixtureStatus)
+    ].includes(status)
   ) {
     throw new Error(
       "That fixture has already kicked off, so picks are locked."
     )
   }
 
+  /*
+   * We deliberately do not write the API's
+   * numeric fixture ID into fixture_id here.
+   *
+   * Your existing Supabase fixture_id column
+   * may be UUID-based. The team + round already
+   * uniquely identifies the pick for our game.
+   */
+
   await rest("picks", {
     method: "POST",
     headers: {
-      Prefer: "return=minimal",
+      Prefer:
+        "return=minimal",
     },
-    body: JSON.stringify({
-      id: crypto.randomUUID(),
-      entry_id: entry.id,
-      round: c.round,
-      team: canonicalTeamName(
-        team.name
-      ),
-      fixture_id: fixture.id,
-      locked_at:
-        new Date().toISOString(),
-      result: null,
-    }),
+    body:
+      JSON.stringify({
+        id:
+          crypto.randomUUID(),
+
+        entry_id:
+          entry.id,
+
+        round:
+          c.round,
+
+        team:
+          selectedTeam,
+
+        locked_at:
+          new Date().toISOString(),
+
+        result:
+          null,
+      }),
   })
 }
 
@@ -787,37 +1049,48 @@ export async function makePick(
 export async function getLeaderboard(
   competitionCode?: string
 ) {
-  const c = await getCompetition(
-    competitionCode
+  const c =
+    await getCompetition(
+      competitionCode
+    )
+
+  const entries =
+    await rest<Entry[]>(
+      `entries?competition_id=eq.${encodeURIComponent(
+        c.id
+      )}&select=*&order=created_at.asc`
+    )
+
+  const picks =
+    await rest<Pick[]>(
+      "picks?select=*"
+    )
+
+  return entries.map(
+    (e) => ({
+      ...e,
+
+      wins:
+        picks.filter(
+          (p) =>
+            p.entry_id ===
+              e.id &&
+            p.result ===
+              "win"
+        ).length,
+
+      picks:
+        picks
+          .filter(
+            (p) =>
+              p.entry_id ===
+              e.id
+          )
+          .sort(
+            (a, b) =>
+              a.round -
+              b.round
+          ),
+    })
   )
-
-  const entries = await rest<Entry[]>(
-    `entries?competition_id=eq.${encodeURIComponent(
-      c.id
-    )}&select=*&order=created_at.asc`
-  )
-
-  const picks = await rest<Pick[]>(
-    "picks?select=*"
-  )
-
-  return entries.map((e) => ({
-    ...e,
-
-    wins: picks.filter(
-      (p) =>
-        p.entry_id === e.id &&
-        p.result === "win"
-    ).length,
-
-    picks: picks
-      .filter(
-        (p) =>
-          p.entry_id === e.id
-      )
-      .sort(
-        (a, b) =>
-          a.round - b.round
-      ),
-  }))
 }
