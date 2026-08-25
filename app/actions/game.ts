@@ -13,6 +13,7 @@ export async function joinGameAction(
   competitionCode?: string
 ) {
   const name = displayName.trim().slice(0, 40)
+  const code = competitionCode?.trim().toUpperCase() || undefined
 
   if (!name) {
     return {
@@ -21,7 +22,18 @@ export async function joinGameAction(
   }
 
   try {
-    const existing = await getCurrentEntry(competitionCode)
+    /*
+     * If a league code is supplied, this is a shared
+     * mini-league join link.
+     *
+     * Do NOT reuse an existing browser entry from
+     * another league. The person using the link must
+     * be allowed to join this league as a new manager.
+     */
+    const existing = await getCurrentEntry(
+      code,
+      Boolean(code)
+    )
 
     if (existing) {
       return {
@@ -30,7 +42,7 @@ export async function joinGameAction(
       }
     }
 
-    await joinCompetition(name, competitionCode)
+    await joinCompetition(name, code)
 
     revalidatePath("/")
 
@@ -51,8 +63,11 @@ export async function createLeagueAction(
   leagueName: string,
   managerName: string
 ) {
-  const cleanLeagueName = leagueName.trim().slice(0, 60)
-  const cleanManagerName = managerName.trim().slice(0, 40)
+  const cleanLeagueName =
+    leagueName.trim().slice(0, 60)
+
+  const cleanManagerName =
+    managerName.trim().slice(0, 40)
 
   if (!cleanLeagueName) {
     return {
@@ -67,11 +82,16 @@ export async function createLeagueAction(
   }
 
   try {
-    // Create the new league.
+    /*
+     * Create the new private league.
+     */
     const competition =
       await createCompetition(cleanLeagueName)
 
-    // Automatically add the creator to the new league.
+    /*
+     * Automatically add the creator to the
+     * newly created league.
+     */
     await joinCompetition(
       cleanManagerName,
       competition.code
