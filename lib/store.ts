@@ -15,6 +15,30 @@ const ENTRY_COOKIE = "lms_entry_id"
 const COMPETITION_COOKIE = "lms_competition_code"
 const DEFAULT_CODE = "LMS-PL"
 
+/*
+ * ------------------------------------------------------------
+ * API CACHE
+ * ------------------------------------------------------------
+ *
+ * football-data.org has request limits.
+ *
+ * We therefore keep a short-lived in-memory cache so that
+ * several functions during the same page request do not
+ * repeatedly call the Football Data API.
+ *
+ * We also keep the last successful response so a temporary
+ * 429 does not immediately break the game.
+ */
+
+let footballMatchesCache:
+  | {
+      matches: FootballDataMatch[]
+      expiresAt: number
+    }
+  | null = null
+
+const FOOTBALL_CACHE_MS = 30_000
+
 function authHeaders() {
   return {
     apikey: SUPABASE_KEY,
@@ -97,7 +121,7 @@ export type Fixture = {
 
 /*
  * ------------------------------------------------------------
- * FOOTBALL DATA API
+ * FOOTBALL DATA API TYPES
  * ------------------------------------------------------------
  */
 
@@ -140,37 +164,81 @@ function footballDataHeaders() {
 }
 
 /*
- * IMPORTANT:
- *
- * Do NOT hard-code a Premier League season here.
- *
- * football-data.org automatically uses the
- * currently active season when no season filter
- * is supplied.
+ * ------------------------------------------------------------
+ * FOOTBALL DATA API
+ * ------------------------------------------------------------
  */
 
 async function getLivePremierLeagueMatches(): Promise<
   FootballDataMatch[]
 > {
-  const res = await fetch(
-    "https://api.football-data.org/v4/competitions/PL/matches",
-    {
-      headers:
-        footballDataHeaders(),
-      cache: "no-store",
-    }
-  )
+  const now = Date.now()
 
-  if (!res.ok) {
-    throw new Error(
-      `Football data API error ${res.status}: ${await res.text()}`
-    )
+  /*
+   * Return cached data if still fresh.
+   */
+  if (
+    footballMatchesCache &&
+    footballMatchesCache.expiresAt > now
+  ) {
+    return footballMatchesCache.matches
   }
 
-  const data =
-    (await res.json()) as FootballDataResponse
+  try {
+    const res = await fetch(
+      "https://api.football-data.org/v4/competitions/PL/matches",
+      {
+        headers:
+          footballDataHeaders(),
+        cache: "no-store",
+      }
+    )
 
-  return data.matches || []
+    /*
+     * If rate limited, use the previous successful
+     * response where possible.
+     */
+    if (res.status === 429) {
+      if (footballMatchesCache) {
+        return footballMatchesCache.matches
+      }
+
+      throw new Error(
+        `Football data API error 429: ${await res.text()}`
+      )
+    }
+
+    if (!res.ok) {
+      throw new Error(
+        `Football data API error ${res.status}: ${await res.text()}`
+      )
+    }
+
+    const data =
+      (await res.json()) as FootballDataResponse
+
+    const matches =
+      data.matches || []
+
+    footballMatchesCache = {
+      matches,
+      expiresAt:
+        Date.now() +
+        FOOTBALL_CACHE_MS,
+    }
+
+    return matches
+  } catch (error) {
+    /*
+     * If the API temporarily fails, use the last
+     * successful response rather than breaking the game.
+     */
+    if (footballMatchesCache) {
+      return footballMatchesCache.matches
+    }
+
+    throw error
+  }
 }
 
 /*
@@ -205,16 +273,16 @@ function canonicalTeamName(
     "Manchester United":
       "Manchester United",
 
-    "Liverpool":
+    Liverpool:
       "Liverpool",
 
-    "Chelsea":
+    Chelsea:
       "Chelsea",
 
-    "Arsenal":
+    Arsenal:
       "Arsenal",
 
-    "Everton":
+    Everton:
       "Everton",
 
     "Tottenham Hotspur":
@@ -232,13 +300,13 @@ function canonicalTeamName(
     "Crystal Palace":
       "Crystal Palace",
 
-    "Fulham":
+    Fulham:
       "Fulham",
 
-    "Brentford":
+    Brentford:
       "Brentford",
 
-    "Bournemouth":
+    Bournemouth:
       "Bournemouth",
 
     "Leeds United":
@@ -250,10 +318,10 @@ function canonicalTeamName(
     "Wolverhampton Wanderers":
       "Wolverhampton Wanderers",
 
-    "Burnley":
+    Burnley:
       "Burnley",
 
-    "Sunderland":
+    Sunderland:
       "Sunderland",
   }
 
@@ -301,13 +369,15 @@ function convertMatch(
       null,
 
     status:
-      fixtureStatus(match.status),
+      fixtureStatus(
+        match.status
+      ),
   }
 }
 
 /*
  * ------------------------------------------------------------
- * FIXTURE STATUS HELPERS
+ * FIXTURE STATUS
  * ------------------------------------------------------------
  */
 
@@ -353,7 +423,7 @@ function isOpenFixture(
   if (
     isLiveFixtureStatus(status)
   ) {
-    return true
+    return false
   }
 
   if (
@@ -375,12 +445,10 @@ function isOpenFixture(
  * ------------------------------------------------------------
  */
 
-async function getAutomaticRound(
+function getAutomaticRoundFromMatches(
+  matches: FootballDataMatch[],
   fallbackRound: number
-): Promise<number> {
-  const matches =
-    await getLivePremierLeagueMatches()
-
+): number {
   const fixtures = matches
     .map(convertMatch)
     .filter(
@@ -395,15 +463,11 @@ async function getAutomaticRound(
   const activeRounds = fixtures
     .filter(isOpenFixture)
     .map(
-      (fixture) => fixture.round
+      (fixture) =>
+        fixture.round
     )
 
   if (!activeRounds.length) {
-    /*
-     * If everything returned by the API is finished,
-     * keep the current LMS round rather than suddenly
-     * declaring the whole competition finished.
-     */
     return fallbackRound
   }
 
@@ -414,31 +478,35 @@ async function getAutomaticRound(
 
 /*
  * ------------------------------------------------------------
- * SYNCHRONISE LMS ROUND + STATUS
+ * SYNCHRONISE COMPETITION
  * ------------------------------------------------------------
  */
 
 async function syncCompetitionRound(
   competition: Competition
 ): Promise<Competition> {
-  let automaticRound: number
   let matches: FootballDataMatch[]
 
   try {
+    /*
+     * IMPORTANT:
+     *
+     * Only ONE API request is made here.
+     *
+     * Previously this function called the API and then
+     * getAutomaticRound() called it again.
+     */
     matches =
       await getLivePremierLeagueMatches()
-
-    automaticRound =
-      await getAutomaticRound(
-        competition.round
-      )
   } catch {
-    /*
-     * If the football API is temporarily
-     * unavailable, keep the last known state.
-     */
     return competition
   }
+
+  const automaticRound =
+    getAutomaticRoundFromMatches(
+      matches,
+      competition.round
+    )
 
   const fixtures = matches
     .map(convertMatch)
@@ -448,15 +516,10 @@ async function syncCompetitionRound(
     )
 
   const hasOpenFixtures =
-    fixtures.some(isOpenFixture)
+    fixtures.some(
+      isOpenFixture
+    )
 
-  /*
-   * If there are current/upcoming Premier League
-   * fixtures, the LMS competition must be active.
-   *
-   * This also repairs leagues that were accidentally
-   * marked "finished" by an earlier version.
-   */
   const nextStatus =
     hasOpenFixtures
       ? "active"
@@ -895,15 +958,37 @@ export async function getRoundPicks(
     return []
   }
 
+  /*
+   * IMPORTANT FIX:
+   *
+   * UUIDs need to be quoted inside the PostgREST
+   * IN expression.
+   *
+   * The old version generated:
+   *
+   * entry_id=in.(f6caea94-...)
+   *
+   * which caused PGRST100.
+   *
+   * We now generate:
+   *
+   * entry_id=in.("f6caea94-...")
+   */
+
   const entryIds =
     entries
       .map(
-        (entry) => entry.id
+        (entry) =>
+          `"${entry.id}"`
       )
       .join(",")
 
   return rest<Pick[]>(
-    `picks?round=eq.${round}&entry_id=in.(${entryIds})&select=*`
+    `picks?round=eq.${encodeURIComponent(
+      String(round)
+    )}&entry_id=in.(${encodeURIComponent(
+      entryIds
+    )})&select=*`
   )
 }
 
@@ -964,14 +1049,9 @@ export async function makePick(
     )
 
   /*
-   * IMPORTANT:
-   *
-   * We no longer blindly trust the Supabase
-   * competition status here.
-   *
-   * The presence of valid current/upcoming
-   * Premier League fixtures is what determines
-   * whether a pick can be made.
+   * getFixtures() uses the cached Football Data API
+   * response, so this no longer causes another API
+   * request when called immediately after getCompetition().
    */
 
   const fixtures =
@@ -985,14 +1065,22 @@ export async function makePick(
     )
   }
 
+  const selectedTeam =
+    canonicalTeamName(
+      team.name
+    )
+
+  /*
+   * Check whether this player has used this team
+   * in ANY previous round.
+   */
+
   const previous =
     await rest<Pick[]>(
-      `picks?entry_id=${encodeURIComponent(
+      `picks?entry_id=eq.${encodeURIComponent(
         entry.id
       )}&team=eq.${encodeURIComponent(
-        canonicalTeamName(
-          team.name
-        )
+        selectedTeam
       )}&select=id&limit=1`
     )
 
@@ -1002,11 +1090,18 @@ export async function makePick(
     )
   }
 
+  /*
+   * Check whether the player already has a pick
+   * for the current round.
+   */
+
   const existing =
     await rest<Pick[]>(
-      `picks?entry_id=${encodeURIComponent(
+      `picks?entry_id=eq.${encodeURIComponent(
         entry.id
-      )}&round=eq.${c.round}&select=id&limit=1`
+      )}&round=eq.${encodeURIComponent(
+        String(c.round)
+      )}&select=id&limit=1`
     )
 
   if (existing.length) {
@@ -1014,11 +1109,6 @@ export async function makePick(
       "Your pick is already locked for this round."
     )
   }
-
-  const selectedTeam =
-    canonicalTeamName(
-      team.name
-    )
 
   const fixture =
     fixtures.find(
@@ -1061,6 +1151,12 @@ export async function makePick(
     )
   }
 
+  /*
+   * Save the fixture ID too.
+   *
+   * This makes later result processing much easier.
+   */
+
   await rest("picks", {
     method: "POST",
     headers: {
@@ -1080,6 +1176,9 @@ export async function makePick(
 
         team:
           selectedTeam,
+
+        fixture_id:
+          fixture.id,
 
         locked_at:
           new Date().toISOString(),
@@ -1111,10 +1210,22 @@ export async function getLeaderboard(
       )}&select=*&order=created_at.asc`
     )
 
-  const picks =
-    await rest<Pick[]>(
-      "picks?select=*"
+  const entryIds =
+    entries.map(
+      (entry) =>
+        `"${entry.id}"`
     )
+
+  let picks: Pick[] = []
+
+  if (entryIds.length) {
+    picks =
+      await rest<Pick[]>(
+        `picks?entry_id=in.(${encodeURIComponent(
+          entryIds.join(",")
+        )})&select=*`
+      )
+  }
 
   return entries.map(
     (e) => ({
