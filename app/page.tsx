@@ -1,3 +1,5 @@
+import Link from "next/link"
+
 import {
   getCompetition,
   getCurrentEntry,
@@ -14,6 +16,7 @@ export const revalidate = 0
 type HomeProps = {
   searchParams?: Promise<{
     league?: string | string[]
+    home?: string | string[]
   }>
 }
 
@@ -29,6 +32,20 @@ function getLeagueCode(
   }
 
   return undefined
+}
+
+function isHomePage(
+  value?: string | string[]
+) {
+  if (typeof value === "string") {
+    return value === "true"
+  }
+
+  if (Array.isArray(value) && value.length > 0) {
+    return value[0] === "true"
+  }
+
+  return false
 }
 
 async function joinAction(formData: FormData) {
@@ -51,15 +68,6 @@ async function joinAction(formData: FormData) {
     league || undefined
   )
 
-  /*
-   * IMPORTANT:
-   *
-   * The shared ?league=CODE URL deliberately
-   * ignores the existing player cookie.
-   *
-   * After joining, redirect to the normal URL
-   * so the newly-created player's cookie is used.
-   */
   const { redirect } = await import(
     "next/navigation"
   )
@@ -126,6 +134,9 @@ export default async function Home({
   const leagueCode =
     getLeagueCode(params?.league)
 
+  const homePage =
+    isHomePage(params?.home)
+
   let competition
 
   try {
@@ -136,20 +147,30 @@ export default async function Home({
   } catch {
     return (
       <main className="min-h-screen bg-[#0b1018] text-white">
+
         <header className="border-b border-white/10 bg-[#111722] px-6 py-7">
           <div className="mx-auto max-w-7xl">
-            <div className="text-sm font-bold tracking-[0.35em] text-green-400">
-              PREMIER LEAGUE
-            </div>
 
-            <h1 className="mt-1 text-3xl font-black tracking-tight">
-              LAST MAN STANDING
-            </h1>
+            <Link
+              href="/"
+              className="group block"
+            >
+              <div className="text-sm font-bold tracking-[0.35em] text-green-400">
+                PREMIER LEAGUE
+              </div>
+
+              <h1 className="mt-1 text-3xl font-black tracking-tight transition-opacity group-hover:opacity-80">
+                LAST MAN STANDING
+              </h1>
+            </Link>
+
           </div>
         </header>
 
         <div className="mx-auto max-w-xl px-6 py-16">
+
           <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-8 text-center">
+
             <h2 className="text-2xl font-bold">
               League not found
             </h2>
@@ -159,8 +180,132 @@ export default async function Home({
               Please check the league link and try
               again.
             </p>
+
           </div>
+
         </div>
+
+      </main>
+    )
+  }
+
+  /*
+   * ----------------------------------------------------------
+   * HOMEPAGE
+   * ----------------------------------------------------------
+   *
+   * When someone clicks LAST MAN STANDING from
+   * inside a league, they arrive here with:
+   *
+   * ?home=true&league=F34BD5
+   *
+   * This deliberately does NOT behave like a join link.
+   *
+   * We check the existing player cookie and give
+   * them an option to return to their league.
+   */
+
+  if (homePage) {
+    const entry =
+      await getCurrentEntry(
+        competition.code,
+        false
+      )
+
+    return (
+      <main className="min-h-screen bg-[#0b1018] text-white">
+
+        <header className="border-b border-white/10 bg-[#111722] px-6 py-7">
+          <div className="mx-auto max-w-7xl">
+
+            <Link
+              href="/"
+              className="group block"
+            >
+              <div className="text-sm font-bold tracking-[0.35em] text-green-400">
+                PREMIER LEAGUE
+              </div>
+
+              <h1 className="mt-1 text-3xl font-black tracking-tight transition-opacity group-hover:opacity-80">
+                LAST MAN STANDING
+              </h1>
+            </Link>
+
+          </div>
+        </header>
+
+        <div className="mx-auto max-w-5xl px-6 py-16">
+
+          <div className="rounded-2xl border border-white/10 bg-[#151b25] p-8 shadow-2xl">
+
+            <div className="text-sm font-bold tracking-[0.3em] text-green-400">
+              LAST MAN STANDING
+            </div>
+
+            <h2 className="mt-3 text-5xl font-black">
+              Welcome
+            </h2>
+
+            <p className="mt-5 max-w-2xl text-xl text-slate-400">
+              Pick. Win. Survive.
+            </p>
+
+            {entry ? (
+              <div className="mt-10 rounded-2xl bg-[#0e141d] p-6">
+
+                <div className="text-sm font-bold tracking-[0.25em] text-green-400">
+                  YOUR CURRENT LEAGUE
+                </div>
+
+                <div className="mt-2 text-3xl font-black">
+                  {competition.name}
+                </div>
+
+                <div className="mt-2 text-lg text-slate-400">
+                  Welcome back, {entry.name}.
+                </div>
+
+                <div className="mt-2 text-slate-400">
+                  League code:
+                  <strong className="ml-2 text-white">
+                    {competition.code}
+                  </strong>
+                </div>
+
+                <Link
+                  href="/"
+                  className="mt-6 block w-full rounded-2xl bg-green-400 px-5 py-5 text-center text-xl font-black text-[#07110b] transition hover:bg-green-300"
+                >
+                  RETURN TO LEAGUE
+                </Link>
+
+              </div>
+            ) : (
+              <div className="mt-10 rounded-2xl bg-[#0e141d] p-6">
+
+                <div className="text-2xl font-black">
+                  Ready to play?
+                </div>
+
+                <p className="mt-3 text-slate-400">
+                  Use a league invite link to join
+                  an existing competition.
+                </p>
+
+                <div className="mt-6 rounded-xl border border-white/10 bg-[#151b25] p-4 text-slate-400">
+                  League code:
+                  <strong className="ml-2 text-white">
+                    {competition.code}
+                  </strong>
+                </div>
+
+              </div>
+            )}
+
+          </div>
+
+        </div>
+
       </main>
     )
   }
@@ -196,20 +341,30 @@ export default async function Home({
   if (!entry) {
     return (
       <main className="min-h-screen bg-[#0b1018] text-white">
+
         <header className="border-b border-white/10 bg-[#111722] px-6 py-7">
           <div className="mx-auto max-w-7xl">
-            <div className="text-sm font-bold tracking-[0.35em] text-green-400">
-              PREMIER LEAGUE
-            </div>
 
-            <h1 className="mt-1 text-3xl font-black tracking-tight">
-              LAST MAN STANDING
-            </h1>
+            <Link
+              href="/"
+              className="group block"
+            >
+              <div className="text-sm font-bold tracking-[0.35em] text-green-400">
+                PREMIER LEAGUE
+              </div>
+
+              <h1 className="mt-1 text-3xl font-black tracking-tight transition-opacity group-hover:opacity-80">
+                LAST MAN STANDING
+              </h1>
+            </Link>
+
           </div>
         </header>
 
         <div className="mx-auto max-w-xl px-6 py-16">
+
           <div className="rounded-2xl border border-white/10 bg-[#151b25] p-8 shadow-2xl">
+
             <div className="text-sm font-bold tracking-[0.3em] text-green-400">
               JOIN LEAGUE
             </div>
@@ -231,6 +386,7 @@ export default async function Home({
               action={joinAction}
               className="mt-10"
             >
+
               <input
                 type="hidden"
                 name="league"
@@ -255,16 +411,23 @@ export default async function Home({
               >
                 JOIN LEAGUE
               </button>
+
             </form>
 
             <div className="mt-8 rounded-2xl bg-[#0e141d] p-5 text-lg text-slate-400">
+
               League code:
+
               <strong className="ml-2 text-white">
                 {competition.code}
               </strong>
+
             </div>
+
           </div>
+
         </div>
+
       </main>
     )
   }
@@ -281,9 +444,11 @@ export default async function Home({
     fixtures,
   ] = await Promise.all([
     getPicks(entry.id),
+
     getLeaderboard(
       competition.code
     ),
+
     getFixtures(
       competition.round
     ),
@@ -309,19 +474,28 @@ export default async function Home({
 
   return (
     <main className="min-h-screen bg-[#0b1018] text-white">
+
       <header className="border-b border-white/10 bg-[#111722] px-6 py-7">
+
         <div className="mx-auto max-w-7xl flex items-center justify-between gap-6">
-          <div>
+
+          <Link
+            href={`/?home=true&league=${competition.code}`}
+            className="group block"
+          >
+
             <div className="text-sm font-bold tracking-[0.35em] text-green-400">
               PREMIER LEAGUE
             </div>
 
-            <h1 className="mt-1 text-3xl font-black">
+            <h1 className="mt-1 text-3xl font-black transition-opacity group-hover:opacity-80">
               LAST MAN STANDING
             </h1>
-          </div>
+
+          </Link>
 
           <div className="text-right text-slate-400">
+
             <div className="text-sm">
               League
             </div>
@@ -329,21 +503,27 @@ export default async function Home({
             <div className="font-bold text-white">
               {competition.name}
             </div>
+
           </div>
+
         </div>
+
       </header>
 
       <div className="mx-auto max-w-7xl px-6 py-8">
+
         <div className="grid gap-8 lg:grid-cols-[1.7fr_1fr]">
 
           {/* GAME */}
 
           <section>
+
             <div className="rounded-2xl border border-white/10 bg-[#151b25] p-7">
 
               <div className="flex items-start justify-between gap-6">
 
                 <div>
+
                   <div className="text-sm font-bold tracking-[0.3em] text-green-400">
                     ROUND {competition.round}
                   </div>
@@ -357,9 +537,11 @@ export default async function Home({
                     A win keeps you alive.
                     Draw or loss = OUT.
                   </p>
+
                 </div>
 
                 <div className="rounded-xl bg-[#202733] px-4 py-3 text-center">
+
                   <div className="text-xs text-slate-400">
                     LEAGUE CODE
                   </div>
@@ -367,11 +549,13 @@ export default async function Home({
                   <div className="font-black">
                     {competition.code}
                   </div>
+
                 </div>
 
               </div>
 
               {currentPick ? (
+
                 <div className="mt-8 rounded-xl border border-green-400/40 bg-green-400/10 p-5">
 
                   <div className="text-sm font-bold text-green-400">
@@ -388,7 +572,9 @@ export default async function Home({
                   </div>
 
                 </div>
+
               ) : !entry.alive ? (
+
                 <div className="mt-8 rounded-xl border border-red-500/40 bg-red-500/10 p-5">
 
                   <div className="text-2xl font-black text-red-400">
@@ -396,7 +582,9 @@ export default async function Home({
                   </div>
 
                 </div>
+
               ) : (
+
                 <div className="mt-8 grid gap-4 sm:grid-cols-2">
 
                   {fixtures.map(
@@ -422,6 +610,7 @@ export default async function Home({
                             )
 
                           return (
+
                             <form
                               key={`${fixture.id}-${teamName}`}
                               action={
@@ -498,6 +687,7 @@ export default async function Home({
                               </button>
 
                             </form>
+
                           )
                         }
                       )
@@ -505,17 +695,23 @@ export default async function Home({
                   )}
 
                 </div>
+
               )}
 
               {!fixtures.length && (
+
                 <div className="mt-8 rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-5 text-yellow-200">
+
                   No fixtures are currently
                   available for Round{" "}
                   {competition.round}.
+
                 </div>
+
               )}
 
             </div>
+
           </section>
 
           {/* SIDEBAR */}
@@ -531,6 +727,7 @@ export default async function Home({
                 </h2>
 
                 <span className="rounded-full bg-[#202733] px-3 py-1 text-sm">
+
                   {
                     leaderboard.filter(
                       (player) =>
@@ -538,6 +735,7 @@ export default async function Home({
                     ).length
                   }{" "}
                   alive
+
                 </span>
 
               </div>
@@ -633,7 +831,9 @@ export default async function Home({
           </aside>
 
         </div>
+
       </div>
+
     </main>
   )
 }
