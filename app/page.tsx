@@ -15,6 +15,7 @@ export const dynamic = "force-dynamic"
 type HomeProps = {
   searchParams?: Promise<{
     league?: string | string[]
+    join?: string | string[]
   }>
 }
 
@@ -26,6 +27,7 @@ export default async function Home({
     : {}
 
   const rawLeague = params?.league
+  const rawJoin = params?.join
 
   const leagueCode =
     typeof rawLeague === "string"
@@ -33,6 +35,11 @@ export default async function Home({
       : Array.isArray(rawLeague)
         ? rawLeague[0]?.trim().toUpperCase()
         : undefined
+
+  const joinMode =
+    rawJoin === "1" ||
+    (Array.isArray(rawJoin) &&
+      rawJoin[0] === "1")
 
   let competition
 
@@ -61,18 +68,34 @@ export default async function Home({
   }
 
   /*
-   * IMPORTANT:
+   * A shared invite link uses:
    *
-   * If a league code is present in the URL,
-   * this is a shared league link.
+   * ?league=CODE&join=1
    *
-   * We deliberately ignore any existing
-   * browser entry cookie so a different
-   * person can join the league.
+   * This deliberately shows the join screen.
+   */
+  if (leagueCode && joinMode) {
+    return (
+      <>
+        <SiteHeader />
+
+        <JoinGame
+          gameName={competition.name}
+          round={competition.round}
+          defaultName=""
+          competitionCode={competition.code}
+        />
+      </>
+    )
+  }
+
+  /*
+   * Normal page load:
+   * use the existing browser entry if one exists
+   * for this league.
    */
   const entry = await getCurrentEntry(
-    competition.code,
-    Boolean(leagueCode)
+    competition.code
   )
 
   if (!entry) {
