@@ -34,16 +34,19 @@ function getLeagueCode(
   value?: string | string[]
 ) {
   if (typeof value === "string") {
-    return value.trim().toUpperCase()
+    const clean = value.trim().toUpperCase()
+    return clean || undefined
   }
 
   if (
     Array.isArray(value) &&
     value.length > 0
   ) {
-    return value[0]
+    const clean = value[0]
       ?.trim()
       .toUpperCase()
+
+    return clean || undefined
   }
 
   return undefined
@@ -137,7 +140,7 @@ async function joinAction(
     )
 
   redirect(
-    `/?home=true&league=${encodeURIComponent(
+    `/?league=${encodeURIComponent(
       league
     )}`
   )
@@ -194,7 +197,7 @@ async function createLeagueAction(
     )
 
   redirect(
-    `/?home=true&league=${encodeURIComponent(
+    `/?league=${encodeURIComponent(
       competition.code
     )}`
   )
@@ -334,7 +337,7 @@ export default async function Home({
       params?.league
     )
 
-  const homePage =
+  const explicitHomePage =
     isHomePage(
       params?.home
     )
@@ -345,68 +348,33 @@ export default async function Home({
     )
 
   /*
-   * ----------------------------------------------------------
-   * GET COMPETITION
-   * ----------------------------------------------------------
+   * IMPORTANT
+   *
+   * The root URL "/" must ALWAYS be the homepage.
+   *
+   * We must NOT call getCompetition(undefined)
+   * because the store may return the default/current
+   * competition, which would bypass the homepage.
+   *
+   * A league page is only loaded when a league code
+   * is explicitly present in the URL.
+   *
+   * Examples:
+   *
+   * /
+   * /?home=true
+   *     -> HOMEPAGE
+   *
+   * /?league=LMS-PL
+   *     -> LEAGUE
+   *
+   * /?league=LMS-PL&round=1
+   *     -> PREVIOUS ROUND
    */
 
-  let competition
-
-  try {
-    competition =
-      await getCompetition(
-        leagueCode
-      )
-  } catch {
-    if (!homePage) {
-      return (
-        <main className="min-h-screen bg-[#0b1018] text-white">
-
-          <header className="border-b border-white/10 bg-[#111722] px-6 py-7">
-            <div className="mx-auto max-w-7xl">
-
-              <Link
-                href="/?home=true"
-                className="group block"
-              >
-
-                <div className="text-sm font-bold tracking-[0.35em] text-green-400">
-                  PREMIER LEAGUE
-                </div>
-
-                <h1 className="mt-1 text-3xl font-black tracking-tight">
-                  LAST MAN STANDING
-                </h1>
-
-              </Link>
-
-            </div>
-          </header>
-
-          <div className="mx-auto max-w-xl px-6 py-16">
-
-            <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-8 text-center">
-
-              <h2 className="text-2xl font-bold">
-                League not found
-              </h2>
-
-              <p className="mt-3 text-slate-300">
-                The league code could not be
-                found. Please check the league
-                link and try again.
-              </p>
-
-            </div>
-
-          </div>
-
-        </main>
-      )
-    }
-
-    competition = null
-  }
+  const homePage =
+    explicitHomePage ||
+    !leagueCode
 
   /*
    * ----------------------------------------------------------
@@ -426,7 +394,7 @@ export default async function Home({
           <div className="mx-auto max-w-7xl">
 
             <Link
-              href="/?home=true"
+              href="/"
               className="group block"
             >
 
@@ -719,13 +687,82 @@ export default async function Home({
 
   /*
    * ----------------------------------------------------------
+   * GET EXPLICITLY REQUESTED COMPETITION
+   * ----------------------------------------------------------
+   */
+
+  let competition
+
+  try {
+    competition =
+      await getCompetition(
+        leagueCode
+      )
+  } catch {
+    return (
+      <main className="min-h-screen bg-[#0b1018] text-white">
+
+        <header className="border-b border-white/10 bg-[#111722] px-6 py-7">
+
+          <div className="mx-auto max-w-7xl">
+
+            <Link
+              href="/"
+              className="group block"
+            >
+
+              <div className="text-sm font-bold tracking-[0.35em] text-green-400">
+                PREMIER LEAGUE
+              </div>
+
+              <h1 className="mt-1 text-3xl font-black tracking-tight">
+                LAST MAN STANDING
+              </h1>
+
+            </Link>
+
+          </div>
+
+        </header>
+
+        <div className="mx-auto max-w-xl px-6 py-16">
+
+          <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-8 text-center">
+
+            <h2 className="text-2xl font-bold">
+              League not found
+            </h2>
+
+            <p className="mt-3 text-slate-300">
+              The league code could not be
+              found. Please check the league
+              link and try again.
+            </p>
+
+            <Link
+              href="/"
+              className="mt-6 inline-block rounded-xl bg-green-400 px-6 py-3 font-black text-[#07110b]"
+            >
+              BACK TO HOME
+            </Link>
+
+          </div>
+
+        </div>
+
+      </main>
+    )
+  }
+
+  /*
+   * ----------------------------------------------------------
    * SHARED LEAGUE / JOIN SCREEN
    * ----------------------------------------------------------
    */
 
   const entry =
     await getCurrentEntry(
-      competition!.code,
+      competition.code,
       false
     )
 
@@ -738,7 +775,7 @@ export default async function Home({
           <div className="mx-auto max-w-7xl">
 
             <Link
-              href="/?home=true"
+              href="/"
               className="group block"
             >
 
@@ -766,14 +803,14 @@ export default async function Home({
 
             <h2 className="mt-2 text-5xl font-black">
               {
-                competition!.name
+                competition.name
               }
             </h2>
 
             <p className="mt-5 text-2xl text-slate-400">
               Round{" "}
               {
-                competition!.round
+                competition.round
               }
             </p>
 
@@ -791,7 +828,7 @@ export default async function Home({
                 type="hidden"
                 name="league"
                 value={
-                  competition!.code
+                  competition.code
                 }
               />
 
@@ -822,7 +859,7 @@ export default async function Home({
 
               <strong className="ml-2 text-white">
                 {
-                  competition!.code
+                  competition.code
                 }
               </strong>
 
@@ -840,17 +877,10 @@ export default async function Home({
    * ----------------------------------------------------------
    * DETERMINE DISPLAY ROUND
    * ----------------------------------------------------------
-   *
-   * Users may view:
-   *
-   * - the current round
-   * - any completed previous round
-   *
-   * They may NEVER view a future round.
    */
 
   const currentRound =
-    competition!.round
+    competition.round
 
   const displayRound =
     requestedRound &&
@@ -860,9 +890,6 @@ export default async function Home({
 
   const viewingCurrentRound =
     displayRound === currentRound
-
-  const viewingPreviousRound =
-    displayRound < currentRound
 
   /*
    * ----------------------------------------------------------
@@ -879,7 +906,7 @@ export default async function Home({
     getPicks(entry.id),
 
     getLeaderboard(
-      competition!.code
+      competition.code
     ),
 
     viewingCurrentRound
@@ -890,7 +917,7 @@ export default async function Home({
 
     getRoundPicks(
       displayRound,
-      competition!.code
+      competition.code
     ),
   ])
 
@@ -944,14 +971,12 @@ export default async function Home({
   return (
     <main className="min-h-screen bg-[#0b1018] text-white">
 
-      {/* HEADER */}
-
       <header className="border-b border-white/10 bg-[#111722] px-6 py-7">
 
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-6">
 
           <Link
-            href={`/?home=true&league=${competition!.code}`}
+            href="/"
             className="group block"
           >
 
@@ -973,7 +998,7 @@ export default async function Home({
 
             <div className="font-bold text-white">
               {
-                competition!.name
+                competition.name
               }
             </div>
 
@@ -1009,7 +1034,7 @@ export default async function Home({
 
               <Link
                 href={`/?league=${encodeURIComponent(
-                  competition!.code
+                  competition.code
                 )}&round=${displayRound - 1}`}
                 className="rounded-xl border border-white/10 bg-[#202733] px-4 py-3 font-bold hover:border-green-400"
               >
@@ -1030,7 +1055,7 @@ export default async function Home({
 
               <Link
                 href={`/?league=${encodeURIComponent(
-                  competition!.code
+                  competition.code
                 )}&round=${displayRound + 1}`}
                 className="rounded-xl border border-white/10 bg-[#202733] px-4 py-3 font-bold hover:border-green-400"
               >
@@ -1057,8 +1082,6 @@ export default async function Home({
           <section>
 
             <div className="rounded-2xl border border-white/10 bg-[#151b25] p-7">
-
-              {/* CURRENT ROUND */}
 
               {viewingCurrentRound ? (
 
@@ -1100,7 +1123,7 @@ export default async function Home({
 
                       <div className="font-black">
                         {
-                          competition!.code
+                          competition.code
                         }
                       </div>
 
@@ -1197,7 +1220,7 @@ export default async function Home({
                                     type="hidden"
                                     name="league"
                                     value={
-                                      competition!.code
+                                      competition.code
                                     }
                                   />
 
@@ -1272,10 +1295,6 @@ export default async function Home({
                 </>
 
               ) : (
-
-                /* ------------------------------------------------
-                   PREVIOUS ROUND
-                ------------------------------------------------ */
 
                 <>
 
@@ -1352,11 +1371,6 @@ export default async function Home({
 
                           }
 
-                        } else {
-
-                          statusLabel =
-                            "NO PICK"
-
                         }
 
                         return (
@@ -1431,20 +1445,13 @@ export default async function Home({
 
                                   )}
 
-                                  {pick.result ===
-                                    "loss" && (
+                                  {(pick.result ===
+                                    "loss" ||
+                                    pick.result ===
+                                      "draw") && (
 
                                     <span className="rounded-full bg-red-500/10 px-3 py-1 text-red-400">
-                                      LOSS
-                                    </span>
-
-                                  )}
-
-                                  {pick.result ===
-                                    "draw" && (
-
-                                    <span className="rounded-full bg-red-500/10 px-3 py-1 text-red-400">
-                                      DRAW
+                                      {pick.result.toUpperCase()}
                                     </span>
 
                                   )}
@@ -1474,8 +1481,6 @@ export default async function Home({
           {/* SIDEBAR */}
 
           <aside>
-
-            {/* LEAGUE STATUS */}
 
             <div className="rounded-2xl border border-white/10 bg-[#151b25] p-6">
 
@@ -1603,12 +1608,12 @@ export default async function Home({
                       <Link
                         key={round}
                         href={`/?league=${encodeURIComponent(
-                          competition!.code
+                          competition.code
                         )}&round=${round}`}
                         className={`block rounded-xl px-4 py-3 font-bold transition ${
                           active
                             ? "bg-green-400 text-[#07110b]"
-                            : "bg-[#202733] text-slate-300 hover:border-green-400 hover:text-white"
+                            : "bg-[#202733] text-slate-300 hover:text-white"
                         }`}
                       >
 
