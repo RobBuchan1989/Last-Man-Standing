@@ -13,21 +13,27 @@ const FOOTBALL_DATA_API_TOKEN =
 
 const ENTRY_COOKIE = "lms_entry_id"
 const COMPETITION_COOKIE = "lms_competition_code"
+
+/*
+ * Stores all entry IDs this browser has joined.
+ *
+ * This allows one person to:
+ *
+ * - join League A
+ * - join League B
+ * - join League C
+ *
+ * without losing access to the previous leagues.
+ */
+const PLAYER_ENTRIES_COOKIE =
+  "lms_player_entries"
+
 const DEFAULT_CODE = "LMS-PL"
 
 /*
  * ------------------------------------------------------------
  * API CACHE
  * ------------------------------------------------------------
- *
- * football-data.org has request limits.
- *
- * We therefore keep a short-lived in-memory cache so that
- * several functions during the same page request do not
- * repeatedly call the Football Data API.
- *
- * We also keep the last successful response so a temporary
- * 429 does not immediately break the game.
  */
 
 let footballMatchesCache:
@@ -174,9 +180,6 @@ async function getLivePremierLeagueMatches(): Promise<
 > {
   const now = Date.now()
 
-  /*
-   * Return cached data if still fresh.
-   */
   if (
     footballMatchesCache &&
     footballMatchesCache.expiresAt > now
@@ -194,10 +197,6 @@ async function getLivePremierLeagueMatches(): Promise<
       }
     )
 
-    /*
-     * If rate limited, use the previous successful
-     * response where possible.
-     */
     if (res.status === 429) {
       if (footballMatchesCache) {
         return footballMatchesCache.matches
@@ -229,10 +228,6 @@ async function getLivePremierLeagueMatches(): Promise<
 
     return matches
   } catch (error) {
-    /*
-     * If the API temporarily fails, use the last
-     * successful response rather than breaking the game.
-     */
     if (footballMatchesCache) {
       return footballMatchesCache.matches
     }
@@ -488,14 +483,6 @@ async function syncCompetitionRound(
   let matches: FootballDataMatch[]
 
   try {
-    /*
-     * IMPORTANT:
-     *
-     * Only ONE API request is made here.
-     *
-     * Previously this function called the API and then
-     * getAutomaticRound() called it again.
-     */
     matches =
       await getLivePremierLeagueMatches()
   } catch {
@@ -635,6 +622,104 @@ async function setEntryCookie(
   )
 }
 
+/*
+ * ------------------------------------------------------------
+ * MULTI-LEAGUE PLAYER MEMORY
+ * ------------------------------------------------------------
+ *
+ * This cookie contains the entry IDs for leagues
+ * joined by this browser.
+ *
+ * Example:
+ *
+ * [
+ *   "entry-id-1",
+ *   "entry-id-2",
+ *   "entry-id-3"
+ * ]
+ *
+ * The existing lms_entry_id cookie still represents
+ * the CURRENT league.
+ */
+
+async function getStoredEntryIds(): Promise<string[]> {
+  const jar = await cookies()
+
+  const raw =
+    jar.get(
+      PLAYER_ENTRIES_COOKIE
+    )?.value
+
+  if (!raw) {
+    return []
+  }
+
+  try {
+    const parsed =
+      JSON.parse(raw)
+
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+
+    return parsed.filter(
+      (id): id is string =>
+        typeof id ===
+        "string"
+    )
+  } catch {
+    return []
+  }
+}
+
+async function rememberEntry(
+  entryId: string
+) {
+  const existing =
+    await getStoredEntryIds()
+
+  const ids = [
+    entryId,
+    ...existing.filter(
+      (id) =>
+        id !== entryId
+    ),
+  ]
+
+  /*
+   * Keep the cookie reasonably small.
+   *
+   * 50 leagues is more than enough for normal use.
+   */
+  const limited =
+    ids.slice(0, 50)
+
+  const jar = await cookies()
+
+  jar.set(
+    PLAYER_ENTRIES_COOKIE,
+    JSON.stringify(
+      limited
+    ),
+    {
+      httpOnly: true,
+      sameSite: "lax",
+      secure:
+        process.env.NODE_ENV ===
+        "production",
+      maxAge:
+        60 * 60 * 24 * 365,
+      path: "/",
+    }
+  )
+}
+
+/*
+ * ------------------------------------------------------------
+ * CREATE LEAGUE CODE
+ * ------------------------------------------------------------
+ */
+
 function newLeagueCode() {
   return crypto
     .randomUUID()
@@ -642,6 +727,12 @@ function newLeagueCode() {
     .slice(0, 6)
     .toUpperCase()
 }
+
+/*
+ * ------------------------------------------------------------
+ * GET COMPETITION
+ * ------------------------------------------------------------
+ */
 
 export async function getCompetition(
   requestedCode?: string
@@ -676,6 +767,12 @@ export async function getCompetition(
     rows[0]
   )
 }
+
+/*
+ * ------------------------------------------------------------
+ * CREATE COMPETITION
+ * ------------------------------------------------------------
+ */
 
 export async function createCompetition(
   leagueName: string
@@ -713,10 +810,14 @@ export async function createCompetition(
               JSON.stringify({
                 id:
                   crypto.randomUUID(),
+
                 code,
+
                 name,
+
                 status:
                   "active",
+
                 round: 1,
               }),
           }
@@ -764,6 +865,140 @@ export async function createCompetition(
 
 /*
  * ------------------------------------------------------------
+ * GET PLAYER'S JOINED LEAGUES
+ * ------------------------------------------------------------
+ *
+ * Used by the homepage.
+ *
+ * Returns every league that this browser has
+ * previously joined.
+ */
+
+export type PlayerLeague = {
+  competition: Competition
+  entry: Entry
+}
+
+export async function getPlayerLeagues(): Promise<
+  PlayerLeague[]
+> {
+  const entryIds =
+    await getStoredEntryIds()
+
+  /*
+   * Also include the current entry cookie.
+   *
+   * This makes the function compatible with players
+   * who joined before the multi-league cookie existed.
+   */
+  const jar = await cookies()
+
+  const currentEntryId =
+    jar.get(
+      ENTRY_COOKIE
+    )?.value
+
+  const allIds = [
+    ...(currentEntryId
+      ? [currentEntryId]
+      : []),
+    ...entryIds,
+  ].filter(
+    (id, index, array) =>
+      array.indexOf(id) ===
+      index
+  )
+
+  if (!allIds.length) {
+    return []
+  }
+
+  const quotedIds =
+    allIds
+      .map(
+        (id) =>
+          `"${id}"`
+      )
+      .join(",")
+
+  const entries =
+    await rest<Entry[]>(
+      `entries?id=in.(${encodeURIComponent(
+        quotedIds
+      )})&select=*`
+    )
+
+  if (!entries.length) {
+    return []
+  }
+
+  const competitionIds =
+    entries
+      .map(
+        (entry) =>
+          entry.competition_id
+      )
+      .filter(
+        (id, index, array) =>
+          array.indexOf(id) ===
+          index
+      )
+
+  if (!competitionIds.length) {
+    return []
+  }
+
+  const quotedCompetitionIds =
+    competitionIds
+      .map(
+        (id) =>
+          `"${id}"`
+      )
+      .join(",")
+
+  const competitions =
+    await rest<Competition[]>(
+      `competitions?id=in.(${encodeURIComponent(
+        quotedCompetitionIds
+      )})&select=*`
+    )
+
+  const competitionMap =
+    new Map(
+      competitions.map(
+        (competition) => [
+          competition.id,
+          competition,
+        ]
+      )
+    )
+
+  return entries
+    .map((entry) => {
+      const competition =
+        competitionMap.get(
+          entry.competition_id
+        )
+
+      if (!competition) {
+        return null
+      }
+
+      return {
+        competition,
+        entry,
+      }
+    })
+    .filter(
+      (
+        item
+      ): item is PlayerLeague =>
+        item !== null
+    )
+}
+
+/*
+ * ------------------------------------------------------------
  * ENTRIES
  * ------------------------------------------------------------
  */
@@ -807,6 +1042,12 @@ export async function getCurrentEntry(
   return rows[0] ?? null
 }
 
+/*
+ * ------------------------------------------------------------
+ * JOIN COMPETITION
+ * ------------------------------------------------------------
+ */
+
 export async function joinCompetition(
   name: string,
   competitionCode?: string
@@ -845,6 +1086,10 @@ export async function joinCompetition(
       existing[0].id
     )
 
+    await rememberEntry(
+      existing[0].id
+    )
+
     return existing[0]
   }
 
@@ -864,10 +1109,13 @@ export async function joinCompetition(
           body:
             JSON.stringify({
               id,
+
               competition_id:
                 c.id,
+
               name:
                 cleanName,
+
               alive:
                 true,
             }),
@@ -887,6 +1135,12 @@ export async function joinCompetition(
     await setEntryCookie(
       id
     )
+
+    /*
+     * Remember this league so it appears
+     * on the homepage in future.
+     */
+    await rememberEntry(id)
 
     return rows[0]
   } catch (error) {
@@ -911,6 +1165,10 @@ export async function joinCompetition(
         )
 
         await setEntryCookie(
+          duplicate[0].id
+        )
+
+        await rememberEntry(
           duplicate[0].id
         )
 
@@ -957,23 +1215,6 @@ export async function getRoundPicks(
   if (!entries.length) {
     return []
   }
-
-  /*
-   * IMPORTANT FIX:
-   *
-   * UUIDs need to be quoted inside the PostgREST
-   * IN expression.
-   *
-   * The old version generated:
-   *
-   * entry_id=in.(f6caea94-...)
-   *
-   * which caused PGRST100.
-   *
-   * We now generate:
-   *
-   * entry_id=in.("f6caea94-...")
-   */
 
   const entryIds =
     entries
@@ -1048,12 +1289,6 @@ export async function makePick(
       competitionCode
     )
 
-  /*
-   * getFixtures() uses the cached Football Data API
-   * response, so this no longer causes another API
-   * request when called immediately after getCompetition().
-   */
-
   const fixtures =
     await getFixtures(
       c.round
@@ -1070,11 +1305,6 @@ export async function makePick(
       team.name
     )
 
-  /*
-   * Check whether this player has used this team
-   * in ANY previous round.
-   */
-
   const previous =
     await rest<Pick[]>(
       `picks?entry_id=eq.${encodeURIComponent(
@@ -1089,11 +1319,6 @@ export async function makePick(
       "You have already used that team."
     )
   }
-
-  /*
-   * Check whether the player already has a pick
-   * for the current round.
-   */
 
   const existing =
     await rest<Pick[]>(
@@ -1150,12 +1375,6 @@ export async function makePick(
       "That fixture has already kicked off, so picks are locked."
     )
   }
-
-  /*
-   * Save the fixture ID too.
-   *
-   * This makes later result processing much easier.
-   */
 
   await rest("picks", {
     method: "POST",
