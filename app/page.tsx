@@ -6,6 +6,7 @@ import {
   getFixtures,
   getLeaderboard,
   getPicks,
+  getRoundPicks,
   getPlayerLeagues,
   joinCompetition,
   createCompetition,
@@ -19,8 +20,15 @@ type HomeProps = {
   searchParams?: Promise<{
     league?: string | string[]
     home?: string | string[]
+    round?: string | string[]
   }>
 }
+
+/*
+ * ------------------------------------------------------------
+ * HELPERS
+ * ------------------------------------------------------------
+ */
 
 function getLeagueCode(
   value?: string | string[]
@@ -56,6 +64,33 @@ function isHomePage(
   }
 
   return false
+}
+
+function getRequestedRound(
+  value?: string | string[]
+) {
+  const raw =
+    typeof value === "string"
+      ? value
+      : Array.isArray(value) &&
+          value.length > 0
+        ? value[0]
+        : undefined
+
+  if (!raw) {
+    return undefined
+  }
+
+  const round = Number(raw)
+
+  if (
+    !Number.isInteger(round) ||
+    round < 1
+  ) {
+    return undefined
+  }
+
+  return round
 }
 
 /*
@@ -143,18 +178,11 @@ async function createLeagueAction(
     )
   }
 
-  /*
-   * Create the new league.
-   */
   const competition =
     await createCompetition(
       leagueName
     )
 
-  /*
-   * Automatically join the newly-created
-   * league as the player who created it.
-   */
   await joinCompetition(
     playerName,
     competition.code
@@ -165,10 +193,6 @@ async function createLeagueAction(
       "next/navigation"
     )
 
-  /*
-   * Show the homepage with the new league
-   * selected as the current league.
-   */
   redirect(
     `/?home=true&league=${encodeURIComponent(
       competition.code
@@ -178,17 +202,8 @@ async function createLeagueAction(
 
 /*
  * ------------------------------------------------------------
- * RETURN TO AN EXISTING LEAGUE
+ * RETURN TO LEAGUE
  * ------------------------------------------------------------
- *
- * We already know the player's name and the
- * league code from getPlayerLeagues().
- *
- * Calling joinCompetition() here is intentional.
- *
- * If the player already exists in that league,
- * the store returns the existing entry and updates
- * the current league + entry cookies.
  */
 
 async function returnToLeagueAction(
@@ -222,7 +237,11 @@ async function returnToLeagueAction(
       "next/navigation"
     )
 
-  redirect("/")
+  redirect(
+    `/?league=${encodeURIComponent(
+      league
+    )}`
+  )
 }
 
 /*
@@ -246,7 +265,9 @@ async function pickAction(
 
   const league = String(
     formData.get("league") || ""
-  ).trim()
+  )
+    .trim()
+    .toUpperCase()
 
   if (!entryId || !teamName) {
     throw new Error(
@@ -287,7 +308,11 @@ async function pickAction(
       "next/navigation"
     )
 
-  redirect("/")
+  redirect(
+    `/?league=${encodeURIComponent(
+      competition.code
+    )}`
+  )
 }
 
 /*
@@ -314,16 +339,15 @@ export default async function Home({
       params?.home
     )
 
+  const requestedRound =
+    getRequestedRound(
+      params?.round
+    )
+
   /*
    * ----------------------------------------------------------
    * GET COMPETITION
    * ----------------------------------------------------------
-   *
-   * For the homepage we use the currently-selected
-   * league if there is one.
-   *
-   * For a shared league URL, leagueCode explicitly
-   * identifies the league.
    */
 
   let competition
@@ -334,13 +358,6 @@ export default async function Home({
         leagueCode
       )
   } catch {
-    /*
-     * A completely fresh visitor may not have
-     * a current league.
-     *
-     * We still allow the homepage to load.
-     */
-
     if (!homePage) {
       return (
         <main className="min-h-screen bg-[#0b1018] text-white">
@@ -357,7 +374,7 @@ export default async function Home({
                   PREMIER LEAGUE
                 </div>
 
-                <h1 className="mt-1 text-3xl font-black tracking-tight transition-opacity group-hover:opacity-80">
+                <h1 className="mt-1 text-3xl font-black tracking-tight">
                   LAST MAN STANDING
                 </h1>
 
@@ -388,20 +405,13 @@ export default async function Home({
       )
     }
 
-    competition =
-      null
+    competition = null
   }
 
   /*
    * ----------------------------------------------------------
    * HOMEPAGE
    * ----------------------------------------------------------
-   *
-   * This is where players can:
-   *
-   * - return to an existing league
-   * - create a new league
-   * - join another league
    */
 
   if (homePage) {
@@ -410,8 +420,6 @@ export default async function Home({
 
     return (
       <main className="min-h-screen bg-[#0b1018] text-white">
-
-        {/* HEADER */}
 
         <header className="border-b border-white/10 bg-[#111722] px-6 py-7">
 
@@ -426,7 +434,7 @@ export default async function Home({
                 PREMIER LEAGUE
               </div>
 
-              <h1 className="mt-1 text-3xl font-black tracking-tight transition-opacity group-hover:opacity-80">
+              <h1 className="mt-1 text-3xl font-black tracking-tight">
                 LAST MAN STANDING
               </h1>
 
@@ -435,8 +443,6 @@ export default async function Home({
           </div>
 
         </header>
-
-        {/* CONTENT */}
 
         <div className="mx-auto max-w-5xl px-6 py-16">
 
@@ -454,9 +460,7 @@ export default async function Home({
               Pick. Win. Survive.
             </p>
 
-            {/* ------------------------------------------------
-                YOUR LEAGUES
-            ------------------------------------------------ */}
+            {/* YOUR LEAGUES */}
 
             <div className="mt-10 rounded-2xl bg-[#0e141d] p-6">
 
@@ -464,8 +468,7 @@ export default async function Home({
                 YOUR LEAGUES
               </div>
 
-              {playerLeagues.length >
-              0 ? (
+              {playerLeagues.length > 0 ? (
 
                 <div className="mt-5 space-y-4">
 
@@ -476,9 +479,7 @@ export default async function Home({
                     }) => (
 
                       <div
-                        key={
-                          entry.id
-                        }
+                        key={entry.id}
                         className="rounded-2xl border border-white/10 bg-[#151b25] p-5"
                       >
 
@@ -535,7 +536,7 @@ export default async function Home({
 
                             <button
                               type="submit"
-                              className="w-full rounded-xl bg-green-400 px-7 py-4 font-black text-[#07110b] transition hover:bg-green-300 md:w-auto"
+                              className="w-full rounded-xl bg-green-400 px-7 py-4 font-black text-[#07110b] hover:bg-green-300 md:w-auto"
                             >
                               RETURN TO LEAGUE
                             </button>
@@ -570,9 +571,7 @@ export default async function Home({
 
             </div>
 
-            {/* ------------------------------------------------
-                CREATE + JOIN
-            ------------------------------------------------ */}
+            {/* CREATE + JOIN */}
 
             <div className="mt-8 grid gap-6 md:grid-cols-2">
 
@@ -634,7 +633,7 @@ export default async function Home({
 
                   <button
                     type="submit"
-                    className="w-full rounded-xl bg-green-400 px-5 py-4 font-black text-[#07110b] transition hover:bg-green-300"
+                    className="w-full rounded-xl bg-green-400 px-5 py-4 font-black text-[#07110b] hover:bg-green-300"
                   >
                     CREATE LEAGUE
                   </button>
@@ -661,9 +660,7 @@ export default async function Home({
                 </p>
 
                 <form
-                  action={
-                    joinAction
-                  }
+                  action={joinAction}
                   className="mt-6 space-y-4"
                 >
 
@@ -701,7 +698,7 @@ export default async function Home({
 
                   <button
                     type="submit"
-                    className="w-full rounded-xl bg-green-400 px-5 py-4 font-black text-[#07110b] transition hover:bg-green-300"
+                    className="w-full rounded-xl bg-green-400 px-5 py-4 font-black text-[#07110b] hover:bg-green-300"
                   >
                     JOIN LEAGUE
                   </button>
@@ -724,13 +721,6 @@ export default async function Home({
    * ----------------------------------------------------------
    * SHARED LEAGUE / JOIN SCREEN
    * ----------------------------------------------------------
-   *
-   * If someone visits:
-   *
-   * /?league=F34BD5
-   *
-   * we deliberately ignore their existing browser
-   * entry and show the join screen.
    */
 
   const entry =
@@ -738,12 +728,6 @@ export default async function Home({
       competition!.code,
       Boolean(leagueCode)
     )
-
-  /*
-   * ----------------------------------------------------------
-   * JOIN SCREEN
-   * ----------------------------------------------------------
-   */
 
   if (!entry) {
     return (
@@ -762,7 +746,7 @@ export default async function Home({
                 PREMIER LEAGUE
               </div>
 
-              <h1 className="mt-1 text-3xl font-black tracking-tight transition-opacity group-hover:opacity-80">
+              <h1 className="mt-1 text-3xl font-black tracking-tight">
                 LAST MAN STANDING
               </h1>
 
@@ -825,7 +809,7 @@ export default async function Home({
 
               <button
                 type="submit"
-                className="mt-5 w-full rounded-2xl bg-green-400 px-5 py-6 text-2xl font-black text-[#07110b] transition hover:bg-green-300"
+                className="mt-5 w-full rounded-2xl bg-green-400 px-5 py-6 text-2xl font-black text-[#07110b] hover:bg-green-300"
               >
                 JOIN LEAGUE
               </button>
@@ -854,6 +838,34 @@ export default async function Home({
 
   /*
    * ----------------------------------------------------------
+   * DETERMINE DISPLAY ROUND
+   * ----------------------------------------------------------
+   *
+   * Users may view:
+   *
+   * - the current round
+   * - any completed previous round
+   *
+   * They may NEVER view a future round.
+   */
+
+  const currentRound =
+    competition!.round
+
+  const displayRound =
+    requestedRound &&
+    requestedRound <= currentRound
+      ? requestedRound
+      : currentRound
+
+  const viewingCurrentRound =
+    displayRound === currentRound
+
+  const viewingPreviousRound =
+    displayRound < currentRound
+
+  /*
+   * ----------------------------------------------------------
    * LOAD GAME DATA
    * ----------------------------------------------------------
    */
@@ -862,6 +874,7 @@ export default async function Home({
     picks,
     leaderboard,
     fixtures,
+    roundPicks,
   ] = await Promise.all([
     getPicks(entry.id),
 
@@ -869,21 +882,57 @@ export default async function Home({
       competition!.code
     ),
 
-    getFixtures(
-      competition!.round
+    viewingCurrentRound
+      ? getFixtures(
+          currentRound
+        )
+      : Promise.resolve([]),
+
+    getRoundPicks(
+      displayRound,
+      competition!.code
     ),
   ])
 
-  const usedTeams =
-    picks.map(
-      (pick) => pick.team
-    )
+  /*
+   * ----------------------------------------------------------
+   * CURRENT PLAYER PICK
+   * ----------------------------------------------------------
+   */
 
   const currentPick =
     picks.find(
       (pick) =>
         pick.round ===
-        competition!.round
+        currentRound
+    )
+
+  /*
+   * ----------------------------------------------------------
+   * TEAMS ALREADY USED
+   * ----------------------------------------------------------
+   */
+
+  const usedTeams =
+    picks.map(
+      (pick) =>
+        pick.team
+    )
+
+  /*
+   * ----------------------------------------------------------
+   * HISTORICAL ROUND HELPERS
+   * ----------------------------------------------------------
+   */
+
+  const roundPickMap =
+    new Map(
+      roundPicks.map(
+        (pick) => [
+          pick.entry_id,
+          pick,
+        ]
+      )
     )
 
   /*
@@ -894,6 +943,8 @@ export default async function Home({
 
   return (
     <main className="min-h-screen bg-[#0b1018] text-white">
+
+      {/* HEADER */}
 
       <header className="border-b border-white/10 bg-[#111722] px-6 py-7">
 
@@ -908,7 +959,7 @@ export default async function Home({
               PREMIER LEAGUE
             </div>
 
-            <h1 className="mt-1 text-3xl font-black transition-opacity group-hover:opacity-80">
+            <h1 className="mt-1 text-3xl font-black">
               LAST MAN STANDING
             </h1>
 
@@ -934,6 +985,71 @@ export default async function Home({
 
       <div className="mx-auto max-w-7xl px-6 py-8">
 
+        {/* ROUND NAVIGATION */}
+
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#151b25] p-4">
+
+          <div>
+
+            <div className="text-xs font-bold tracking-[0.25em] text-green-400">
+              ROUND HISTORY
+            </div>
+
+            <div className="mt-1 text-lg font-bold">
+              {viewingCurrentRound
+                ? `Round ${currentRound} — Current`
+                : `Round ${displayRound} — Completed`}
+            </div>
+
+          </div>
+
+          <div className="flex items-center gap-3">
+
+            {displayRound > 1 ? (
+
+              <Link
+                href={`/?league=${encodeURIComponent(
+                  competition!.code
+                )}&round=${displayRound - 1}`}
+                className="rounded-xl border border-white/10 bg-[#202733] px-4 py-3 font-bold hover:border-green-400"
+              >
+                ← ROUND{" "}
+                {displayRound - 1}
+              </Link>
+
+            ) : (
+
+              <span className="rounded-xl border border-white/5 bg-[#10151d] px-4 py-3 font-bold text-slate-600">
+                ← PREVIOUS
+              </span>
+
+            )}
+
+            {displayRound <
+            currentRound ? (
+
+              <Link
+                href={`/?league=${encodeURIComponent(
+                  competition!.code
+                )}&round=${displayRound + 1}`}
+                className="rounded-xl border border-white/10 bg-[#202733] px-4 py-3 font-bold hover:border-green-400"
+              >
+                ROUND{" "}
+                {displayRound + 1} →
+              </Link>
+
+            ) : (
+
+              <span className="rounded-xl border border-white/5 bg-[#10151d] px-4 py-3 font-bold text-slate-600">
+                CURRENT ROUND
+              </span>
+
+            )}
+
+          </div>
+
+        </div>
+
         <div className="grid gap-8 lg:grid-cols-[1.7fr_1fr]">
 
           {/* GAME */}
@@ -942,209 +1058,426 @@ export default async function Home({
 
             <div className="rounded-2xl border border-white/10 bg-[#151b25] p-7">
 
-              <div className="flex items-start justify-between gap-6">
+              {/* CURRENT ROUND */}
 
-                <div>
+              {viewingCurrentRound ? (
 
-                  <div className="text-sm font-bold tracking-[0.3em] text-green-400">
-                    ROUND{" "}
-                    {
-                      competition!.round
-                    }
+                <>
+
+                  <div className="flex items-start justify-between gap-6">
+
+                    <div>
+
+                      <div className="text-sm font-bold tracking-[0.3em] text-green-400">
+                        ROUND{" "}
+                        {
+                          currentRound
+                        }{" "}
+                        — CURRENT
+                      </div>
+
+                      <h2 className="mt-2 text-4xl font-black">
+                        CHOOSE YOUR WINNER
+                      </h2>
+
+                      <p className="mt-3 text-lg text-slate-400">
+                        Welcome,{" "}
+                        {
+                          entry.name
+                        }
+                        .
+                        A win keeps you alive.
+                        Draw or loss = OUT.
+                      </p>
+
+                    </div>
+
+                    <div className="rounded-xl bg-[#202733] px-4 py-3 text-center">
+
+                      <div className="text-xs text-slate-400">
+                        LEAGUE CODE
+                      </div>
+
+                      <div className="font-black">
+                        {
+                          competition!.code
+                        }
+                      </div>
+
+                    </div>
+
                   </div>
 
-                  <h2 className="mt-2 text-4xl font-black">
-                    CHOOSE YOUR WINNER
-                  </h2>
+                  {currentPick ? (
 
-                  <p className="mt-3 text-lg text-slate-400">
-                    Welcome,{" "}
-                    {
-                      entry.name
-                    }
-                    .
-                    A win keeps you alive.
-                    Draw or loss = OUT.
-                  </p>
+                    <div className="mt-8 rounded-xl border border-green-400/40 bg-green-400/10 p-5">
 
-                </div>
+                      <div className="text-sm font-bold text-green-400">
+                        YOUR PICK
+                      </div>
 
-                <div className="rounded-xl bg-[#202733] px-4 py-3 text-center">
+                      <div className="mt-1 text-2xl font-black">
+                        {
+                          currentPick.team
+                        }
+                      </div>
 
-                  <div className="text-xs text-slate-400">
-                    LEAGUE CODE
-                  </div>
+                      <div className="mt-1 text-slate-400">
+                        Your Round{" "}
+                        {
+                          currentRound
+                        }{" "}
+                        pick is locked.
+                      </div>
 
-                  <div className="font-black">
-                    {
-                      competition!.code
-                    }
-                  </div>
+                    </div>
 
-                </div>
+                  ) : !entry.alive ? (
 
-              </div>
+                    <div className="mt-8 rounded-xl border border-red-500/40 bg-red-500/10 p-5">
 
-              {currentPick ? (
+                      <div className="text-2xl font-black text-red-400">
+                        YOU ARE OUT
+                      </div>
 
-                <div className="mt-8 rounded-xl border border-green-400/40 bg-green-400/10 p-5">
+                    </div>
 
-                  <div className="text-sm font-bold text-green-400">
-                    PICK LOCKED
-                  </div>
+                  ) : (
 
-                  <div className="mt-1 text-2xl font-black">
-                    {
-                      currentPick.team
-                    }
-                  </div>
+                    <div className="mt-8 grid gap-4 sm:grid-cols-2">
 
-                  <div className="mt-1 text-slate-400">
-                    Your Round{" "}
-                    {
-                      competition!.round
-                    }{" "}
-                    pick has been saved.
-                  </div>
+                      {fixtures.map(
+                        (fixture) => {
 
-                </div>
+                          const homeTeam =
+                            fixture.home_team
 
-              ) : !entry.alive ? (
+                          const awayTeam =
+                            fixture.away_team
 
-                <div className="mt-8 rounded-xl border border-red-500/40 bg-red-500/10 p-5">
+                          return [
+                            homeTeam,
+                            awayTeam,
+                          ].map(
+                            (
+                              teamName
+                            ) => {
 
-                  <div className="text-2xl font-black text-red-400">
-                    YOU ARE OUT
-                  </div>
+                              const used =
+                                usedTeams.includes(
+                                  teamName
+                                )
 
-                </div>
+                              return (
+
+                                <form
+                                  key={`${fixture.id}-${teamName}`}
+                                  action={
+                                    pickAction
+                                  }
+                                >
+
+                                  <input
+                                    type="hidden"
+                                    name="entryId"
+                                    value={
+                                      entry.id
+                                    }
+                                  />
+
+                                  <input
+                                    type="hidden"
+                                    name="team"
+                                    value={
+                                      teamName
+                                    }
+                                  />
+
+                                  <input
+                                    type="hidden"
+                                    name="league"
+                                    value={
+                                      competition!.code
+                                    }
+                                  />
+
+                                  <button
+                                    type="submit"
+                                    disabled={
+                                      used
+                                    }
+                                    className={`w-full rounded-2xl border p-5 text-left transition ${
+                                      used
+                                        ? "cursor-not-allowed border-white/5 bg-[#10151d] opacity-40"
+                                        : "border-white/10 bg-[#151b25] hover:border-green-400 hover:bg-[#202733]"
+                                    }`}
+                                  >
+
+                                    <div className="flex items-center justify-between gap-4">
+
+                                      <div>
+
+                                        <div className="text-xl font-black">
+                                          {
+                                            teamName
+                                          }
+                                        </div>
+
+                                        <div className="mt-1 text-sm text-slate-400">
+                                          {
+                                            homeTeam
+                                          }{" "}
+                                          v{" "}
+                                          {
+                                            awayTeam
+                                          }
+                                        </div>
+
+                                      </div>
+
+                                      <span className="text-sm font-bold text-slate-400">
+                                        {used
+                                          ? "USED"
+                                          : "PICK"}
+                                      </span>
+
+                                    </div>
+
+                                  </button>
+
+                                </form>
+
+                              )
+                            }
+                          )
+                        }
+                      )}
+
+                    </div>
+
+                  )}
+
+                  {!fixtures.length && (
+
+                    <div className="mt-8 rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-5 text-yellow-200">
+                      No fixtures are currently
+                      available for Round{" "}
+                      {
+                        currentRound
+                      }.
+                    </div>
+
+                  )}
+
+                </>
 
               ) : (
 
-                <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                /* ------------------------------------------------
+                   PREVIOUS ROUND
+                ------------------------------------------------ */
 
-                  {fixtures.map(
-                    (fixture) => {
+                <>
 
-                      const homeTeam =
-                        fixture.home_team
+                  <div>
 
-                      const awayTeam =
-                        fixture.away_team
+                    <div className="text-sm font-bold tracking-[0.3em] text-green-400">
+                      ROUND{" "}
+                      {
+                        displayRound
+                      }{" "}
+                      — COMPLETED
+                    </div>
 
-                      const fixtureTeams = [
-                        homeTeam,
-                        awayTeam,
-                      ]
+                    <h2 className="mt-2 text-4xl font-black">
+                      ROUND HISTORY
+                    </h2>
 
-                      return fixtureTeams.map(
-                        (teamName) => {
+                    <p className="mt-3 text-lg text-slate-400">
+                      Everyone's picks are visible
+                      because this round has finished.
+                    </p>
 
-                          const used =
-                            usedTeams.includes(
-                              teamName
-                            )
+                  </div>
 
-                          return (
+                  <div className="mt-8 space-y-4">
 
-                            <form
-                              key={`${fixture.id}-${teamName}`}
-                              action={
-                                pickAction
-                              }
-                            >
+                    {leaderboard.map(
+                      (player) => {
 
-                              <input
-                                type="hidden"
-                                name="entryId"
-                                value={
-                                  entry.id
-                                }
-                              />
+                        const pick =
+                          roundPickMap.get(
+                            player.id
+                          )
 
-                              <input
-                                type="hidden"
-                                name="team"
-                                value={
-                                  teamName
-                                }
-                              />
+                        /*
+                         * If the player made a pick
+                         * in this round, the result
+                         * determines their status
+                         * for this round.
+                         */
 
-                              <input
-                                type="hidden"
-                                name="league"
-                                value={
-                                  competition!.code
-                                }
-                              />
+                        let statusLabel =
+                          "NO PICK"
 
-                              <button
-                                type="submit"
-                                disabled={
-                                  used
-                                }
-                                className={`w-full rounded-2xl border p-5 text-left transition ${
-                                  used
-                                    ? "cursor-not-allowed border-white/5 bg-[#10151d] opacity-40"
-                                    : "border-white/10 bg-[#151b25] hover:border-green-400 hover:bg-[#202733]"
-                                }`}
-                              >
+                        let statusClass =
+                          "text-slate-400"
 
-                                <div className="flex items-center justify-between gap-4">
+                        if (pick) {
 
-                                  <div>
+                          if (
+                            pick.result ===
+                            "win"
+                          ) {
 
-                                    <div className="text-xl font-black">
-                                      {
-                                        teamName
-                                      }
-                                    </div>
+                            statusLabel =
+                              "ALIVE"
 
-                                    <div className="mt-1 text-sm text-slate-400">
-                                      {
-                                        homeTeam
-                                      }{" "}
-                                      v{" "}
-                                      {
-                                        awayTeam
-                                      }
-                                    </div>
+                            statusClass =
+                              "text-green-400"
 
-                                  </div>
+                          } else if (
+                            pick.result ===
+                              "loss" ||
+                            pick.result ===
+                              "draw"
+                          ) {
 
-                                  <span className="text-sm font-bold text-slate-400">
-                                    {used
-                                      ? "USED"
-                                      : "PICK"}
-                                  </span>
+                            statusLabel =
+                              "OUT"
+
+                            statusClass =
+                              "text-red-400"
+
+                          } else {
+
+                            statusLabel =
+                              "PENDING"
+
+                            statusClass =
+                              "text-yellow-400"
+
+                          }
+
+                        } else {
+
+                          /*
+                           * No pick in this completed
+                           * round means the player did
+                           * not have a completed-round
+                           * selection to show.
+                           */
+
+                          statusLabel =
+                            "NO PICK"
+
+                        }
+
+                        return (
+
+                          <div
+                            key={
+                              player.id
+                            }
+                            className="rounded-2xl border border-white/10 bg-[#0e141d] p-5"
+                          >
+
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
+                              <div>
+
+                                <div className="text-xl font-black">
+                                  {
+                                    player.name
+                                  }
+                                </div>
+
+                                <div className="mt-2 text-slate-400">
+
+                                  {pick ? (
+
+                                    <>
+                                      Picked{" "}
+                                      <strong className="text-white">
+                                        {
+                                          pick.team
+                                        }
+                                      </strong>
+                                    </>
+
+                                  ) : (
+
+                                    "No pick recorded for this round."
+
+                                  )}
 
                                 </div>
 
-                              </button>
+                              </div>
 
-                            </form>
+                              <div
+                                className={`font-black ${statusClass}`}
+                              >
+                                {statusLabel}
+                              </div>
 
-                          )
-                        }
-                      )
-                    }
-                  )}
+                            </div>
 
-                </div>
+                            {pick && (
 
-              )}
+                              <div className="mt-4 border-t border-white/10 pt-4">
 
-              {!fixtures.length && (
+                                <div className="flex flex-wrap gap-3 text-sm">
 
-                <div className="mt-8 rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-5 text-yellow-200">
+                                  <span className="rounded-full bg-[#202733] px-3 py-1 text-slate-300">
+                                    Round{" "}
+                                    {
+                                      pick.round
+                                    }
+                                  </span>
 
-                  No fixtures are currently
-                  available for Round{" "}
-                  {
-                    competition!.round
-                  }.
+                                  {pick.result ===
+                                    "win" && (
 
-                </div>
+                                    <span className="rounded-full bg-green-400/10 px-3 py-1 text-green-400">
+                                      WIN
+                                    </span>
+
+                                  )}
+
+                                  {pick.result ===
+                                    "loss" && (
+
+                                    <span className="rounded-full bg-red-500/10 px-3 py-1 text-red-400">
+                                      LOSS
+                                    </span>
+
+                                  )}
+
+                                  {pick.result ===
+                                    "draw" && (
+
+                                    <span className="rounded-full bg-red-500/10 px-3 py-1 text-red-400">
+                                      DRAW
+                                    </span>
+
+                                  )}
+
+                                </div>
+
+                              </div>
+
+                            )}
+
+                          </div>
+
+                        )
+                      }
+                    )}
+
+                  </div>
+
+                </>
 
               )}
 
@@ -1155,6 +1488,8 @@ export default async function Home({
           {/* SIDEBAR */}
 
           <aside>
+
+            {/* LEAGUE STATUS */}
 
             <div className="rounded-2xl border border-white/10 bg-[#151b25] p-6">
 
@@ -1243,6 +1578,82 @@ export default async function Home({
 
             </div>
 
+            {/* ROUND HISTORY */}
+
+            <div className="mt-6 rounded-2xl border border-white/10 bg-[#151b25] p-6">
+
+              <div className="text-xs font-bold tracking-[0.25em] text-green-400">
+                ROUND HISTORY
+              </div>
+
+              <h2 className="mt-2 text-2xl font-black">
+                View previous rounds
+              </h2>
+
+              <p className="mt-3 text-slate-400">
+                Previous round picks are visible.
+                Current round picks remain private.
+              </p>
+
+              <div className="mt-5 space-y-2">
+
+                {Array.from(
+                  {
+                    length:
+                      currentRound,
+                  },
+                  (_, index) =>
+                    currentRound -
+                    index
+                ).map(
+                  (round) => {
+
+                    const active =
+                      round ===
+                      displayRound
+
+                    return (
+
+                      <Link
+                        key={round}
+                        href={`/?league=${encodeURIComponent(
+                          competition!.code
+                        )}&round=${round}`}
+                        className={`block rounded-xl px-4 py-3 font-bold transition ${
+                          active
+                            ? "bg-green-400 text-[#07110b]"
+                            : "bg-[#202733] text-slate-300 hover:border-green-400 hover:text-white"
+                        }`}
+                      >
+
+                        <div className="flex items-center justify-between">
+
+                          <span>
+                            Round{" "}
+                            {round}
+                          </span>
+
+                          {round ===
+                            currentRound && (
+                            <span className="text-xs uppercase">
+                              Current
+                            </span>
+                          )}
+
+                        </div>
+
+                      </Link>
+
+                    )
+                  }
+                )}
+
+              </div>
+
+            </div>
+
+            {/* RULES */}
+
             <div className="mt-6 rounded-2xl border border-white/10 bg-[#151b25] p-6">
 
               <h2 className="text-2xl font-black">
@@ -1268,6 +1679,16 @@ export default async function Home({
                 <li>
                   • You cannot use the same
                   team twice.
+                </li>
+
+                <li>
+                  • Current round picks are
+                  private.
+                </li>
+
+                <li>
+                  • Completed round picks are
+                  visible to everyone.
                 </li>
 
               </ul>
