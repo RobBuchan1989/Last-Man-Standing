@@ -1,4 +1,5 @@
 import Link from "next/link"
+import ShareLeague from "@/app/components/ShareLeague"
 
 import {
   getCompetition,
