@@ -1235,6 +1235,167 @@ export async function getRoundPicks(
 
 /*
  * ------------------------------------------------------------
+ * ROUND HISTORY
+ * ------------------------------------------------------------
+ *
+ * Used by the league page to display completed rounds.
+ *
+ * Rules:
+ *
+ * - Completed rounds show everyone's pick and result.
+ * - A player who was eliminated in an earlier round has
+ *   no pick in later rounds.
+ * - The current round must NOT use this function to expose
+ *   other players' picks.
+ */
+
+export type RoundHistoryPlayer = {
+  entry: Entry
+  pick: Pick | null
+  status: "ALIVE" | "OUT"
+}
+
+export async function getRoundHistory(
+  round: number,
+  competitionCode?: string
+): Promise<RoundHistoryPlayer[]> {
+  const c =
+    await getCompetition(
+      competitionCode
+    )
+
+  /*
+   * Get every player in this competition.
+   */
+  const entries =
+    await rest<Entry[]>(
+      `entries?competition_id=eq.${encodeURIComponent(
+        c.id
+      )}&select=*&order=created_at.asc`
+    )
+
+  if (!entries.length) {
+    return []
+  }
+
+  const entryIds =
+    entries
+      .map(
+        (entry) =>
+          `"${entry.id}"`
+      )
+      .join(",")
+
+  /*
+   * Get every pick made by these players.
+   */
+  const picks =
+    await rest<Pick[]>(
+      `picks?entry_id=in.(${encodeURIComponent(
+        entryIds
+      )})&select=*&order=round.asc`
+    )
+
+  return entries.map(
+    (entry) => {
+      const playerPicks =
+        picks.filter(
+          (pick) =>
+            pick.entry_id ===
+            entry.id
+        )
+
+      /*
+       * Find the player's first
+       * non-winning result.
+       *
+       * That is the round in which
+       * they were eliminated.
+       */
+      const eliminationPick =
+        playerPicks
+          .filter(
+            (pick) =>
+              pick.result !==
+                "win" &&
+              pick.result !==
+                null
+          )
+          .sort(
+            (a, b) =>
+              a.round -
+              b.round
+          )[0]
+
+      const eliminationRound =
+        eliminationPick?.round ??
+        null
+
+      /*
+       * If the player was eliminated
+       * before this round, they should
+       * have no pick for this round.
+       */
+      if (
+        eliminationRound !==
+          null &&
+        eliminationRound <
+          round
+      ) {
+        return {
+          entry,
+          pick: null,
+          status: "OUT",
+        }
+      }
+
+      const pick =
+        playerPicks.find(
+          (playerPick) =>
+            playerPick.round ===
+            round
+        ) ?? null
+
+      /*
+       * For a completed round:
+       *
+       * win = alive after round
+       * anything else = out
+       */
+      if (pick) {
+        return {
+          entry,
+          pick,
+          status:
+            pick.result ===
+            "win"
+              ? "ALIVE"
+              : "OUT",
+        }
+      }
+
+      /*
+       * No pick means the player either
+       * hasn't played this round yet,
+       * or has no recorded pick.
+       *
+       * We don't invent a result.
+       */
+      return {
+        entry,
+        pick: null,
+        status:
+          eliminationRound !==
+            null
+            ? "OUT"
+            : "ALIVE",
+      }
+    }
+  )
+}
+
+/*
+ * ------------------------------------------------------------
  * FIXTURES
  * ------------------------------------------------------------
  */
