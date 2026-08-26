@@ -247,78 +247,48 @@ function canonicalTeamName(
   > = {
     "Brighton Hove Albion":
       "Brighton & Hove Albion",
-
-    "Brighton and Hove Albion":
-      "Brighton & Hove Albion",
-
     "Manchester City":
       "Manchester City",
-
     "Manchester United":
       "Manchester United",
-
-    Liverpool:
-      "Liverpool",
-
-    Chelsea:
-      "Chelsea",
-
-    Arsenal:
-      "Arsenal",
-
-    Everton:
-      "Everton",
-
-    "Tottenham Hotspur":
-      "Tottenham Hotspur",
-
     "Newcastle United":
       "Newcastle United",
-
-    "West Ham United":
-      "West Ham United",
-
-    "Aston Villa":
-      "Aston Villa",
-
-    "Crystal Palace":
-      "Crystal Palace",
-
-    Fulham:
-      "Fulham",
-
-    Brentford:
-      "Brentford",
-
-    Bournemouth:
-      "Bournemouth",
-
-    "Leeds United":
-      "Leeds United",
-
     "Nottingham Forest":
       "Nottingham Forest",
-
+    "West Ham United":
+      "West Ham United",
     "Wolverhampton Wanderers":
       "Wolverhampton Wanderers",
-
-    Burnley:
-      "Burnley",
-
-    Sunderland:
-      "Sunderland",
+    "Wolves":
+      "Wolverhampton Wanderers",
+    "Tottenham Hotspur":
+      "Tottenham Hotspur",
+    "Spurs":
+      "Tottenham Hotspur",
   }
 
-  return aliases[cleaned] ?? cleaned
+  return aliases[cleaned] || cleaned
 }
+
+/*
+ * ------------------------------------------------------------
+ * FIXTURE STATUS
+ * ------------------------------------------------------------
+ */
 
 function fixtureStatus(
   status: string
-): string {
+) {
   return status
     .trim()
     .toUpperCase()
 }
+
+/*
+ * ------------------------------------------------------------
+ * CONVERT FOOTBALL DATA MATCH
+ * ------------------------------------------------------------
+ */
 
 function convertMatch(
   match: FootballDataMatch
@@ -361,7 +331,7 @@ function convertMatch(
 
 /*
  * ------------------------------------------------------------
- * FIXTURE STATUS
+ * FIXTURE STATUS HELPERS
  * ------------------------------------------------------------
  */
 
@@ -388,11 +358,21 @@ function isFinishedFixtureStatus(
     "FINISHED",
     "FT",
     "COMPLETED",
-    "CANCELLED",
-    "ABANDONED",
     "AWARDED",
   ].includes(
     fixtureStatus(status)
+  )
+}
+
+function isSettledFixture(
+  fixture: Fixture
+) {
+  return (
+    isFinishedFixtureStatus(
+      fixture.status
+    ) &&
+    fixture.home_score !== null &&
+    fixture.away_score !== null
   )
 }
 
@@ -458,6 +438,166 @@ function getAutomaticRoundFromMatches(
   return Math.min(
     ...activeRounds
   )
+}
+
+/*
+ * ------------------------------------------------------------
+ * SETTLE COMPLETED PICKS
+ * ------------------------------------------------------------
+ */
+
+async function syncFinishedPicks(
+  competition: Competition,
+  matches: FootballDataMatch[]
+) {
+  const entries =
+    await rest<Entry[]>(
+      `entries?competition_id=eq.${encodeURIComponent(
+        competition.id
+      )}&select=id,alive`
+    )
+
+  if (!entries.length) {
+    return
+  }
+
+  const entryIds =
+    entries
+      .map(
+        (entry) =>
+          `"${entry.id}"`
+      )
+      .join(",")
+
+  const picks =
+    await rest<Pick[]>(
+      `picks?entry_id=in.(${encodeURIComponent(
+        entryIds
+      )})&result=is.null&select=*`
+    )
+
+  if (!picks.length) {
+    return
+  }
+
+  const fixturesById =
+    new Map<string, Fixture>()
+
+  for (const match of matches) {
+    const fixture =
+      convertMatch(match)
+
+    if (fixture) {
+      fixturesById.set(
+        fixture.id,
+        fixture
+      )
+    }
+  }
+
+  for (const pick of picks) {
+    if (!pick.fixture_id) {
+      continue
+    }
+
+    const fixture =
+      fixturesById.get(
+        String(pick.fixture_id)
+      )
+
+    if (
+      !fixture ||
+      !isSettledFixture(fixture)
+    ) {
+      continue
+    }
+
+    const homeScore =
+      fixture.home_score as number
+
+    const awayScore =
+      fixture.away_score as number
+
+    const selectedTeam =
+      canonicalTeamName(
+        pick.team
+      )
+
+    const homeTeam =
+      canonicalTeamName(
+        fixture.home_team
+      )
+
+    const awayTeam =
+      canonicalTeamName(
+        fixture.away_team
+      )
+
+    let result:
+      | "win"
+      | "draw"
+      | "loss"
+
+    if (
+      homeScore ===
+      awayScore
+    ) {
+      result = "draw"
+    } else if (
+      (
+        selectedTeam ===
+          homeTeam &&
+        homeScore >
+          awayScore
+      ) ||
+      (
+        selectedTeam ===
+          awayTeam &&
+        awayScore >
+          homeScore
+      )
+    ) {
+      result = "win"
+    } else {
+      result = "loss"
+    }
+
+    await rest(
+      `picks?id=eq.${encodeURIComponent(
+        pick.id
+      )}`,
+      {
+        method: "PATCH",
+        headers: {
+          Prefer:
+            "return=minimal",
+        },
+        body:
+          JSON.stringify({
+            result,
+          }),
+      }
+    )
+
+    if (result !== "win") {
+      await rest(
+        `entries?id=eq.${encodeURIComponent(
+          pick.entry_id
+        )}`,
+        {
+          method: "PATCH",
+          headers: {
+            Prefer:
+              "return=minimal",
+          },
+          body:
+            JSON.stringify({
+              alive: false,
+            }),
+        }
+      )
+    }
+  }
 }
 
 /*
@@ -615,20 +755,6 @@ async function setEntryCookie(
  * ------------------------------------------------------------
  * MULTI-LEAGUE PLAYER MEMORY
  * ------------------------------------------------------------
- *
- * This cookie contains the entry IDs for leagues
- * joined by this browser.
- *
- * Example:
- *
- * [
- *   "entry-id-1",
- *   "entry-id-2",
- *   "entry-id-3"
- * ]
- *
- * The existing lms_entry_id cookie still represents
- * the CURRENT league.
  */
 
 async function getStoredEntryIds(): Promise<string[]> {
@@ -747,9 +873,24 @@ export async function getCompetition(
     )
   }
 
-  return syncCompetitionRound(
+  const competition =
     rows[0]
-  )
+
+  try {
+    const matches =
+      await getLivePremierLeagueMatches()
+
+    await syncFinishedPicks(
+      competition,
+      matches
+    )
+
+    return syncCompetitionRound(
+      competition
+    )
+  } catch {
+    return competition
+  }
 }
 
 /*
@@ -851,11 +992,6 @@ export async function createCompetition(
  * ------------------------------------------------------------
  * GET PLAYER'S JOINED LEAGUES
  * ------------------------------------------------------------
- *
- * Used by the homepage.
- *
- * Returns every league that this browser has
- * previously joined.
  */
 
 export type PlayerLeague = {
@@ -1000,8 +1136,13 @@ export async function getCurrentEntry(
     await cookies()
 
   /*
-   * First check the current-entry cookie.
+   * IMPORTANT:
+   * This function can run while a Server Component is rendering.
+   * Therefore it must ONLY READ cookies.
+   *
+   * Cookie writes are handled by Server Actions / Route Handlers.
    */
+
   const currentEntryId =
     jar.get(
       ENTRY_COOKIE
@@ -1018,14 +1159,6 @@ export async function getCurrentEntry(
       )
 
     if (rows[0]) {
-      /*
-       * Make sure this league is also remembered
-       * in the multi-league cookie.
-       */
-      await rememberEntry(
-        rows[0].id
-      )
-
       return rows[0]
     }
   }
@@ -1033,8 +1166,10 @@ export async function getCurrentEntry(
   /*
    * The current-entry cookie may belong to another league.
    *
-   * In that case, search the player's remembered
-   * league entries for one belonging to this competition.
+   * Search the remembered entries for this competition.
+   *
+   * IMPORTANT:
+   * Do NOT update cookies here.
    */
   const storedEntryIds =
     await getStoredEntryIds()
@@ -1064,27 +1199,7 @@ export async function getCurrentEntry(
     return null
   }
 
-  /*
-   * We found the player in this league.
-   *
-   * Make this league the current league from now on.
-   */
-  const entry =
-    rememberedEntries[0]
-
-  await setEntryCookie(
-    entry.id
-  )
-
-  await setCompetitionCookie(
-    c.code
-  )
-
-  await rememberEntry(
-    entry.id
-  )
-
-  return entry
+  return rememberedEntries[0]
 }
 
 /*
@@ -1278,16 +1393,6 @@ export async function getRoundPicks(
  * ------------------------------------------------------------
  * ROUND HISTORY
  * ------------------------------------------------------------
- *
- * Used by the league page to display completed rounds.
- *
- * Rules:
- *
- * - Completed rounds show everyone's pick and result.
- * - A player who was eliminated in an earlier round has
- *   no pick in later rounds.
- * - The current round must NOT use this function to expose
- *   other players' picks.
  */
 
 export type RoundHistoryPlayer = {
