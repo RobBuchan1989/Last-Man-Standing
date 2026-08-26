@@ -14,10 +14,8 @@ export async function updateSession(
 
   const supabase =
     createServerClient(
-      process.env
-        .NEXT_PUBLIC_SUPABASE_URL!,
-      process.env
-        .NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
           getAll() {
@@ -72,31 +70,15 @@ export async function updateSession(
     )
 
   /*
-   * IMPORTANT:
-   * Keep this immediately after creating
-   * the Supabase client.
+   * Refresh/validate the Supabase Auth session
+   * in the Proxy, where cookies can safely be
+   * written to the response.
    *
-   * It validates the JWT and refreshes
-   * the session when required.
+   * The game itself does not require a Supabase
+   * Auth session, so we deliberately do not
+   * redirect unauthenticated visitors here.
    */
-  const { data } =
-    await supabase.auth.getClaims()
-
-  const claims =
-    data?.claims
-
-  /*
-   * The Last Man Standing game itself
-   * does not require Supabase Auth.
-   *
-   * The admin area does.
-   *
-   * Therefore we do NOT redirect normal
-   * game users who don't have a Supabase
-   * session.
-   */
-
-  void claims
+  await supabase.auth.getClaims()
 
   return supabaseResponse
 }
