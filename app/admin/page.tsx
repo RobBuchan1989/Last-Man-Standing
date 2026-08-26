@@ -34,6 +34,11 @@ export default async function AdminPage() {
    * ------------------------------------------------------------
    * VERIFY ADMIN
    * ------------------------------------------------------------
+   *
+   * Being logged into Supabase is NOT enough.
+   *
+   * The user's email must also exist in admin_users
+   * and the account must be active.
    */
 
   const {
@@ -46,8 +51,15 @@ export default async function AdminPage() {
     .maybeSingle()
 
   if (!adminUser) {
-    await supabase.auth.signOut()
-
+    /*
+     * IMPORTANT:
+     *
+     * This page is a Server Component.
+     * We must NOT call supabase.auth.signOut() here because
+     * signing out modifies authentication cookies.
+     *
+     * The logout route handles cookie modification.
+     */
     redirect("/admin/login?error=denied")
   }
 
@@ -61,10 +73,6 @@ export default async function AdminPage() {
 
   const activeCompetitions = competitions.filter(
     (competition) => competition.status === "active"
-  )
-
-  const finishedCompetitions = competitions.filter(
-    (competition) => competition.status === "finished"
   )
 
   const totalPlayers = competitions.reduce(
