@@ -14,17 +14,6 @@ const FOOTBALL_DATA_API_TOKEN =
 const ENTRY_COOKIE = "lms_entry_id"
 const COMPETITION_COOKIE = "lms_competition_code"
 
-/*
- * Stores all entry IDs this browser has joined.
- *
- * This allows one person to:
- *
- * - join League A
- * - join League B
- * - join League C
- *
- * without losing access to the previous leagues.
- */
 const PLAYER_ENTRIES_COOKIE =
   "lms_player_entries"
 
@@ -686,11 +675,6 @@ async function rememberEntry(
     ),
   ]
 
-  /*
-   * Keep the cookie reasonably small.
-   *
-   * 50 leagues is more than enough for normal use.
-   */
   const limited =
     ids.slice(0, 50)
 
@@ -885,12 +869,6 @@ export async function getPlayerLeagues(): Promise<
   const entryIds =
     await getStoredEntryIds()
 
-  /*
-   * Also include the current entry cookie.
-   *
-   * This makes the function compatible with players
-   * who joined before the multi-league cookie existed.
-   */
   const jar = await cookies()
 
   const currentEntryId =
@@ -1021,25 +999,92 @@ export async function getCurrentEntry(
   const jar =
     await cookies()
 
-  const id =
+  /*
+   * First check the current-entry cookie.
+   */
+  const currentEntryId =
     jar.get(
       ENTRY_COOKIE
     )?.value
 
-  if (!id) {
+  if (currentEntryId) {
+    const rows =
+      await rest<Entry[]>(
+        `entries?id=eq.${encodeURIComponent(
+          currentEntryId
+        )}&competition_id=eq.${encodeURIComponent(
+          c.id
+        )}&select=*&limit=1`
+      )
+
+    if (rows[0]) {
+      /*
+       * Make sure this league is also remembered
+       * in the multi-league cookie.
+       */
+      await rememberEntry(
+        rows[0].id
+      )
+
+      return rows[0]
+    }
+  }
+
+  /*
+   * The current-entry cookie may belong to another league.
+   *
+   * In that case, search the player's remembered
+   * league entries for one belonging to this competition.
+   */
+  const storedEntryIds =
+    await getStoredEntryIds()
+
+  if (!storedEntryIds.length) {
     return null
   }
 
-  const rows =
+  const quotedIds =
+    storedEntryIds
+      .map(
+        (id) =>
+          `"${id}"`
+      )
+      .join(",")
+
+  const rememberedEntries =
     await rest<Entry[]>(
-      `entries?id=eq.${encodeURIComponent(
-        id
-      )}&competition_id=eq.${encodeURIComponent(
+      `entries?id=in.(${encodeURIComponent(
+        quotedIds
+      )})&competition_id=eq.${encodeURIComponent(
         c.id
-      )}&select=*&limit=1`
+      )}&select=*&order=created_at.asc`
     )
 
-  return rows[0] ?? null
+  if (!rememberedEntries.length) {
+    return null
+  }
+
+  /*
+   * We found the player in this league.
+   *
+   * Make this league the current league from now on.
+   */
+  const entry =
+    rememberedEntries[0]
+
+  await setEntryCookie(
+    entry.id
+  )
+
+  await setCompetitionCookie(
+    c.code
+  )
+
+  await rememberEntry(
+    entry.id
+  )
+
+  return entry
 }
 
 /*
@@ -1136,10 +1181,6 @@ export async function joinCompetition(
       id
     )
 
-    /*
-     * Remember this league so it appears
-     * on the homepage in future.
-     */
     await rememberEntry(id)
 
     return rows[0]
@@ -1264,9 +1305,6 @@ export async function getRoundHistory(
       competitionCode
     )
 
-  /*
-   * Get every player in this competition.
-   */
   const entries =
     await rest<Entry[]>(
       `entries?competition_id=eq.${encodeURIComponent(
@@ -1286,9 +1324,6 @@ export async function getRoundHistory(
       )
       .join(",")
 
-  /*
-   * Get every pick made by these players.
-   */
   const picks =
     await rest<Pick[]>(
       `picks?entry_id=in.(${encodeURIComponent(
@@ -1305,13 +1340,6 @@ export async function getRoundHistory(
             entry.id
         )
 
-      /*
-       * Find the player's first
-       * non-winning result.
-       *
-       * That is the round in which
-       * they were eliminated.
-       */
       const eliminationPick =
         playerPicks
           .filter(
@@ -1331,11 +1359,6 @@ export async function getRoundHistory(
         eliminationPick?.round ??
         null
 
-      /*
-       * If the player was eliminated
-       * before this round, they should
-       * have no pick for this round.
-       */
       if (
         eliminationRound !==
           null &&
@@ -1356,12 +1379,6 @@ export async function getRoundHistory(
             round
         ) ?? null
 
-      /*
-       * For a completed round:
-       *
-       * win = alive after round
-       * anything else = out
-       */
       if (pick) {
         return {
           entry,
@@ -1374,13 +1391,6 @@ export async function getRoundHistory(
         }
       }
 
-      /*
-       * No pick means the player either
-       * hasn't played this round yet,
-       * or has no recorded pick.
-       *
-       * We don't invent a result.
-       */
       return {
         entry,
         pick: null,
