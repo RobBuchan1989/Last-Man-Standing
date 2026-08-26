@@ -726,7 +726,7 @@ export default async function Home({
   const entry =
     await getCurrentEntry(
       competition!.code,
-      Boolean(leagueCode)
+      false
     )
 
   if (!entry) {
@@ -1310,13 +1310,6 @@ export default async function Home({
                             player.id
                           )
 
-                        /*
-                         * If the player made a pick
-                         * in this round, the result
-                         * determines their status
-                         * for this round.
-                         */
-
                         let statusLabel =
                           "NO PICK"
 
@@ -1360,13 +1353,6 @@ export default async function Home({
                           }
 
                         } else {
-
-                          /*
-                           * No pick in this completed
-                           * round means the player did
-                           * not have a completed-round
-                           * selection to show.
-                           */
 
                           statusLabel =
                             "NO PICK"
