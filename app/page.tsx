@@ -27,7 +27,7 @@ type HomeProps = {
 
 /*
  * ------------------------------------------------------------
- * HELPERS
+ * URL HELPERS
  * ------------------------------------------------------------
  */
 
@@ -35,19 +35,14 @@ function getLeagueCode(
   value?: string | string[]
 ) {
   if (typeof value === "string") {
-    const clean = value.trim().toUpperCase()
-    return clean || undefined
+    return value.trim().toUpperCase()
   }
 
   if (
     Array.isArray(value) &&
     value.length > 0
   ) {
-    const clean = value[0]
-      ?.trim()
-      .toUpperCase()
-
-    return clean || undefined
+    return value[0]?.trim().toUpperCase()
   }
 
   return undefined
@@ -85,10 +80,11 @@ function getRequestedRound(
     return undefined
   }
 
-  const round = Number(raw)
+  const round =
+    Number.parseInt(raw, 10)
 
   if (
-    !Number.isInteger(round) ||
+    !Number.isFinite(round) ||
     round < 1
   ) {
     return undefined
@@ -99,7 +95,7 @@ function getRequestedRound(
 
 /*
  * ------------------------------------------------------------
- * JOIN EXISTING LEAGUE
+ * JOIN LEAGUE
  * ------------------------------------------------------------
  */
 
@@ -136,9 +132,7 @@ async function joinAction(
   )
 
   const { redirect } =
-    await import(
-      "next/navigation"
-    )
+    await import("next/navigation")
 
   redirect(
     `/?league=${encodeURIComponent(
@@ -159,15 +153,11 @@ async function createLeagueAction(
   "use server"
 
   const leagueName = String(
-    formData.get(
-      "leagueName"
-    ) || ""
+    formData.get("leagueName") || ""
   ).trim()
 
   const playerName = String(
-    formData.get(
-      "playerName"
-    ) || ""
+    formData.get("playerName") || ""
   ).trim()
 
   if (!leagueName) {
@@ -193,9 +183,7 @@ async function createLeagueAction(
   )
 
   const { redirect } =
-    await import(
-      "next/navigation"
-    )
+    await import("next/navigation")
 
   redirect(
     `/?league=${encodeURIComponent(
@@ -237,9 +225,7 @@ async function returnToLeagueAction(
   )
 
   const { redirect } =
-    await import(
-      "next/navigation"
-    )
+    await import("next/navigation")
 
   redirect(
     `/?league=${encodeURIComponent(
@@ -308,9 +294,7 @@ async function pickAction(
   )
 
   const { redirect } =
-    await import(
-      "next/navigation"
-    )
+    await import("next/navigation")
 
   redirect(
     `/?league=${encodeURIComponent(
@@ -349,28 +333,12 @@ export default async function Home({
     )
 
   /*
-   * IMPORTANT
+   * IMPORTANT:
    *
-   * The root URL "/" must ALWAYS be the homepage.
+   * The root URL "/" is ALWAYS the homepage.
    *
-   * We must NOT call getCompetition(undefined)
-   * because the store may return the default/current
-   * competition, which would bypass the homepage.
-   *
-   * A league page is only loaded when a league code
-   * is explicitly present in the URL.
-   *
-   * Examples:
-   *
-   * /
-   * /?home=true
-   *     -> HOMEPAGE
-   *
-   * /?league=LMS-PL
-   *     -> LEAGUE
-   *
-   * /?league=LMS-PL&round=1
-   *     -> PREVIOUS ROUND
+   * A league page is only loaded when a league
+   * code is explicitly present in the URL.
    */
 
   const homePage =
@@ -688,7 +656,7 @@ export default async function Home({
 
   /*
    * ----------------------------------------------------------
-   * GET EXPLICITLY REQUESTED COMPETITION
+   * LOAD COMPETITION
    * ----------------------------------------------------------
    */
 
@@ -740,13 +708,6 @@ export default async function Home({
               link and try again.
             </p>
 
-            <Link
-              href="/"
-              className="mt-6 inline-block rounded-xl bg-green-400 px-6 py-3 font-black text-[#07110b]"
-            >
-              BACK TO HOME
-            </Link>
-
           </div>
 
         </div>
@@ -759,6 +720,9 @@ export default async function Home({
    * ----------------------------------------------------------
    * SHARED LEAGUE / JOIN SCREEN
    * ----------------------------------------------------------
+   *
+   * A new browser with no stored entry will
+   * automatically receive the join screen.
    */
 
   const entry =
@@ -766,6 +730,12 @@ export default async function Home({
       competition.code,
       false
     )
+
+  /*
+   * ----------------------------------------------------------
+   * JOIN SCREEN
+   * ----------------------------------------------------------
+   */
 
   if (!entry) {
     return (
@@ -892,6 +862,9 @@ export default async function Home({
   const viewingCurrentRound =
     displayRound === currentRound
 
+  const viewingPreviousRound =
+    displayRound < currentRound
+
   /*
    * ----------------------------------------------------------
    * LOAD GAME DATA
@@ -971,6 +944,8 @@ export default async function Home({
 
   return (
     <main className="min-h-screen bg-[#0b1018] text-white">
+
+      {/* HEADER */}
 
       <header className="border-b border-white/10 bg-[#111722] px-6 py-7">
 
@@ -1084,6 +1059,8 @@ export default async function Home({
 
             <div className="rounded-2xl border border-white/10 bg-[#151b25] p-7">
 
+              {/* CURRENT ROUND */}
+
               {viewingCurrentRound ? (
 
                 <>
@@ -1134,27 +1111,40 @@ export default async function Home({
 
                   {currentPick ? (
 
-                    <div className="mt-8 rounded-xl border border-green-400/40 bg-green-400/10 p-5">
+                    <>
+                      <div className="mt-8 rounded-xl border border-green-400/40 bg-green-400/10 p-5">
 
-                      <div className="text-sm font-bold text-green-400">
-                        YOUR PICK
+                        <div className="text-sm font-bold text-green-400">
+                          YOUR PICK
+                        </div>
+
+                        <div className="mt-1 text-2xl font-black">
+                          {
+                            currentPick.team
+                          }
+                        </div>
+
+                        <div className="mt-1 text-slate-400">
+                          Your Round{" "}
+                          {
+                            currentRound
+                          }{" "}
+                          pick is locked.
+                        </div>
+
                       </div>
 
-                      <div className="mt-1 text-2xl font-black">
-                        {
-                          currentPick.team
+                      {/* NEW SHARE AREA */}
+
+                      <ShareLeague
+                        leagueCode={
+                          competition.code
                         }
-                      </div>
-
-                      <div className="mt-1 text-slate-400">
-                        Your Round{" "}
-                        {
-                          currentRound
-                        }{" "}
-                        pick is locked.
-                      </div>
-
-                    </div>
+                        leagueName={
+                          competition.name
+                        }
+                      />
+                    </>
 
                   ) : !entry.alive ? (
 
@@ -1297,6 +1287,8 @@ export default async function Home({
 
               ) : (
 
+                /* PREVIOUS ROUND */
+
                 <>
 
                   <div>
@@ -1419,7 +1411,9 @@ export default async function Home({
                               <div
                                 className={`font-black ${statusClass}`}
                               >
-                                {statusLabel}
+                                {
+                                  statusLabel
+                                }
                               </div>
 
                             </div>
@@ -1437,22 +1431,13 @@ export default async function Home({
                                     }
                                   </span>
 
-                                  {pick.result ===
-                                    "win" && (
+                                  {pick.result && (
 
-                                    <span className="rounded-full bg-green-400/10 px-3 py-1 text-green-400">
-                                      WIN
-                                    </span>
-
-                                  )}
-
-                                  {(pick.result ===
-                                    "loss" ||
-                                    pick.result ===
-                                      "draw") && (
-
-                                    <span className="rounded-full bg-red-500/10 px-3 py-1 text-red-400">
-                                      {pick.result.toUpperCase()}
+                                    <span className="rounded-full bg-[#202733] px-3 py-1 text-slate-300">
+                                      Result:{" "}
+                                      {
+                                        pick.result
+                                      }
                                     </span>
 
                                   )}
@@ -1483,6 +1468,8 @@ export default async function Home({
 
           <aside>
 
+            {/* LEADERBOARD */}
+
             <div className="rounded-2xl border border-white/10 bg-[#151b25] p-6">
 
               <div className="flex items-center justify-between">
@@ -1491,8 +1478,7 @@ export default async function Home({
                   LEADERBOARD
                 </h2>
 
-                <span className="rounded-full bg-[#202733] px-3 py-1 text-sm">
-
+                <div className="rounded-full bg-[#202733] px-3 py-1 text-xs font-bold">
                   {
                     leaderboard.filter(
                       (player) =>
@@ -1500,8 +1486,7 @@ export default async function Home({
                     ).length
                   }{" "}
                   alive
-
-                </span>
+                </div>
 
               </div>
 
@@ -1538,9 +1523,7 @@ export default async function Home({
 
                           <div className="text-sm text-slate-400">
                             {
-                              player
-                                .picks
-                                .length
+                              player.picks.length
                             }{" "}
                             picks
                           </div>
