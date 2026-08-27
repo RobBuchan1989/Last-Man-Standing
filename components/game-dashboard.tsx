@@ -1,7 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
-import { makePickAction } from "@/app/actions/game"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 
 type Team = {
@@ -29,76 +28,150 @@ export function GameDashboard({
   leaderboard,
   fixtures,
 }: Props) {
-  const [pending, start] = useTransition()
-  const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
+  const [error, setError] =
+    useState<string | null>(null)
 
-  // Keep a local copy so the UI can update immediately
-  // without waiting for a server refresh.
-  const [localPicks, setLocalPicks] = useState(picks)
+  const [notice, setNotice] =
+    useState<string | null>(null)
 
-  const used = new Set(localPicks.map((p) => p.team))
+  const [localPicks, setLocalPicks] =
+    useState(picks)
 
-  const current = localPicks.find(
-    (p) => p.round === competition.round
+  const [selectedTeamId, setSelectedTeamId] =
+    useState<number | null>(null)
+
+  const used = new Set(
+    localPicks.map((p) => p.team)
   )
 
-  const fixtureByTeam = new Map<string, any>()
+  const current = localPicks.find(
+    (p) =>
+      p.round === competition.round
+  )
+
+  const fixtureByTeam =
+    new Map<string, any>()
 
   fixtures.forEach((f) => {
-    fixtureByTeam.set(f.home_team, f)
-    fixtureByTeam.set(f.away_team, f)
+    fixtureByTeam.set(
+      f.home_team,
+      f
+    )
+
+    fixtureByTeam.set(
+      f.away_team,
+      f
+    )
   })
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(window.location.href)
-      setNotice("Join link copied.")
+      await navigator.clipboard.writeText(
+        window.location.href
+      )
+
+      setNotice(
+        "Join link copied."
+      )
     } catch {
-      setNotice("Unable to copy link.")
+      setNotice(
+        "Unable to copy link."
+      )
     }
   }
 
-  const pick = (team: Team) => {
-    if (pending || !entry.alive) return
+  const pick = async (team: Team) => {
+    if (
+      selectedTeamId !== null ||
+      current ||
+      !entry.alive
+    ) {
+      return
+    }
 
     setError(null)
     setNotice(null)
 
-    // Optimistically update the screen immediately.
+    /*
+     * Update the screen immediately.
+     *
+     * There is deliberately no temporary
+     * "locking in" message.
+     */
+
     const optimisticPick = {
       id: `optimistic-${team.id}`,
       team: team.name,
       round: competition.round,
     }
 
-    setLocalPicks((previous) => [...previous, optimisticPick])
+    setSelectedTeamId(team.id)
 
-    setNotice(`${team.name} locked in.`)
+    setLocalPicks(
+      (previous) => [
+        ...previous,
+        optimisticPick,
+      ]
+    )
 
-    // Save to the database in the background.
-    start(async () => {
-      const result = await makePickAction({
-        name: team.name,
-      })
-
-      // If the server rejects the pick, roll back the optimistic update.
-      if (result.error) {
-        setLocalPicks((previous) =>
-          previous.filter(
-            (p) =>
-              !(
-                p.id === optimisticPick.id &&
-                p.team === team.name &&
-                p.round === competition.round
-              )
-          )
+    try {
+      const response =
+        await fetch(
+          "/api/pick",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
+              teamName:
+                team.name,
+            }),
+          }
         )
 
-        setNotice(null)
-        setError(result.error)
+      const result =
+        await response.json()
+
+      if (
+        !response.ok ||
+        result.error
+      ) {
+        throw new Error(
+          result.error ||
+            "Could not lock in your pick."
+        )
       }
-    })
+
+      /*
+       * The optimistic pick is already displayed,
+       * so there is deliberately no router.refresh()
+       * here.
+       */
+    } catch (e) {
+      /*
+       * If the database rejects the pick,
+       * restore the previous state.
+       */
+
+      setLocalPicks(
+        (previous) =>
+          previous.filter(
+            (p) =>
+              p.id !==
+              optimisticPick.id
+          )
+      )
+
+      setSelectedTeamId(null)
+
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Could not lock in your pick."
+      )
+    }
   }
 
   return (
@@ -123,7 +196,10 @@ export function GameDashboard({
               </p>
             </div>
 
-            <Button variant="secondary" onClick={copy}>
+            <Button
+              variant="secondary"
+              onClick={copy}
+            >
               Copy join link
             </Button>
 
@@ -131,6 +207,7 @@ export function GameDashboard({
 
           {current ? (
             <div className="mt-5 rounded-md border border-primary/30 bg-primary/10 p-4">
+
               <p className="text-xs uppercase tracking-widest text-primary">
                 Pick locked
               </p>
@@ -142,29 +219,57 @@ export function GameDashboard({
               <p className="text-sm text-muted-foreground">
                 Waiting for the result.
               </p>
+
             </div>
           ) : (
             <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
+
               {teams.map((t) => {
-                const f = fixtureByTeam.get(t.name)
+                const f =
+                  fixtureByTeam.get(
+                    t.name
+                  )
 
                 const locked =
                   used.has(t.name) ||
                   !f ||
-                  new Date(f.kickoff).getTime() <= Date.now() ||
-                  ["FINISHED", "IN_PLAY", "PAUSED"].includes(f.status)
+                  new Date(
+                    f.kickoff
+                  ).getTime() <=
+                    Date.now() ||
+                  [
+                    "FINISHED",
+                    "IN_PLAY",
+                    "PAUSED",
+                  ].includes(
+                    f.status
+                  )
+
+                const selected =
+                  selectedTeamId ===
+                  t.id
 
                 return (
                   <button
                     key={t.id}
-                    disabled={locked || pending || !entry.alive}
-                    onClick={() => pick(t)}
+                    disabled={
+                      locked ||
+                      selectedTeamId !==
+                        null ||
+                      !entry.alive
+                    }
+                    onClick={() =>
+                      pick(t)
+                    }
                     className={`flex items-center gap-3 rounded-md border px-3 py-3 text-left transition ${
                       locked
                         ? "cursor-not-allowed opacity-40"
+                        : selected
+                        ? "border-primary bg-secondary"
                         : "hover:border-primary hover:bg-secondary"
                     }`}
                   >
+
                     <img
                       src={t.crest}
                       alt=""
@@ -172,15 +277,18 @@ export function GameDashboard({
                     />
 
                     <span className="min-w-0 flex-1">
+
                       <span className="block font-semibold">
                         {t.name}
                       </span>
 
                       {f && (
                         <span className="block text-xs text-muted-foreground">
-                          {f.home_team} v {f.away_team}
+                          {f.home_team} v{" "}
+                          {f.away_team}
                         </span>
                       )}
+
                     </span>
 
                     <span className="text-xs text-muted-foreground">
@@ -188,11 +296,15 @@ export function GameDashboard({
                         ? "USED"
                         : !f
                         ? "WAIT"
+                        : selected
+                        ? ""
                         : "PICK"}
                     </span>
+
                   </button>
                 )
               })}
+
             </div>
           )}
 
@@ -219,46 +331,65 @@ export function GameDashboard({
           <section className="rounded-lg border border-border bg-card p-5">
 
             <div className="flex items-center justify-between">
+
               <h3 className="font-display text-xl uppercase">
                 Leaderboard
               </h3>
 
               <span className="rounded-full bg-secondary px-2 py-1 text-xs">
-                {leaderboard.filter((x) => x.alive).length} alive
+                {
+                  leaderboard.filter(
+                    (x) => x.alive
+                  ).length
+                }{" "}
+                alive
               </span>
+
             </div>
 
             <div className="mt-4 space-y-2">
-              {leaderboard.map((p, i) => (
-                <div
-                  key={p.id}
-                  className="flex items-center gap-3 rounded-md bg-secondary/60 p-3"
-                >
-                  <span className="w-6 text-xs text-muted-foreground">
-                    {i + 1}
-                  </span>
 
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-semibold">
-                      {p.name}
-                    </div>
-
-                    <div className="text-xs text-muted-foreground">
-                      {p.picks?.length || 0} picks
-                    </div>
-                  </div>
-
-                  <span
-                    className={
-                      p.alive
-                        ? "text-primary"
-                        : "text-destructive"
-                    }
+              {leaderboard.map(
+                (p, i) => (
+                  <div
+                    key={p.id}
+                    className="flex items-center gap-3 rounded-md bg-secondary/60 p-3"
                   >
-                    {p.alive ? "ALIVE" : "OUT"}
-                  </span>
-                </div>
-              ))}
+
+                    <span className="w-6 text-xs text-muted-foreground">
+                      {i + 1}
+                    </span>
+
+                    <div className="min-w-0 flex-1">
+
+                      <div className="truncate font-semibold">
+                        {p.name}
+                      </div>
+
+                      <div className="text-xs text-muted-foreground">
+                        {p.picks?.length ||
+                          0}{" "}
+                        picks
+                      </div>
+
+                    </div>
+
+                    <span
+                      className={
+                        p.alive
+                          ? "text-primary"
+                          : "text-destructive"
+                      }
+                    >
+                      {p.alive
+                        ? "ALIVE"
+                        : "OUT"}
+                    </span>
+
+                  </div>
+                )
+              )}
+
             </div>
 
           </section>
@@ -270,12 +401,24 @@ export function GameDashboard({
             </h3>
 
             <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-              <li>• One Premier League team per round.</li>
-              <li>• Your team must win.</li>
-              <li>• Draw or loss eliminates you.</li>
-              <li>• You cannot use a team twice.</li>
-              <li>• Picks lock at kick-off.</li>
-              <li>• Last player standing wins.</li>
+              <li>
+                • One Premier League team per round.
+              </li>
+              <li>
+                • Your team must win.
+              </li>
+              <li>
+                • Draw or loss eliminates you.
+              </li>
+              <li>
+                • You cannot use a team twice.
+              </li>
+              <li>
+                • Picks lock at kick-off.
+              </li>
+              <li>
+                • Last player standing wins.
+              </li>
             </ul>
 
           </section>
