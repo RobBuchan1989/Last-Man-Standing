@@ -34,6 +34,26 @@ let footballMatchesCache:
 
 const FOOTBALL_CACHE_MS = 30_000
 
+/*
+ * Short-lived database cache.
+ *
+ * The league page was repeatedly asking Supabase for the
+ * exact same competition. Keeping this in memory for a few
+ * seconds removes those duplicate round trips while still
+ * allowing normal league/round changes to appear quickly.
+ */
+
+const competitionCache =
+  new Map<
+    string,
+    {
+      competition: Competition
+      expiresAt: number
+    }
+  >()
+
+const COMPETITION_CACHE_MS = 10_000
+
 function authHeaders() {
   return {
     apikey: SUPABASE_KEY,
@@ -673,13 +693,26 @@ async function syncCompetitionRound(
         }
       )
 
-    return rows[0] ?? {
-      ...competition,
-      round:
-        automaticRound,
-      status:
-        nextStatus,
-    }
+    const updated =
+      rows[0] ?? {
+        ...competition,
+        round:
+          automaticRound,
+        status:
+          nextStatus,
+      }
+
+    competitionCache.set(
+      competition.code,
+      {
+        competition: updated,
+        expiresAt:
+          Date.now() +
+          COMPETITION_CACHE_MS,
+      }
+    )
+
+    return updated
   } catch {
     return {
       ...competition,
@@ -859,6 +892,19 @@ export async function getCompetition(
       DEFAULT_CODE
   )
 
+  const cached =
+    competitionCache.get(
+      code
+    )
+
+  if (
+    cached &&
+    cached.expiresAt >
+      Date.now()
+  ) {
+    return cached.competition
+  }
+
   const rows =
     await rest<Competition[]>(
       `competitions?code=eq.${encodeURIComponent(
@@ -884,10 +930,33 @@ export async function getCompetition(
       matches
     )
 
-    return syncCompetitionRound(
-      competition
+    const synced =
+      await syncCompetitionRound(
+        competition
+      )
+
+    competitionCache.set(
+      code,
+      {
+        competition: synced,
+        expiresAt:
+          Date.now() +
+          COMPETITION_CACHE_MS,
+      }
     )
+
+    return synced
   } catch {
+    competitionCache.set(
+      code,
+      {
+        competition,
+        expiresAt:
+          Date.now() +
+          COMPETITION_CACHE_MS,
+      }
+    )
+
     return competition
   }
 }
@@ -931,6 +1000,19 @@ async function getCompetitionByCodeFast(
     )
   }
 
+  const cached =
+    competitionCache.get(
+      code
+    )
+
+  if (
+    cached &&
+    cached.expiresAt >
+      Date.now()
+  ) {
+    return cached.competition
+  }
+
   const rows =
     await rest<Competition[]>(
       `competitions?code=eq.${encodeURIComponent(
@@ -944,7 +1026,20 @@ async function getCompetitionByCodeFast(
     )
   }
 
-  return rows[0]
+  const competition =
+    rows[0]
+
+  competitionCache.set(
+    code,
+    {
+      competition,
+      expiresAt:
+        Date.now() +
+        COMPETITION_CACHE_MS,
+    }
+  )
+
+  return competition
 }
 
 /*
@@ -1010,6 +1105,17 @@ export async function createCompetition(
 
       await setCompetitionCookie(
         rows[0].code
+      )
+
+      competitionCache.set(
+        rows[0].code,
+        {
+          competition:
+            rows[0],
+          expiresAt:
+            Date.now() +
+            COMPETITION_CACHE_MS,
+        }
       )
 
       return syncCompetitionRound(
@@ -1207,17 +1313,14 @@ export async function getCurrentEntry(
           competitionCode
         )
 
-      const competitionRows =
-        await rest<Competition[]>(
-          `competitions?code=eq.${encodeURIComponent(
-            code
-          )}&select=id&limit=1`
+      const competition =
+        await getCompetitionByCodeFast(
+          code
         )
 
       if (
-        competitionRows[0] &&
         rows[0].competition_id ===
-          competitionRows[0].id
+        competition.id
       ) {
         return rows[0]
       }
@@ -1240,16 +1343,10 @@ export async function getCurrentEntry(
     return null
   }
 
-  const competitionRows =
-    await rest<Competition[]>(
-      `competitions?code=eq.${encodeURIComponent(
-        code
-      )}&select=id&limit=1`
+  const competition =
+    await getCompetitionByCodeFast(
+      code
     )
-
-  if (!competitionRows[0]) {
-    return null
-  }
 
   const quotedIds =
     storedEntryIds
@@ -1264,7 +1361,7 @@ export async function getCurrentEntry(
       `entries?id=in.(${encodeURIComponent(
         quotedIds
       )})&competition_id=eq.${encodeURIComponent(
-        competitionRows[0].id
+        competition.id
       )}&select=*&order=created_at.asc`
     )
 
