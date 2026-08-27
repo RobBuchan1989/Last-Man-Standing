@@ -1,6 +1,6 @@
 import Link from "next/link"
 import ShareLeague from "@/app/components/ShareLeague"
-import FastPickButton from "@/app/components/FastPickButton"
+import CurrentRoundPick from "@/app/components/CurrentRoundPick"
 
 import {
   getCompetition,
@@ -381,13 +381,6 @@ export default async function Home({
                             href={`/?league=${encodeURIComponent(
                               competition.code
                             )}`}
-                            /*
-                             * IMPORTANT:
-                             * Do not prefetch the league page.
-                             *
-                             * The league page must fetch the latest
-                             * database state when the player returns.
-                             */
                             prefetch={false}
                             className="w-full rounded-xl bg-green-400 px-7 py-4 text-center font-black text-[#07110b] hover:bg-green-300 md:w-auto"
                           >
@@ -747,9 +740,6 @@ export default async function Home({
    * ----------------------------------------------------------
    * LOAD GAME DATA
    * ----------------------------------------------------------
-   *
-   * The current player's picks are loaded directly from
-   * the database every time this page renders.
    */
 
   const [
@@ -979,155 +969,15 @@ export default async function Home({
 
                   </div>
 
-                  {currentPick ? (
-
-                    /*
-                     * ------------------------------------------------
-                     * SAVED + LOCKED PICK
-                     * ------------------------------------------------
-                     *
-                     * This is rendered from the database, not from
-                     * temporary client-side state.
-                     */
-
-                    <>
-                      <div className="mt-8 rounded-2xl border-2 border-green-400/50 bg-green-400/10 p-6">
-
-                        <div className="flex items-start gap-4">
-
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-green-400 text-2xl font-black text-[#07110b]">
-                            ✓
-                          </div>
-
-                          <div className="min-w-0">
-
-                            <div className="text-sm font-black tracking-[0.25em] text-green-400">
-                              YOUR PICK
-                            </div>
-
-                            <div className="mt-1 text-3xl font-black uppercase">
-                              {
-                                currentPick.team
-                              }
-                            </div>
-
-                            <div className="mt-2 text-lg font-black text-white">
-                              ROUND{" "}
-                              {
-                                currentRound
-                              }{" "}
-                              PICK SAVED & LOCKED IN
-                            </div>
-
-                            <div className="mt-1 text-slate-400">
-                              Your pick is locked. Good luck!
-                            </div>
-
-                          </div>
-
-                        </div>
-
-                      </div>
-
-                      <ShareLeague
-                        leagueCode={
-                          competition.code
-                        }
-                        leagueName={
-                          competition.name
-                        }
-                      />
-                    </>
-
-                  ) : !entry.alive ? (
-
-                    <div className="mt-8 rounded-xl border border-red-500/40 bg-red-500/10 p-5">
-
-                      <div className="text-2xl font-black text-red-400">
-                        YOU ARE OUT
-                      </div>
-
-                    </div>
-
-                  ) : (
-
-                    /*
-                     * ------------------------------------------------
-                     * AVAILABLE FIXTURES
-                     * ------------------------------------------------
-                     */
-
-                    <div className="mt-8">
-
-                      <div className="mb-4 text-sm font-bold tracking-[0.2em] text-slate-400">
-                        AVAILABLE FIXTURES
-                      </div>
-
-                      {fixtures.length > 0 ? (
-
-                        <div className="grid gap-4 sm:grid-cols-2">
-
-                          {fixtures.map(
-                            (fixture) => {
-
-                              const homeTeam =
-                                fixture.home_team
-
-                              const awayTeam =
-                                fixture.away_team
-
-                              return [
-                                homeTeam,
-                                awayTeam,
-                              ].map(
-                                (
-                                  teamName
-                                ) => {
-
-                                  const used =
-                                    usedTeams.includes(
-                                      teamName
-                                    )
-
-                                  return (
-                                    <FastPickButton
-                                      key={`${fixture.id}-${teamName}`}
-                                      entryId={
-                                        entry.id
-                                      }
-                                      teamName={
-                                        teamName
-                                      }
-                                      league={
-                                        competition.code
-                                      }
-                                      used={
-                                        used
-                                      }
-                                    />
-                                  )
-                                }
-                              )
-                            }
-                          )}
-
-                        </div>
-
-                      ) : (
-
-                        <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-5 text-yellow-200">
-                          No fixtures are currently
-                          available for Round{" "}
-                          {
-                            currentRound
-                          }.
-                        </div>
-
-                      )}
-
-                    </div>
-
-                  )}
+                  <CurrentRoundPick
+                    competition={competition}
+                    entry={entry}
+                    fixtures={fixtures}
+                    usedTeams={usedTeams}
+                    currentPick={
+                      currentPick || null
+                    }
+                  />
 
                 </>
 
