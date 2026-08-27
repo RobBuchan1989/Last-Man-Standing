@@ -1,10 +1,10 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { cookies } from "next/headers"
 import {
   createCompetition,
   joinCompetition,
-  getCurrentEntry,
 } from "@/lib/store"
 
 const SUPABASE_URL =
@@ -14,6 +14,8 @@ const SUPABASE_URL =
 const SUPABASE_KEY =
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
   "sb_publishable_-guOZ0scebhQqlluOl8Tmw_QiOrK32c"
+
+const ENTRY_COOKIE = "lms_entry_id"
 
 function supabaseHeaders() {
   return {
@@ -121,50 +123,58 @@ export async function createLeagueAction(
  * FAST MAKE PICK
  * ------------------------------------------------------------
  *
- * IMPORTANT:
+ * This is deliberately kept completely separate from the
+ * normal league-loading logic.
  *
- * This deliberately does NOT call the old makePick() function.
+ * The pick operation must NOT:
  *
- * The old path performs:
+ * - load the competition
+ * - synchronise Football Data
+ * - refresh the homepage
+ * - refresh the league
+ * - navigate anywhere
  *
- * - competition lookup
- * - Football Data API lookup
- * - fixture processing
- * - existing pick lookup
- * - validation
- * - pick insert
- *
- * The database function make_pick_fast() now performs the
- * validation and insert in a single PostgreSQL operation.
- *
- * The only extra lookup here is retrieving the session token
- * belonging to the current entry.
+ * It only needs the entry cookie, then lets the PostgreSQL
+ * function perform the actual validation and insert.
  */
 
 export async function makePickAction(
   team: { name: string }
 ) {
-  const entry =
-    await getCurrentEntry()
-
-  if (!entry) {
-    return {
-      error: "Join the competition first.",
-    }
-  }
-
   try {
     /*
-     * Get the session token for this entry.
+     * Read the player's existing entry directly from
+     * the server-side cookie.
      *
-     * The token is never sent to the browser.
-     * This action runs entirely on the server.
+     * This avoids getCurrentEntry(), which can perform
+     * additional database/competition work.
+     */
+    const jar = await cookies()
+
+    const entryId =
+      jar.get(
+        ENTRY_COOKIE
+      )?.value
+
+    if (!entryId) {
+      return {
+        error:
+          "Join the competition first.",
+      }
+    }
+
+    /*
+     * Fetch only the session token required by
+     * make_pick_fast().
+     *
+     * No competition lookup.
+     * No Football Data request.
      */
     const entryResponse =
       await fetch(
         `${SUPABASE_URL}/rest/v1/entries?id=eq.${encodeURIComponent(
-          entry.id
-        )}&select=id,session_token`,
+          entryId
+        )}&select=id,session_token&limit=1`,
         {
           method: "GET",
           headers:
@@ -174,9 +184,10 @@ export async function makePickAction(
       )
 
     if (!entryResponse.ok) {
-      throw new Error(
-        `Could not verify your game session.`
-      )
+      return {
+        error:
+          "Could not verify your game session.",
+      }
     }
 
     const entryRows =
@@ -187,23 +198,35 @@ export async function makePickAction(
           | null
       }>
 
-    const storedEntry =
+    const entry =
       entryRows[0]
 
     if (
-      !storedEntry ||
-      !storedEntry.session_token
+      !entry ||
+      !entry.session_token
     ) {
-      throw new Error(
-        "Your game session could not be verified."
-      )
+      return {
+        error:
+          "Your game session could not be verified.",
+      }
     }
 
     /*
-     * CALL THE FAST POSTGRES FUNCTION.
+     * ONE DATABASE OPERATION.
      *
-     * This replaces the old multi-step makePick()
-     * implementation.
+     * make_pick_fast() handles:
+     *
+     * - session validation
+     * - alive check
+     * - competition lookup
+     * - current round
+     * - duplicate round check
+     * - duplicate team check
+     * - fixture lookup
+     * - kick-off check
+     * - pick insertion
+     *
+     * All inside PostgreSQL.
      */
     const pickResponse =
       await fetch(
@@ -219,7 +242,7 @@ export async function makePickAction(
                 entry.id,
 
               p_session_token:
-                storedEntry.session_token,
+                entry.session_token,
 
               p_team:
                 team.name,
@@ -239,12 +262,14 @@ export async function makePickAction(
           JSON.parse(text)
 
         if (
-          parsed?.message
+          typeof parsed?.message ===
+          "string"
         ) {
           message =
             parsed.message
         } else if (
-          parsed?.error
+          typeof parsed?.error ===
+          "string"
         ) {
           message =
             parsed.error
@@ -256,22 +281,18 @@ export async function makePickAction(
         }
       }
 
-      throw new Error(
-        message
-      )
+      return {
+        error: message,
+      }
     }
 
     /*
-     * No router.refresh().
+     * IMPORTANT:
      *
-     * The GameDashboard already performs an optimistic
-     * update, so the pick appears immediately.
+     * Do not revalidate or refresh anything here.
      *
-     * We also deliberately avoid revalidating the homepage
-     * here because that would cause unnecessary work after
-     * the pick has already been saved.
+     * GameDashboard already updates the screen locally.
      */
-
     return {
       ok: true,
     }
