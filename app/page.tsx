@@ -263,6 +263,70 @@ async function pickAction(
 
 /*
  * ------------------------------------------------------------
+ * HOME ICON
+ * ------------------------------------------------------------
+ *
+ * Uses an explicit /?home=true URL rather than simply "/".
+ * This makes the intention of the navigation unambiguous and
+ * allows Next.js to prefetch the homepage destination.
+ */
+
+function HomeLink({
+  compact = false,
+}: {
+  compact?: boolean
+}) {
+  return (
+    <Link
+      href="/?home=true"
+      prefetch={true}
+      aria-label="Go to home"
+      className={`group flex items-center gap-3 ${
+        compact ? "" : ""
+      }`}
+    >
+
+      <span
+        aria-hidden="true"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-[#202733] text-white transition group-hover:border-green-400 group-hover:bg-[#29313e]"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-5 w-5"
+        >
+          <path d="M3 10.5 12 3l9 7.5" />
+          <path d="M5.5 9.5V21h13V9.5" />
+          <path d="M9.5 21v-6h5v6" />
+        </svg>
+      </span>
+
+      <div>
+        <div className="text-sm font-bold tracking-[0.35em] text-green-400">
+          PREMIER LEAGUE
+        </div>
+
+        <h1
+          className={
+            compact
+              ? "mt-1 text-2xl font-black"
+              : "mt-1 text-3xl font-black tracking-tight"
+          }
+        >
+          LAST MAN STANDING
+        </h1>
+      </div>
+
+    </Link>
+  )
+}
+
+/*
+ * ------------------------------------------------------------
  * PAGE
  * ------------------------------------------------------------
  */
@@ -320,20 +384,7 @@ export default async function Home({
 
           <div className="mx-auto max-w-7xl">
 
-            <Link
-              href="/"
-              className="group block"
-            >
-
-              <div className="text-sm font-bold tracking-[0.35em] text-green-400">
-                PREMIER LEAGUE
-              </div>
-
-              <h1 className="mt-1 text-3xl font-black tracking-tight">
-                LAST MAN STANDING
-              </h1>
-
-            </Link>
+            <HomeLink />
 
           </div>
 
@@ -410,12 +461,12 @@ export default async function Home({
                           {/*
                            * IMPORTANT:
                            *
-                           * This is now a normal Next.js Link.
-                           * We no longer call joinCompetition()
+                           * Normal Next.js Link.
+                           * No joinCompetition() call is made
                            * when returning to an existing league.
                            *
-                           * Prefetching allows Next.js to prepare
-                           * the destination before it is clicked.
+                           * Prefetching lets Next.js prepare the
+                           * destination before it is clicked.
                            */}
 
                           <Link
@@ -623,20 +674,7 @@ export default async function Home({
 
           <div className="mx-auto max-w-7xl">
 
-            <Link
-              href="/"
-              className="group block"
-            >
-
-              <div className="text-sm font-bold tracking-[0.35em] text-green-400">
-                PREMIER LEAGUE
-              </div>
-
-              <h1 className="mt-1 text-3xl font-black tracking-tight">
-                LAST MAN STANDING
-              </h1>
-
-            </Link>
+            <HomeLink compact />
 
           </div>
 
@@ -690,20 +728,7 @@ export default async function Home({
 
           <div className="mx-auto max-w-7xl">
 
-            <Link
-              href="/"
-              className="group block"
-            >
-
-              <div className="text-sm font-bold tracking-[0.35em] text-green-400">
-                PREMIER LEAGUE
-              </div>
-
-              <h1 className="mt-1 text-3xl font-black tracking-tight">
-                LAST MAN STANDING
-              </h1>
-
-            </Link>
+            <HomeLink compact />
 
           </div>
 
@@ -896,20 +921,7 @@ export default async function Home({
 
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-6">
 
-          <Link
-            href="/"
-            className="group block"
-          >
-
-            <div className="text-sm font-bold tracking-[0.35em] text-green-400">
-              PREMIER LEAGUE
-            </div>
-
-            <h1 className="mt-1 text-3xl font-black">
-              LAST MAN STANDING
-            </h1>
-
-          </Link>
+          <HomeLink />
 
           <div className="text-right text-slate-400">
 
