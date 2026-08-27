@@ -705,8 +705,7 @@ function cleanCode(
     .toUpperCase()
     .replace(
       /[^A-Z0-9-]/g,
-      ""
-    )
+      "")
 }
 
 async function setCompetitionCookie(
@@ -897,11 +896,6 @@ export async function getCompetition(
  * ------------------------------------------------------------
  * FAST COMPETITION LOOKUP
  * ------------------------------------------------------------
- *
- * Used by operations that already know the competition and
- * do NOT need a full Football Data synchronisation.
- *
- * This is deliberately separate from getCompetition().
  */
 
 async function getCompetitionById(
@@ -911,6 +905,36 @@ async function getCompetitionById(
     await rest<Competition[]>(
       `competitions?id=eq.${encodeURIComponent(
         competitionId
+      )}&select=*&limit=1`
+    )
+
+  if (!rows[0]) {
+    throw new Error(
+      "That league could not be found."
+    )
+  }
+
+  return rows[0]
+}
+
+async function getCompetitionByCodeFast(
+  competitionCode?: string
+): Promise<Competition> {
+  const code =
+    cleanCode(
+      competitionCode
+    )
+
+  if (!code) {
+    throw new Error(
+      "That league could not be found."
+    )
+  }
+
+  const rows =
+    await rest<Competition[]>(
+      `competitions?code=eq.${encodeURIComponent(
+        code
       )}&select=*&limit=1`
     )
 
@@ -1151,18 +1175,6 @@ export async function getCurrentEntry(
   competitionCode?: string,
   ignoreExistingEntry = false
 ): Promise<Entry | null> {
-  /*
-   * IMPORTANT PERFORMANCE CHANGE:
-   *
-   * We only need the competition ID here.
-   *
-   * Do NOT call getCompetition(), because that performs
-   * Football Data synchronisation and finished-pick processing.
-   *
-   * The calling page can still use getCompetition() when it
-   * actually needs the synchronised competition state.
-   */
-
   if (
     ignoreExistingEntry
   ) {
@@ -1177,12 +1189,6 @@ export async function getCurrentEntry(
       ENTRY_COOKIE
     )?.value
 
-  /*
-   * If we already have an entry cookie, use the entry itself
-   * to determine its competition. This avoids a full
-   * competition synchronisation.
-   */
-
   if (currentEntryId) {
     const rows =
       await rest<Entry[]>(
@@ -1195,12 +1201,6 @@ export async function getCurrentEntry(
       if (!competitionCode) {
         return rows[0]
       }
-
-      /*
-       * Only verify the competition code when one was supplied.
-       * This requires a lightweight competition lookup rather
-       * than the full synchronisation path.
-       */
 
       const code =
         cleanCode(
@@ -1223,15 +1223,6 @@ export async function getCurrentEntry(
       }
     }
   }
-
-  /*
-   * The current-entry cookie may belong to another league.
-   *
-   * Search the remembered entries for this competition.
-   *
-   * IMPORTANT:
-   * Do NOT update cookies here.
-   */
 
   const storedEntryIds =
     await getStoredEntryIds()
@@ -1438,8 +1429,15 @@ export async function getRoundPicks(
   round: number,
   competitionCode?: string
 ): Promise<Pick[]> {
+  /*
+   * PERFORMANCE:
+   *
+   * Use a lightweight competition lookup.
+   * Do NOT run Football Data synchronisation here.
+   */
+
   const c =
-    await getCompetition(
+    await getCompetitionByCodeFast(
       competitionCode
     )
 
@@ -1487,8 +1485,14 @@ export async function getRoundHistory(
   round: number,
   competitionCode?: string
 ): Promise<RoundHistoryPlayer[]> {
+  /*
+   * PERFORMANCE:
+   *
+   * Use a lightweight competition lookup.
+   */
+
   const c =
-    await getCompetition(
+    await getCompetitionByCodeFast(
       competitionCode
     )
 
@@ -1643,31 +1647,16 @@ export async function makePick(
   }
 
   /*
-   * IMPORTANT PERFORMANCE CHANGE:
+   * IMPORTANT:
    *
-   * DO NOT call getCompetition() here.
-   *
-   * getCompetition() performs:
-   *
-   * 1. Football Data API lookup
-   * 2. finished-pick synchronisation
-   * 3. automatic round synchronisation
-   *
-   * None of that is required just to save a pick.
-   *
-   * The entry already contains competition_id, so use a
-   * lightweight competition lookup instead.
+   * Lightweight competition lookup only.
+   * No full Football Data synchronisation.
    */
 
   const c =
     await getCompetitionById(
       entry.competition_id
     )
-
-  /*
-   * If a competition code was supplied, verify that the
-   * entry belongs to that competition.
-   */
 
   if (
     competitionCode &&
@@ -1680,11 +1669,6 @@ export async function makePick(
       "Your player session could not be verified."
     )
   }
-
-  /*
-   * The fixture data is already cached for 30 seconds in the
-   * normal case, so this is normally an in-memory lookup.
-   */
 
   const fixtures =
     await getFixtures(
@@ -1703,14 +1687,7 @@ export async function makePick(
     )
 
   /*
-   * PERFORMANCE CHANGE:
-   *
-   * Fetch the player's existing picks once and check both:
-   *
-   * - whether this team has already been used
-   * - whether a pick already exists for this round
-   *
-   * This replaces two separate database requests with one.
+   * One database read for all existing picks.
    */
 
   const existingPicks =
@@ -1833,8 +1810,16 @@ export async function makePick(
 export async function getLeaderboard(
   competitionCode?: string
 ) {
+  /*
+   * PERFORMANCE:
+   *
+   * Use a lightweight competition lookup.
+   * The league page has already loaded the competition and
+   * synchronised the football data once.
+   */
+
   const c =
-    await getCompetition(
+    await getCompetitionByCodeFast(
       competitionCode
     )
 
