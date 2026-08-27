@@ -13,39 +13,18 @@ type PickRequest = {
   league?: string
 }
 
-export async function POST(
-  request: Request
-) {
+export async function POST(request: Request) {
   try {
-    const body =
-      (await request.json()) as PickRequest
+    const body = (await request.json()) as PickRequest
 
-    const entryId =
-      String(
-        body.entryId || ""
-      ).trim()
+    const entryId = String(body.entryId || "").trim()
+    const teamName = String(body.teamName || "").trim()
+    const league = String(body.league || "").trim().toUpperCase()
 
-    const teamName =
-      String(
-        body.teamName || ""
-      ).trim()
-
-    const league =
-      String(
-        body.league || ""
-      )
-        .trim()
-        .toUpperCase()
-
-    if (
-      !entryId ||
-      !teamName ||
-      !league
-    ) {
+    if (!entryId || !teamName || !league) {
       return NextResponse.json(
         {
-          error:
-            "Invalid pick request.",
+          error: "Invalid pick request.",
         },
         {
           status: 400,
@@ -54,23 +33,20 @@ export async function POST(
     }
 
     /*
-     * Get the entry belonging to this browser
-     * and this league.
+     * Find the current player's entry for this league.
      *
-     * This also verifies that the entry ID supplied
-     * by the browser is the current player's entry.
+     * Supplying the league is important because the user can
+     * belong to multiple leagues.
      */
-    const entry =
-      await getCurrentEntry(
-        league,
-        false
-      )
+    const entry = await getCurrentEntry(
+      league,
+      false
+    )
 
     if (!entry) {
       return NextResponse.json(
         {
-          error:
-            "Your player session could not be verified.",
+          error: "Join the competition first.",
         },
         {
           status: 401,
@@ -78,13 +54,14 @@ export async function POST(
       )
     }
 
-    if (
-      entry.id !== entryId
-    ) {
+    /*
+     * Make absolutely sure the browser is submitting
+     * against its own entry.
+     */
+    if (entry.id !== entryId) {
       return NextResponse.json(
         {
-          error:
-            "Your player session could not be verified.",
+          error: "Your player session could not be verified.",
         },
         {
           status: 403,
@@ -93,10 +70,10 @@ export async function POST(
     }
 
     /*
-     * Use the existing, proven makePick()
-     * database-saving logic.
+     * This is the existing database-saving function.
      *
-     * This writes the pick to Supabase.
+     * It performs the fast validation path and then inserts
+     * the pick into Supabase.
      */
     await makePick(
       entry,
@@ -111,7 +88,6 @@ export async function POST(
         ok: true,
         saved: true,
         team: teamName,
-        round: null,
       },
       {
         status: 200,
