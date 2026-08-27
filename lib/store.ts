@@ -895,6 +895,36 @@ export async function getCompetition(
 
 /*
  * ------------------------------------------------------------
+ * FAST COMPETITION LOOKUP
+ * ------------------------------------------------------------
+ *
+ * Used by operations that already know the competition and
+ * do NOT need a full Football Data synchronisation.
+ *
+ * This is deliberately separate from getCompetition().
+ */
+
+async function getCompetitionById(
+  competitionId: string
+): Promise<Competition> {
+  const rows =
+    await rest<Competition[]>(
+      `competitions?id=eq.${encodeURIComponent(
+        competitionId
+      )}&select=*&limit=1`
+    )
+
+  if (!rows[0]) {
+    throw new Error(
+      "That league could not be found."
+    )
+  }
+
+  return rows[0]
+}
+
+/*
+ * ------------------------------------------------------------
  * CREATE COMPETITION
  * ------------------------------------------------------------
  */
@@ -1121,10 +1151,17 @@ export async function getCurrentEntry(
   competitionCode?: string,
   ignoreExistingEntry = false
 ): Promise<Entry | null> {
-  const c =
-    await getCompetition(
-      competitionCode
-    )
+  /*
+   * IMPORTANT PERFORMANCE CHANGE:
+   *
+   * We only need the competition ID here.
+   *
+   * Do NOT call getCompetition(), because that performs
+   * Football Data synchronisation and finished-pick processing.
+   *
+   * The calling page can still use getCompetition() when it
+   * actually needs the synchronised competition state.
+   */
 
   if (
     ignoreExistingEntry
@@ -1135,31 +1172,55 @@ export async function getCurrentEntry(
   const jar =
     await cookies()
 
-  /*
-   * IMPORTANT:
-   * This function can run while a Server Component is rendering.
-   * Therefore it must ONLY READ cookies.
-   *
-   * Cookie writes are handled by Server Actions / Route Handlers.
-   */
-
   const currentEntryId =
     jar.get(
       ENTRY_COOKIE
     )?.value
+
+  /*
+   * If we already have an entry cookie, use the entry itself
+   * to determine its competition. This avoids a full
+   * competition synchronisation.
+   */
 
   if (currentEntryId) {
     const rows =
       await rest<Entry[]>(
         `entries?id=eq.${encodeURIComponent(
           currentEntryId
-        )}&competition_id=eq.${encodeURIComponent(
-          c.id
         )}&select=*&limit=1`
       )
 
     if (rows[0]) {
-      return rows[0]
+      if (!competitionCode) {
+        return rows[0]
+      }
+
+      /*
+       * Only verify the competition code when one was supplied.
+       * This requires a lightweight competition lookup rather
+       * than the full synchronisation path.
+       */
+
+      const code =
+        cleanCode(
+          competitionCode
+        )
+
+      const competitionRows =
+        await rest<Competition[]>(
+          `competitions?code=eq.${encodeURIComponent(
+            code
+          )}&select=id&limit=1`
+        )
+
+      if (
+        competitionRows[0] &&
+        rows[0].competition_id ===
+          competitionRows[0].id
+      ) {
+        return rows[0]
+      }
     }
   }
 
@@ -1171,10 +1232,31 @@ export async function getCurrentEntry(
    * IMPORTANT:
    * Do NOT update cookies here.
    */
+
   const storedEntryIds =
     await getStoredEntryIds()
 
   if (!storedEntryIds.length) {
+    return null
+  }
+
+  const code =
+    cleanCode(
+      competitionCode
+    )
+
+  if (!code) {
+    return null
+  }
+
+  const competitionRows =
+    await rest<Competition[]>(
+      `competitions?code=eq.${encodeURIComponent(
+        code
+      )}&select=id&limit=1`
+    )
+
+  if (!competitionRows[0]) {
     return null
   }
 
@@ -1191,7 +1273,7 @@ export async function getCurrentEntry(
       `entries?id=in.(${encodeURIComponent(
         quotedIds
       )})&competition_id=eq.${encodeURIComponent(
-        c.id
+        competitionRows[0].id
       )}&select=*&order=created_at.asc`
     )
 
@@ -1560,10 +1642,49 @@ export async function makePick(
     )
   }
 
+  /*
+   * IMPORTANT PERFORMANCE CHANGE:
+   *
+   * DO NOT call getCompetition() here.
+   *
+   * getCompetition() performs:
+   *
+   * 1. Football Data API lookup
+   * 2. finished-pick synchronisation
+   * 3. automatic round synchronisation
+   *
+   * None of that is required just to save a pick.
+   *
+   * The entry already contains competition_id, so use a
+   * lightweight competition lookup instead.
+   */
+
   const c =
-    await getCompetition(
-      competitionCode
+    await getCompetitionById(
+      entry.competition_id
     )
+
+  /*
+   * If a competition code was supplied, verify that the
+   * entry belongs to that competition.
+   */
+
+  if (
+    competitionCode &&
+    cleanCode(
+      competitionCode
+    ) !==
+      cleanCode(c.code)
+  ) {
+    throw new Error(
+      "Your player session could not be verified."
+    )
+  }
+
+  /*
+   * The fixture data is already cached for 30 seconds in the
+   * normal case, so this is normally an in-memory lookup.
+   */
 
   const fixtures =
     await getFixtures(
@@ -1581,31 +1702,46 @@ export async function makePick(
       team.name
     )
 
-  const previous =
+  /*
+   * PERFORMANCE CHANGE:
+   *
+   * Fetch the player's existing picks once and check both:
+   *
+   * - whether this team has already been used
+   * - whether a pick already exists for this round
+   *
+   * This replaces two separate database requests with one.
+   */
+
+  const existingPicks =
     await rest<Pick[]>(
       `picks?entry_id=eq.${encodeURIComponent(
         entry.id
-      )}&team=eq.${encodeURIComponent(
-        selectedTeam
-      )}&select=id&limit=1`
+      )}&select=id,round,team`
     )
 
-  if (previous.length) {
+  const previous =
+    existingPicks.find(
+      (pick) =>
+        canonicalTeamName(
+          pick.team
+        ) === selectedTeam
+    )
+
+  if (previous) {
     throw new Error(
       "You have already used that team."
     )
   }
 
   const existing =
-    await rest<Pick[]>(
-      `picks?entry_id=eq.${encodeURIComponent(
-        entry.id
-      )}&round=eq.${encodeURIComponent(
-        String(c.round)
-      )}&select=id&limit=1`
+    existingPicks.find(
+      (pick) =>
+        pick.round ===
+        c.round
     )
 
-  if (existing.length) {
+  if (existing) {
     throw new Error(
       "Your pick is already locked for this round."
     )
@@ -1651,6 +1787,10 @@ export async function makePick(
       "That fixture has already kicked off, so picks are locked."
     )
   }
+
+  /*
+   * SAVE PICK
+   */
 
   await rest("picks", {
     method: "POST",
