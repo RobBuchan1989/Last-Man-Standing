@@ -106,7 +106,8 @@ export async function makePickAction(
   const { getCurrentEntry } =
     await import("@/lib/store")
 
-  const entry = await getCurrentEntry()
+  const entry =
+    await getCurrentEntry()
 
   if (!entry) {
     return {
@@ -115,9 +116,21 @@ export async function makePickAction(
   }
 
   try {
-    await makePick(entry, team)
+    await makePick(
+      entry,
+      team
+    )
 
-    revalidatePath("/")
+    /*
+     * Do not revalidate the homepage here.
+     *
+     * The player is already on the league page,
+     * and forcing a homepage revalidation adds
+     * unnecessary work to the pick operation.
+     *
+     * The league page can refresh its own data
+     * after the action completes.
+     */
 
     return {
       ok: true,
