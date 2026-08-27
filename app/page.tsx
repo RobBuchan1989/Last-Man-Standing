@@ -194,48 +194,6 @@ async function createLeagueAction(
 
 /*
  * ------------------------------------------------------------
- * RETURN TO LEAGUE
- * ------------------------------------------------------------
- */
-
-async function returnToLeagueAction(
-  formData: FormData
-) {
-  "use server"
-
-  const league = String(
-    formData.get("league") || ""
-  )
-    .trim()
-    .toUpperCase()
-
-  const playerName = String(
-    formData.get("playerName") || ""
-  ).trim()
-
-  if (!league || !playerName) {
-    throw new Error(
-      "Unable to return to that league."
-    )
-  }
-
-  await joinCompetition(
-    playerName,
-    league
-  )
-
-  const { redirect } =
-    await import("next/navigation")
-
-  redirect(
-    `/?league=${encodeURIComponent(
-      league
-    )}`
-  )
-}
-
-/*
- * ------------------------------------------------------------
  * MAKE PICK
  * ------------------------------------------------------------
  */
@@ -449,36 +407,26 @@ export default async function Home({
 
                           </div>
 
-                          <form
-                            action={
-                              returnToLeagueAction
-                            }
+                          {/*
+                           * IMPORTANT:
+                           *
+                           * This is now a normal Next.js Link.
+                           * We no longer call joinCompetition()
+                           * when returning to an existing league.
+                           *
+                           * Prefetching allows Next.js to prepare
+                           * the destination before it is clicked.
+                           */}
+
+                          <Link
+                            href={`/?league=${encodeURIComponent(
+                              competition.code
+                            )}`}
+                            prefetch={true}
+                            className="w-full rounded-xl bg-green-400 px-7 py-4 text-center font-black text-[#07110b] hover:bg-green-300 md:w-auto"
                           >
-
-                            <input
-                              type="hidden"
-                              name="league"
-                              value={
-                                competition.code
-                              }
-                            />
-
-                            <input
-                              type="hidden"
-                              name="playerName"
-                              value={
-                                entry.name
-                              }
-                            />
-
-                            <button
-                              type="submit"
-                              className="w-full rounded-xl bg-green-400 px-7 py-4 font-black text-[#07110b] hover:bg-green-300 md:w-auto"
-                            >
-                              RETURN TO LEAGUE
-                            </button>
-
-                          </form>
+                            RETURN TO LEAGUE
+                          </Link>
 
                         </div>
 
@@ -720,9 +668,6 @@ export default async function Home({
    * ----------------------------------------------------------
    * SHARED LEAGUE / JOIN SCREEN
    * ----------------------------------------------------------
-   *
-   * A new browser with no stored entry will
-   * automatically receive the join screen.
    */
 
   const entry =
