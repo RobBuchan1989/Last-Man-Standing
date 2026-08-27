@@ -381,7 +381,7 @@ export default async function Home({
                             href={`/?league=${encodeURIComponent(
                               competition.code
                             )}`}
-                            prefetch={false}
+                            prefetch={true}
                             className="w-full rounded-xl bg-green-400 px-7 py-4 text-center font-black text-[#07110b] hover:bg-green-300 md:w-auto"
                           >
                             RETURN TO LEAGUE
