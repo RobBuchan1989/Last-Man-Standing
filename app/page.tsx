@@ -1,5 +1,6 @@
 import Link from "next/link"
 import ShareLeague from "@/app/components/ShareLeague"
+import FastPickButton from "@/app/components/FastPickButton"
 
 import {
   getCompetition,
@@ -11,7 +12,6 @@ import {
   getPlayerLeagues,
   joinCompetition,
   createCompetition,
-  makePick,
 } from "@/lib/store"
 
 export const dynamic = "force-dynamic"
@@ -194,81 +194,8 @@ async function createLeagueAction(
 
 /*
  * ------------------------------------------------------------
- * MAKE PICK
- * ------------------------------------------------------------
- */
-
-async function pickAction(
-  formData: FormData
-) {
-  "use server"
-
-  const entryId = String(
-    formData.get("entryId") || ""
-  )
-
-  const teamName = String(
-    formData.get("team") || ""
-  )
-
-  const league = String(
-    formData.get("league") || ""
-  )
-    .trim()
-    .toUpperCase()
-
-  if (!entryId || !teamName) {
-    throw new Error(
-      "Invalid pick."
-    )
-  }
-
-  const competition =
-    await getCompetition(
-      league || undefined
-    )
-
-  const entry =
-    await getCurrentEntry(
-      competition.code,
-      false
-    )
-
-  if (
-    !entry ||
-    entry.id !== entryId
-  ) {
-    throw new Error(
-      "Your player session could not be verified."
-    )
-  }
-
-  await makePick(
-    entry,
-    {
-      name: teamName,
-    },
-    competition.code
-  )
-
-  const { redirect } =
-    await import("next/navigation")
-
-  redirect(
-    `/?league=${encodeURIComponent(
-      competition.code
-    )}`
-  )
-}
-
-/*
- * ------------------------------------------------------------
  * HOME ICON
  * ------------------------------------------------------------
- *
- * Uses an explicit /?home=true URL rather than simply "/".
- * This makes the intention of the navigation unambiguous and
- * allows Next.js to prefetch the homepage destination.
  */
 
 function HomeLink({
@@ -355,8 +282,6 @@ export default async function Home({
     )
 
   /*
-   * IMPORTANT:
-   *
    * The root URL "/" is ALWAYS the homepage.
    *
    * A league page is only loaded when a league
@@ -457,17 +382,6 @@ export default async function Home({
                             </div>
 
                           </div>
-
-                          {/*
-                           * IMPORTANT:
-                           *
-                           * Normal Next.js Link.
-                           * No joinCompetition() call is made
-                           * when returning to an existing league.
-                           *
-                           * Prefetching lets Next.js prepare the
-                           * destination before it is clicked.
-                           */}
 
                           <Link
                             href={`/?league=${encodeURIComponent(
@@ -832,9 +746,6 @@ export default async function Home({
   const viewingCurrentRound =
     displayRound === currentRound
 
-  const viewingPreviousRound =
-    displayRound < currentRound
-
   /*
    * ----------------------------------------------------------
    * LOAD GAME DATA
@@ -1091,8 +1002,6 @@ export default async function Home({
 
                       </div>
 
-                      {/* NEW SHARE AREA */}
-
                       <ShareLeague
                         leagueCode={
                           competition.code
@@ -1140,84 +1049,21 @@ export default async function Home({
                                 )
 
                               return (
-
-                                <form
+                                <FastPickButton
                                   key={`${fixture.id}-${teamName}`}
-                                  action={
-                                    pickAction
+                                  entryId={
+                                    entry.id
                                   }
-                                >
-
-                                  <input
-                                    type="hidden"
-                                    name="entryId"
-                                    value={
-                                      entry.id
-                                    }
-                                  />
-
-                                  <input
-                                    type="hidden"
-                                    name="team"
-                                    value={
-                                      teamName
-                                    }
-                                  />
-
-                                  <input
-                                    type="hidden"
-                                    name="league"
-                                    value={
-                                      competition.code
-                                    }
-                                  />
-
-                                  <button
-                                    type="submit"
-                                    disabled={
-                                      used
-                                    }
-                                    className={`w-full rounded-2xl border p-5 text-left transition ${
-                                      used
-                                        ? "cursor-not-allowed border-white/5 bg-[#10151d] opacity-40"
-                                        : "border-white/10 bg-[#151b25] hover:border-green-400 hover:bg-[#202733]"
-                                    }`}
-                                  >
-
-                                    <div className="flex items-center justify-between gap-4">
-
-                                      <div>
-
-                                        <div className="text-xl font-black">
-                                          {
-                                            teamName
-                                          }
-                                        </div>
-
-                                        <div className="mt-1 text-sm text-slate-400">
-                                          {
-                                            homeTeam
-                                          }{" "}
-                                          v{" "}
-                                          {
-                                            awayTeam
-                                          }
-                                        </div>
-
-                                      </div>
-
-                                      <span className="text-sm font-bold text-slate-400">
-                                        {used
-                                          ? "USED"
-                                          : "PICK"}
-                                      </span>
-
-                                    </div>
-
-                                  </button>
-
-                                </form>
-
+                                  teamName={
+                                    teamName
+                                  }
+                                  league={
+                                    competition.code
+                                  }
+                                  used={
+                                    used
+                                  }
+                                />
                               )
                             }
                           )
