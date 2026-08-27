@@ -18,6 +18,33 @@ import {
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 
+function lmsTimingStart() {
+  return Date.now()
+}
+
+async function lmsTimed<T>(
+  label: string,
+  operation: () => Promise<T>
+): Promise<T> {
+  const started = Date.now()
+
+  try {
+    const result = await operation()
+
+    console.log(
+      `[LMS_TIMING] ${label}: ${Date.now() - started}ms`
+    )
+
+    return result
+  } catch (error) {
+    console.log(
+      `[LMS_TIMING] ${label}: FAILED after ${Date.now() - started}ms`
+    )
+
+    throw error
+  }
+}
+
 type HomeProps = {
   searchParams?: Promise<{
     league?: string | string[]
@@ -260,6 +287,9 @@ function HomeLink({
 export default async function Home({
   searchParams,
 }: HomeProps) {
+  const pageStarted =
+    lmsTimingStart()
+
   const params =
     searchParams
       ? await searchParams
@@ -292,7 +322,10 @@ export default async function Home({
 
   if (homePage) {
     const playerLeagues =
-      await getPlayerLeagues()
+      await lmsTimed(
+        "getPlayerLeagues",
+        () => getPlayerLeagues()
+      )
 
     return (
       <main className="min-h-screen bg-[#0b1018] text-white">
@@ -561,8 +594,12 @@ export default async function Home({
 
   try {
     competition =
-      await getCompetition(
-        leagueCode
+      await lmsTimed(
+        "getCompetition",
+        () =>
+          getCompetition(
+            leagueCode
+          )
       )
   } catch {
     return (
@@ -605,9 +642,13 @@ export default async function Home({
    */
 
   const entry =
-    await getCurrentEntry(
-      competition.code,
-      false
+    await lmsTimed(
+      "getCurrentEntry",
+      () =>
+        getCurrentEntry(
+          competition.code,
+          false
+        )
     )
 
   /*
@@ -738,23 +779,44 @@ export default async function Home({
     fixtures,
     roundPicks,
   ] = await Promise.all([
-    getPicks(entry.id),
+    lmsTimed(
+      "getPicks",
+      () => getPicks(entry.id)
+    ),
 
-    getLeaderboard(
-      competition.code
+    lmsTimed(
+      "getLeaderboard",
+      () =>
+        getLeaderboard(
+          competition.code
+        )
     ),
 
     viewingCurrentRound
-      ? getFixtures(
-          currentRound
+      ? lmsTimed(
+          "getFixtures",
+          () =>
+            getFixtures(
+              currentRound
+            )
         )
       : Promise.resolve([]),
 
-    getRoundPicks(
-      displayRound,
-      competition.code
+    lmsTimed(
+      "getRoundPicks",
+      () =>
+        getRoundPicks(
+          displayRound,
+          competition.code
+        )
     ),
   ])
+
+  console.log(
+    `[LMS_TIMING] league page total before render: ${
+      Date.now() - pageStarted
+    }ms`
+  )
 
   /*
    * ----------------------------------------------------------
