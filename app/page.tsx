@@ -212,7 +212,6 @@ function HomeLink({
         compact ? "" : ""
       }`}
     >
-
       <span
         aria-hidden="true"
         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-[#202733] text-white transition group-hover:border-green-400 group-hover:bg-[#29313e]"
@@ -247,7 +246,6 @@ function HomeLink({
           LAST MAN STANDING
         </h1>
       </div>
-
     </Link>
   )
 }
@@ -306,13 +304,9 @@ export default async function Home({
       <main className="min-h-screen bg-[#0b1018] text-white">
 
         <header className="border-b border-white/10 bg-[#111722] px-6 py-7">
-
           <div className="mx-auto max-w-7xl">
-
             <HomeLink />
-
           </div>
-
         </header>
 
         <div className="mx-auto max-w-5xl px-6 py-16">
@@ -387,7 +381,14 @@ export default async function Home({
                             href={`/?league=${encodeURIComponent(
                               competition.code
                             )}`}
-                            prefetch={true}
+                            /*
+                             * IMPORTANT:
+                             * Do not prefetch the league page.
+                             *
+                             * The league page must fetch the latest
+                             * database state when the player returns.
+                             */
+                            prefetch={false}
                             className="w-full rounded-xl bg-green-400 px-7 py-4 text-center font-black text-[#07110b] hover:bg-green-300 md:w-auto"
                           >
                             RETURN TO LEAGUE
@@ -587,9 +588,7 @@ export default async function Home({
         <header className="border-b border-white/10 bg-[#111722] px-6 py-7">
 
           <div className="mx-auto max-w-7xl">
-
             <HomeLink compact />
-
           </div>
 
         </header>
@@ -618,7 +617,7 @@ export default async function Home({
 
   /*
    * ----------------------------------------------------------
-   * SHARED LEAGUE / JOIN SCREEN
+   * GET CURRENT PLAYER ENTRY
    * ----------------------------------------------------------
    */
 
@@ -641,9 +640,7 @@ export default async function Home({
         <header className="border-b border-white/10 bg-[#111722] px-6 py-7">
 
           <div className="mx-auto max-w-7xl">
-
             <HomeLink compact />
-
           </div>
 
         </header>
@@ -750,6 +747,9 @@ export default async function Home({
    * ----------------------------------------------------------
    * LOAD GAME DATA
    * ----------------------------------------------------------
+   *
+   * The current player's picks are loaded directly from
+   * the database every time this page renders.
    */
 
   const [
@@ -880,6 +880,7 @@ export default async function Home({
                 href={`/?league=${encodeURIComponent(
                   competition.code
                 )}&round=${displayRound - 1}`}
+                prefetch={false}
                 className="rounded-xl border border-white/10 bg-[#202733] px-4 py-3 font-bold hover:border-green-400"
               >
                 ← ROUND{" "}
@@ -901,6 +902,7 @@ export default async function Home({
                 href={`/?league=${encodeURIComponent(
                   competition.code
                 )}&round=${displayRound + 1}`}
+                prefetch={false}
                 className="rounded-xl border border-white/10 bg-[#202733] px-4 py-3 font-bold hover:border-green-400"
               >
                 ROUND{" "}
@@ -927,8 +929,6 @@ export default async function Home({
 
             <div className="rounded-2xl border border-white/10 bg-[#151b25] p-7">
 
-              {/* CURRENT ROUND */}
-
               {viewingCurrentRound ? (
 
                 <>
@@ -946,7 +946,9 @@ export default async function Home({
                       </div>
 
                       <h2 className="mt-2 text-4xl font-black">
-                        CHOOSE YOUR WINNER
+                        {currentPick
+                          ? "YOUR PICK"
+                          : "CHOOSE YOUR WINNER"}
                       </h2>
 
                       <p className="mt-3 text-lg text-slate-400">
@@ -979,25 +981,50 @@ export default async function Home({
 
                   {currentPick ? (
 
+                    /*
+                     * ------------------------------------------------
+                     * SAVED + LOCKED PICK
+                     * ------------------------------------------------
+                     *
+                     * This is rendered from the database, not from
+                     * temporary client-side state.
+                     */
+
                     <>
-                      <div className="mt-8 rounded-xl border border-green-400/40 bg-green-400/10 p-5">
+                      <div className="mt-8 rounded-2xl border-2 border-green-400/50 bg-green-400/10 p-6">
 
-                        <div className="text-sm font-bold text-green-400">
-                          YOUR PICK
-                        </div>
+                        <div className="flex items-start gap-4">
 
-                        <div className="mt-1 text-2xl font-black">
-                          {
-                            currentPick.team
-                          }
-                        </div>
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-green-400 text-2xl font-black text-[#07110b]">
+                            ✓
+                          </div>
 
-                        <div className="mt-1 text-slate-400">
-                          Your Round{" "}
-                          {
-                            currentRound
-                          }{" "}
-                          pick is locked.
+                          <div className="min-w-0">
+
+                            <div className="text-sm font-black tracking-[0.25em] text-green-400">
+                              YOUR PICK
+                            </div>
+
+                            <div className="mt-1 text-3xl font-black uppercase">
+                              {
+                                currentPick.team
+                              }
+                            </div>
+
+                            <div className="mt-2 text-lg font-black text-white">
+                              ROUND{" "}
+                              {
+                                currentRound
+                              }{" "}
+                              PICK SAVED & LOCKED IN
+                            </div>
+
+                            <div className="mt-1 text-slate-400">
+                              Your pick is locked. Good luck!
+                            </div>
+
+                          </div>
+
                         </div>
 
                       </div>
@@ -1024,64 +1051,80 @@ export default async function Home({
 
                   ) : (
 
-                    <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                    /*
+                     * ------------------------------------------------
+                     * AVAILABLE FIXTURES
+                     * ------------------------------------------------
+                     */
 
-                      {fixtures.map(
-                        (fixture) => {
+                    <div className="mt-8">
 
-                          const homeTeam =
-                            fixture.home_team
+                      <div className="mb-4 text-sm font-bold tracking-[0.2em] text-slate-400">
+                        AVAILABLE FIXTURES
+                      </div>
 
-                          const awayTeam =
-                            fixture.away_team
+                      {fixtures.length > 0 ? (
 
-                          return [
-                            homeTeam,
-                            awayTeam,
-                          ].map(
-                            (
-                              teamName
-                            ) => {
+                        <div className="grid gap-4 sm:grid-cols-2">
 
-                              const used =
-                                usedTeams.includes(
+                          {fixtures.map(
+                            (fixture) => {
+
+                              const homeTeam =
+                                fixture.home_team
+
+                              const awayTeam =
+                                fixture.away_team
+
+                              return [
+                                homeTeam,
+                                awayTeam,
+                              ].map(
+                                (
                                   teamName
-                                )
+                                ) => {
 
-                              return (
-                                <FastPickButton
-                                  key={`${fixture.id}-${teamName}`}
-                                  entryId={
-                                    entry.id
-                                  }
-                                  teamName={
-                                    teamName
-                                  }
-                                  league={
-                                    competition.code
-                                  }
-                                  used={
-                                    used
-                                  }
-                                />
+                                  const used =
+                                    usedTeams.includes(
+                                      teamName
+                                    )
+
+                                  return (
+                                    <FastPickButton
+                                      key={`${fixture.id}-${teamName}`}
+                                      entryId={
+                                        entry.id
+                                      }
+                                      teamName={
+                                        teamName
+                                      }
+                                      league={
+                                        competition.code
+                                      }
+                                      used={
+                                        used
+                                      }
+                                    />
+                                  )
+                                }
                               )
                             }
-                          )
-                        }
+                          )}
+
+                        </div>
+
+                      ) : (
+
+                        <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-5 text-yellow-200">
+                          No fixtures are currently
+                          available for Round{" "}
+                          {
+                            currentRound
+                          }.
+                        </div>
+
                       )}
 
-                    </div>
-
-                  )}
-
-                  {!fixtures.length && (
-
-                    <div className="mt-8 rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-5 text-yellow-200">
-                      No fixtures are currently
-                      available for Round{" "}
-                      {
-                        currentRound
-                      }.
                     </div>
 
                   )}
@@ -1397,6 +1440,7 @@ export default async function Home({
                         href={`/?league=${encodeURIComponent(
                           competition.code
                         )}&round=${round}`}
+                        prefetch={false}
                         className={`block rounded-xl px-4 py-3 font-bold transition ${
                           active
                             ? "bg-green-400 text-[#07110b]"
