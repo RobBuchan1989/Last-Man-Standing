@@ -1,6 +1,7 @@
 import Link from "next/link"
 import ShareLeague from "@/app/components/ShareLeague"
 import CurrentRoundPick from "@/app/components/CurrentRoundPick"
+import LeagueReturnButton from "@/app/components/LeagueReturnButton"
 
 import {
   getCompetition,
@@ -279,13 +280,6 @@ export default async function Home({
       params?.round
     )
 
-  /*
-   * The root URL "/" is ALWAYS the homepage.
-   *
-   * A league page is only loaded when a league
-   * code is explicitly present in the URL.
-   */
-
   const homePage =
     explicitHomePage ||
     !leagueCode
@@ -377,15 +371,11 @@ export default async function Home({
 
                           </div>
 
-                          <Link
+                          <LeagueReturnButton
                             href={`/?league=${encodeURIComponent(
                               competition.code
                             )}`}
-                            prefetch={true}
-                            className="w-full rounded-xl bg-green-400 px-7 py-4 text-center font-black text-[#07110b] hover:bg-green-300 md:w-auto"
-                          >
-                            RETURN TO LEAGUE
-                          </Link>
+                          />
 
                         </div>
 
