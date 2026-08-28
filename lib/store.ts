@@ -656,10 +656,20 @@ async function syncCompetitionRound(
       isOpenFixture
     )
 
+  /*
+   * IMPORTANT:
+   *
+   * Once a competition has been marked finished,
+   * a later background sync must never reactivate it.
+   */
+
   const nextStatus =
-    hasOpenFixtures
-      ? "active"
-      : competition.status
+    competition.status ===
+    "finished"
+      ? "finished"
+      : hasOpenFixtures
+        ? "active"
+        : competition.status
 
   const needsUpdate =
     automaticRound !==
@@ -722,6 +732,198 @@ async function syncCompetitionRound(
         nextStatus,
     }
   }
+}
+
+/*
+ * ------------------------------------------------------------
+ * BACKGROUND GAME SYNC
+ * ------------------------------------------------------------
+ *
+ * This is deliberately separate from getCompetition().
+ *
+ * Render Cron calls this function every few minutes.
+ *
+ * It:
+ *
+ * 1. Gets the latest Football Data matches once.
+ * 2. Finds all active competitions.
+ * 3. Settles completed picks.
+ * 4. Advances each competition to the correct round.
+ * 5. Detects a single remaining player.
+ * 6. Marks that player as the winner.
+ *
+ * No browser cookies are required.
+ * No player has to open the website.
+ */
+
+export async function runBackgroundSync() {
+  console.log(
+    "[LMS SYNC] Fetching latest Premier League data..."
+  )
+
+  const matches =
+    await getLivePremierLeagueMatches()
+
+  console.log(
+    `[LMS SYNC] Received ${matches.length} Premier League fixtures.`
+  )
+
+  const competitions =
+    await rest<Competition[]>(
+      "competitions?status=eq.active&select=*"
+    )
+
+  console.log(
+    `[LMS SYNC] Found ${competitions.length} active competitions.`
+  )
+
+  let competitionsSynced =
+    0
+
+  let winnersDetected =
+    0
+
+  for (
+    const competition of competitions
+  ) {
+    try {
+      console.log(
+        `[LMS SYNC] Processing ${competition.code}...`
+      )
+
+      /*
+       * First settle completed picks.
+       */
+
+      await syncFinishedPicks(
+        competition,
+        matches
+      )
+
+      /*
+       * Then update the competition round.
+       */
+
+      const updatedCompetition =
+        await syncCompetitionRound(
+          competition
+        )
+
+      /*
+       * Finally check whether only one
+       * player remains alive.
+       */
+
+      const entries =
+        await rest<Entry[]>(
+          `entries?competition_id=eq.${encodeURIComponent(
+            competition.id
+          )}&select=id,name,alive`
+        )
+
+      const aliveEntries =
+        entries.filter(
+          (entry) =>
+            entry.alive
+        )
+
+      /*
+       * Exactly one surviving player means
+       * the competition has a winner.
+       */
+
+      if (
+        aliveEntries.length === 1
+      ) {
+        const winner =
+          aliveEntries[0]
+
+        await rest(
+          `competitions?id=eq.${encodeURIComponent(
+            competition.id
+          )}`,
+          {
+            method: "PATCH",
+            headers: {
+              Prefer:
+                "return=minimal",
+            },
+            body:
+              JSON.stringify({
+                status:
+                  "finished",
+                owner_entry_id:
+                  winner.id,
+              }),
+          }
+        )
+
+        competitionCache.set(
+          competition.code,
+          {
+            competition: {
+              ...updatedCompetition,
+              status:
+                "finished",
+              owner_entry_id:
+                winner.id,
+            } as Competition,
+            expiresAt:
+              Date.now() +
+              COMPETITION_CACHE_MS,
+          }
+        )
+
+        winnersDetected += 1
+
+        console.log(
+          `[LMS SYNC] Winner detected in ${competition.code}: ${winner.name}`
+        )
+      } else if (
+        aliveEntries.length === 0
+      ) {
+        /*
+         * No surviving players.
+         *
+         * Do not assign a winner.
+         * Leave the competition active unless
+         * existing game rules later define a draw/
+         * no-winner state.
+         */
+
+        console.log(
+          `[LMS SYNC] ${competition.code}: no players remain alive.`
+        )
+      }
+
+      competitionsSynced += 1
+
+      console.log(
+        `[LMS SYNC] ${competition.code} synced successfully.`
+      )
+    } catch (error) {
+      console.error(
+        `[LMS SYNC] Failed for ${competition.code}:`,
+        error
+      )
+    }
+  }
+
+  const result = {
+    competitionsFound:
+      competitions.length,
+
+    competitionsSynced,
+
+    winnersDetected,
+  }
+
+  console.log(
+    "[LMS SYNC] Complete:",
+    result
+  )
+
+  return result
 }
 
 /*
