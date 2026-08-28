@@ -918,47 +918,34 @@ export async function getCompetition(
     )
   }
 
+  /*
+   * IMPORTANT PERFORMANCE FIX
+   *
+   * Loading a league is on the critical user path.
+   * Do not call the Football Data API, settle picks,
+   * or synchronise the round here.
+   *
+   * Those operations were responsible for the large
+   * delay before the league could render.
+   *
+   * The league already stores its current round, while
+   * fixtures are loaded separately when required.
+   */
+
   const competition =
     rows[0]
 
-  try {
-    const matches =
-      await getLivePremierLeagueMatches()
-
-    await syncFinishedPicks(
+  competitionCache.set(
+    code,
+    {
       competition,
-      matches
-    )
+      expiresAt:
+        Date.now() +
+        COMPETITION_CACHE_MS,
+    }
+  )
 
-    const synced =
-      await syncCompetitionRound(
-        competition
-      )
-
-    competitionCache.set(
-      code,
-      {
-        competition: synced,
-        expiresAt:
-          Date.now() +
-          COMPETITION_CACHE_MS,
-      }
-    )
-
-    return synced
-  } catch {
-    competitionCache.set(
-      code,
-      {
-        competition,
-        expiresAt:
-          Date.now() +
-          COMPETITION_CACHE_MS,
-      }
-    )
-
-    return competition
-  }
+  return competition
 }
 
 /*
