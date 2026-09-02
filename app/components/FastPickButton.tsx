@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
 
 type Props = {
   entryId: string
@@ -25,8 +24,6 @@ export default function FastPickButton({
   venue,
   deadlinePassed,
 }: Props) {
-  const router = useRouter()
-
   const [selectedTeam, setSelectedTeam] =
     useState<string | null>(null)
 
@@ -163,11 +160,17 @@ export default function FastPickButton({
       setSaving(false)
 
       /*
-       * Refresh the server-rendered league data so
-       * the leaderboard immediately shows the new
-       * current-round pick count.
+       * The pick is now safely saved in the database.
+       *
+       * Do a full page reload so every server-rendered
+       * section, including the separate leaderboard,
+       * is rebuilt from fresh database data.
+       *
+       * This is more reliable here than router.refresh()
+       * because the leaderboard is rendered inside its
+       * own Suspense boundary.
        */
-      router.refresh()
+      window.location.reload()
 
     } catch (err) {
       /*
