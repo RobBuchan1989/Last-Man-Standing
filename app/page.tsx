@@ -1,9 +1,6 @@
 import Link from "next/link"
-import { Suspense } from "react"
-
-import CurrentRoundPick from "@/app/components/CurrentRoundPick"
-import LeagueReturnButton from "@/app/components/LeagueReturnButton"
-import ShareLeagueButton from "@/app/components/ShareLeagueButton"
+import { revalidatePath } from "next/cache"
+import ShareLeague from "@/app/components/ShareLeague"
 
 import {
   getCompetition,
@@ -15,6 +12,7 @@ import {
   getPlayerLeagues,
   joinCompetition,
   createCompetition,
+  makePick,
 } from "@/lib/store"
 
 export const dynamic = "force-dynamic"
@@ -25,7 +23,6 @@ type HomeProps = {
     league?: string | string[]
     home?: string | string[]
     round?: string | string[]
-    joinError?: string | string[]
   }>
 }
 
@@ -130,44 +127,19 @@ async function joinAction(
     )
   }
 
+  await joinCompetition(
+    name,
+    league
+  )
+
   const { redirect } =
     await import("next/navigation")
 
-  try {
-    await joinCompetition(
-      name,
+  redirect(
+    `/?league=${encodeURIComponent(
       league
-    )
-
-    redirect(
-      `/?league=${encodeURIComponent(
-        league
-      )}`
-    )
-  } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : ""
-
-    if (
-      message.includes(
-        "already taken"
-      )
-    ) {
-      redirect(
-        `/?league=${encodeURIComponent(
-          league
-        )}&joinError=name-taken`
-      )
-    }
-
-    redirect(
-      `/?league=${encodeURIComponent(
-        league
-      )}&joinError=join-error`
-    )
-  }
+    )}`
+  )
 }
 
 /*
@@ -223,1094 +195,421 @@ async function createLeagueAction(
 
 /*
  * ------------------------------------------------------------
- * HOME ICON
+ * RETURN TO LEAGUE
  * ------------------------------------------------------------
  */
 
-function HomeLink({
-  compact = false,
-}: {
-  compact?: boolean
-}) {
-  return (
-    <Link
-      href="/?home=true"
-      prefetch={true}
-      aria-label="Go to home"
-      className="group flex items-center gap-3"
-    >
-      <span
-        aria-hidden="true"
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-[#202733] text-white transition group-hover:border-green-400 group-hover:bg-[#29313e]"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="h-5 w-5"
-        >
-          <path d="M3 10.5 12 3l9 7.5" />
-          <path d="M5.5 9.5V21h13V9.5" />
-          <path d="M9.5 21v-6h5v6" />
-        </svg>
-      </span>
+/*
+ * ------------------------------------------------------------
+ * MAKE PICK
+ * ------------------------------------------------------------
+ */
 
-      <div>
-        <div className="text-sm font-bold tracking-[0.35em] text-green-400">
-          PREMIER LEAGUE
-        </div>
+async function pickAction(
+  formData: FormData
+) {
+  "use server"
 
-        <h1
-          className={
-            compact
-              ? "mt-1 text-2xl font-black"
-              : "mt-1 text-3xl font-black tracking-tight"
-          }
-        >
-          LAST MAN STANDING
-        </h1>
-      </div>
-    </Link>
+  const entryId = String(
+    formData.get("entryId") || ""
+  )
+
+  const teamName = String(
+    formData.get("team") || ""
+  )
+
+  const league = String(
+    formData.get("league") || ""
+  )
+    .trim()
+    .toUpperCase()
+
+  if (!entryId || !teamName) {
+    throw new Error(
+      "Invalid pick."
+    )
+  }
+
+  const competition =
+    await getCompetition(
+      league || undefined
+    )
+
+  const entry =
+    await getCurrentEntry(
+      competition.code,
+      false
+    )
+
+  if (
+    !entry ||
+    entry.id !== entryId
+  ) {
+    throw new Error(
+      "Your player session could not be verified."
+    )
+  }
+
+  await makePick(
+    entry,
+    {
+      name: teamName,
+    },
+    competition.code
+  )
+
+  // Invalidate the league page so the leaderboard immediately
+  // reflects the newly saved pick after the server action.
+  revalidatePath(
+    `/?league=${encodeURIComponent(competition.code)}`
+  )
+
+  const { redirect } =
+    await import("next/navigation")
+
+  redirect(
+    `/?league=${encodeURIComponent(
+      competition.code
+    )}`
   )
 }
 
 /*
  * ------------------------------------------------------------
- * HOME PAGE
+ * PAGE
  * ------------------------------------------------------------
  */
 
-async function HomePage() {
-  const playerLeagues =
-    await getPlayerLeagues()
+export default async function Home({
+  searchParams,
+}: HomeProps) {
+  const params =
+    searchParams
+      ? await searchParams
+      : {}
 
-  return (
-    <main className="min-h-screen bg-[#0b1018] text-white">
+  const leagueCode =
+    getLeagueCode(
+      params?.league
+    )
 
-      <header className="border-b border-white/10 bg-[#111722] px-6 py-7">
-        <div className="mx-auto max-w-7xl">
-          <HomeLink />
-        </div>
-      </header>
+  const explicitHomePage =
+    isHomePage(
+      params?.home
+    )
 
-      <div className="mx-auto max-w-5xl px-6 py-16">
+  const requestedRound =
+    getRequestedRound(
+      params?.round
+    )
 
-        <div className="rounded-2xl border border-white/10 bg-[#151b25] p-8 shadow-2xl">
+  /*
+   * IMPORTANT:
+   *
+   * The root URL "/" is ALWAYS the homepage.
+   *
+   * A league page is only loaded when a league
+   * code is explicitly present in the URL.
+   */
 
-          <div className="text-sm font-bold tracking-[0.3em] text-green-400">
-            LAST MAN STANDING
+  const homePage =
+    explicitHomePage ||
+    !leagueCode
+
+  /*
+   * ----------------------------------------------------------
+   * HOMEPAGE
+   * ----------------------------------------------------------
+   */
+
+  if (homePage) {
+    const playerLeagues =
+      await getPlayerLeagues()
+
+    return (
+      <main className="min-h-screen bg-[#0b1018] text-white">
+
+        <header className="border-b border-white/10 bg-[#111722] px-6 py-7">
+
+          <div className="mx-auto max-w-7xl">
+
+            <Link
+              href="/"
+              className="group block"
+            >
+
+              <div className="text-sm font-bold tracking-[0.35em] text-green-400">
+                PREMIER LEAGUE
+              </div>
+
+              <h1 className="mt-1 text-3xl font-black tracking-tight">
+                LAST MAN STANDING
+              </h1>
+
+            </Link>
+
           </div>
 
-          <h2 className="mt-3 text-5xl font-black">
-            Welcome
-          </h2>
+        </header>
 
-          <p className="mt-5 max-w-2xl text-xl text-slate-400">
-            Pick. Win. Survive.
-          </p>
+        <div className="mx-auto max-w-5xl px-6 py-16">
 
-          {/* YOUR LEAGUES */}
+          <div className="rounded-2xl border border-white/10 bg-[#151b25] p-8 shadow-2xl">
 
-          <div className="mt-10 rounded-2xl bg-[#0e141d] p-6">
-
-            <div className="text-sm font-bold tracking-[0.25em] text-green-400">
-              YOUR LEAGUES
+            <div className="text-sm font-bold tracking-[0.3em] text-green-400">
+              LAST MAN STANDING
             </div>
 
-            {playerLeagues.length > 0 ? (
+            <h2 className="mt-3 text-5xl font-black">
+              Welcome
+            </h2>
 
-              <div className="mt-5 space-y-4">
+            <p className="mt-5 max-w-2xl text-xl text-slate-400">
+              Pick. Win. Survive.
+            </p>
 
-                {playerLeagues.map(
-                  ({
-                    competition,
-                    entry,
-                  }) => (
+            {/* YOUR LEAGUES */}
 
-                    <div
-                      key={entry.id}
-                      className="rounded-2xl border border-white/10 bg-[#151b25] p-5"
-                    >
+            <div className="mt-10 rounded-2xl bg-[#0e141d] p-6">
 
-                      <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+              <div className="text-sm font-bold tracking-[0.25em] text-green-400">
+                YOUR LEAGUES
+              </div>
 
-                        <div>
+              {playerLeagues.length > 0 ? (
 
-                          <div className="text-2xl font-black">
-                            {
-                              competition.name
-                            }
-                          </div>
+                <div className="mt-5 space-y-4">
 
-                          <div className="mt-2 text-slate-400">
-                            Welcome back,{" "}
-                            {
-                              entry.name
-                            }
-                            .
-                          </div>
+                  {playerLeagues.map(
+                    ({
+                      competition,
+                      entry,
+                    }) => (
 
-                          <div className="mt-1 text-sm text-slate-500">
-                            League code:{" "}
-                            <strong className="text-slate-300">
+                      <div
+                        key={entry.id}
+                        className="rounded-2xl border border-white/10 bg-[#151b25] p-5"
+                      >
+
+                        <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+
+                          <div>
+
+                            <div className="text-2xl font-black">
                               {
-                                competition.code
+                                competition.name
                               }
-                            </strong>
+                            </div>
+
+                            <div className="mt-2 text-slate-400">
+                              Welcome back,{" "}
+                              {
+                                entry.name
+                              }
+                              .
+                            </div>
+
+                            <div className="mt-1 text-sm text-slate-500">
+                              League code:{" "}
+                              <strong className="text-slate-300">
+                                {
+                                  competition.code
+                                }
+                              </strong>
+                            </div>
+
                           </div>
+
+                          <Link
+                            href={`/?league=${encodeURIComponent(
+                              competition.code
+                            )}`}
+                            prefetch={true}
+                            className="w-full rounded-xl bg-green-400 px-7 py-4 text-center font-black text-[#07110b] hover:bg-green-300 md:w-auto"
+                          >
+                            RETURN TO LEAGUE
+                          </Link>
 
                         </div>
 
-                        <LeagueReturnButton
-                          href={`/?league=${encodeURIComponent(
-                            competition.code
-                          )}`}
-                        />
-
                       </div>
 
-                    </div>
+                    )
+                  )}
 
-                  )
-                )}
-
-              </div>
-
-            ) : (
-
-              <div className="mt-5 rounded-xl border border-white/10 bg-[#151b25] p-5">
-
-                <div className="text-lg font-bold">
-                  You haven't joined any leagues yet.
                 </div>
+
+              ) : (
+
+                <div className="mt-5 rounded-xl border border-white/10 bg-[#151b25] p-5">
+
+                  <div className="text-lg font-bold">
+                    You haven't joined any leagues yet.
+                  </div>
+
+                  <p className="mt-2 text-slate-400">
+                    Create a league or use a league
+                    code to join one.
+                  </p>
+
+                </div>
+
+              )}
+
+            </div>
+
+            {/* CREATE + JOIN */}
+
+            <div className="mt-8 grid gap-6 md:grid-cols-2">
+
+              {/* CREATE */}
+
+              <div className="rounded-2xl bg-[#0e141d] p-6">
+
+                <div className="text-sm font-bold tracking-[0.25em] text-green-400">
+                  CREATE A LEAGUE
+                </div>
+
+                <h3 className="mt-2 text-2xl font-black">
+                  Start your own
+                </h3>
 
                 <p className="mt-2 text-slate-400">
-                  Create a league or use a league
-                  code to join one.
+                  Create a new competition and invite
+                  your friends.
                 </p>
 
-              </div>
-
-            )}
-
-          </div>
-
-          {/* CREATE + JOIN */}
-
-          <div className="mt-8 grid gap-6 md:grid-cols-2">
-
-            {/* CREATE */}
-
-            <div className="rounded-2xl bg-[#0e141d] p-6">
-
-              <div className="text-sm font-bold tracking-[0.25em] text-green-400">
-                CREATE A LEAGUE
-              </div>
-
-              <h3 className="mt-2 text-2xl font-black">
-                Start your own
-              </h3>
-
-              <p className="mt-2 text-slate-400">
-                Create a new competition and invite
-                your friends.
-              </p>
-
-              <form
-                action={
-                  createLeagueAction
-                }
-                className="mt-6 space-y-4"
-              >
-
-                <div>
-
-                  <label className="mb-2 block font-semibold text-slate-300">
-                    League name
-                  </label>
-
-                  <input
-                    name="leagueName"
-                    required
-                    maxLength={60}
-                    placeholder="e.g. Friday Night Football"
-                    className="w-full rounded-xl border border-white/10 bg-[#151b25] px-4 py-4 text-white outline-none focus:border-green-400"
-                  />
-
-                </div>
-
-                <div>
-
-                  <label className="mb-2 block font-semibold text-slate-300">
-                    Your name
-                  </label>
-
-                  <input
-                    name="playerName"
-                    required
-                    maxLength={40}
-                    placeholder="e.g. Rob"
-                    className="w-full rounded-xl border border-white/10 bg-[#151b25] px-4 py-4 text-white outline-none focus:border-green-400"
-                  />
-
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full rounded-xl bg-green-400 px-5 py-4 font-black text-[#07110b] hover:bg-green-300"
-                >
-                  CREATE LEAGUE
-                </button>
-
-              </form>
-
-            </div>
-
-            {/* JOIN */}
-
-            <div className="rounded-2xl bg-[#0e141d] p-6">
-
-              <div className="text-sm font-bold tracking-[0.25em] text-green-400">
-                JOIN A LEAGUE
-              </div>
-
-              <h3 className="mt-2 text-2xl font-black">
-                Got an invite?
-              </h3>
-
-              <p className="mt-2 text-slate-400">
-                Enter the league code shared with
-                you.
-              </p>
-
-              <form
-                action={joinAction}
-                className="mt-6 space-y-4"
-              >
-
-                <div>
-
-                  <label className="mb-2 block font-semibold text-slate-300">
-                    League code
-                  </label>
-
-                  <input
-                    name="league"
-                    required
-                    maxLength={20}
-                    placeholder="e.g. F34BD5"
-                    className="w-full rounded-xl border border-white/10 bg-[#151b25] px-4 py-4 uppercase text-white outline-none focus:border-green-400"
-                  />
-
-                </div>
-
-                <div>
-
-                  <label className="mb-2 block font-semibold text-slate-300">
-                    Your name
-                  </label>
-
-                  <input
-                    name="name"
-                    required
-                    maxLength={40}
-                    placeholder="e.g. Rob"
-                    className="w-full rounded-xl border border-white/10 bg-[#151b25] px-4 py-4 text-white outline-none focus:border-green-400"
-                  />
-
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full rounded-xl bg-green-400 px-5 py-4 font-black text-[#07110b] hover:bg-green-300"
-                >
-                  JOIN LEAGUE
-                </button>
-
-              </form>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </div>
-
-    </main>
-  )
-}
-
-/*
- * ------------------------------------------------------------
- * LEAGUE LOADING FALLBACK
- * ------------------------------------------------------------
- */
-
-function LeagueLoading() {
-  return (
-    <div className="mx-auto max-w-7xl px-6 py-8">
-
-      <div className="mb-6 rounded-2xl border border-white/10 bg-[#151b25] p-5">
-
-        <div className="h-4 w-32 animate-pulse rounded bg-[#202733]" />
-
-        <div className="mt-3 h-6 w-56 animate-pulse rounded bg-[#202733]" />
-
-      </div>
-
-      <div className="grid gap-8 lg:grid-cols-[1.7fr_1fr]">
-
-        <section>
-
-          <div className="rounded-2xl border border-white/10 bg-[#151b25] p-7">
-
-            <div className="h-4 w-40 animate-pulse rounded bg-[#202733]" />
-
-            <div className="mt-4 h-10 w-80 animate-pulse rounded bg-[#202733]" />
-
-            <div className="mt-4 h-5 w-96 max-w-full animate-pulse rounded bg-[#202733]" />
-
-            <div className="mt-8 space-y-3">
-
-              {Array.from({
-                length: 6,
-              }).map((_, index) => (
-                <div
-                  key={index}
-                  className="h-20 animate-pulse rounded-2xl bg-[#202733]"
-                />
-              ))}
-
-            </div>
-
-          </div>
-
-        </section>
-
-        <aside>
-
-          <div className="rounded-2xl border border-white/10 bg-[#151b25] p-6">
-
-            <div className="h-8 w-48 animate-pulse rounded bg-[#202733]" />
-
-            <div className="mt-5 space-y-3">
-
-              {Array.from({
-                length: 5,
-              }).map((_, index) => (
-                <div
-                  key={index}
-                  className="h-16 animate-pulse rounded-xl bg-[#202733]"
-                />
-              ))}
-
-            </div>
-
-          </div>
-
-        </aside>
-
-      </div>
-
-    </div>
-  )
-}
-
-/*
- * ------------------------------------------------------------
- * ROUND NAVIGATION
- * ------------------------------------------------------------
- */
-
-function RoundNavigation({
-  competition,
-  currentRound,
-  displayRound,
-}: {
-  competition: any
-  currentRound: number
-  displayRound: number
-}) {
-  const viewingCurrentRound =
-    displayRound === currentRound
-
-  return (
-    <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#151b25] p-4">
-
-      <div>
-
-        <div className="text-xs font-bold tracking-[0.25em] text-green-400">
-          ROUND HISTORY
-        </div>
-
-        <div className="mt-1 text-lg font-bold">
-          {viewingCurrentRound
-            ? `Round ${currentRound} — Current`
-            : `Round ${displayRound} — Completed`}
-        </div>
-
-      </div>
-
-      <div className="flex items-center gap-3">
-
-        {displayRound > 1 ? (
-
-          <Link
-            href={`/?league=${encodeURIComponent(
-              competition.code
-            )}&round=${displayRound - 1}`}
-            prefetch={false}
-            className="rounded-xl border border-white/10 bg-[#202733] px-4 py-3 font-bold hover:border-green-400"
-          >
-            ← ROUND{" "}
-            {displayRound - 1}
-          </Link>
-
-        ) : (
-
-          <span className="rounded-xl border border-white/5 bg-[#10151d] px-4 py-3 font-bold text-slate-600">
-            ← PREVIOUS
-          </span>
-
-        )}
-
-        {displayRound <
-        currentRound ? (
-
-          <Link
-            href={`/?league=${encodeURIComponent(
-              competition.code
-            )}&round=${displayRound + 1}`}
-            prefetch={false}
-            className="rounded-xl border border-white/10 bg-[#202733] px-4 py-3 font-bold hover:border-green-400"
-          >
-            ROUND{" "}
-            {displayRound + 1} →
-          </Link>
-
-        ) : (
-
-          <span className="rounded-xl border border-white/5 bg-[#10151d] px-4 py-3 font-bold text-slate-600">
-            CURRENT ROUND
-          </span>
-
-        )}
-
-      </div>
-
-    </div>
-  )
-}
-
-/*
- * ------------------------------------------------------------
- * CRITICAL GAME CONTENT
- *
- * This is deliberately separate from leaderboard/history.
- * The player should not have to wait for those queries before
- * seeing their actual game.
- * ------------------------------------------------------------
- */
-
-async function CriticalLeagueContent({
-  competition,
-  entry,
-  displayRound,
-  currentRound,
-  viewingCurrentRound,
-}: {
-  competition: any
-  entry: any
-  displayRound: number
-  currentRound: number
-  viewingCurrentRound: boolean
-}) {
-  const [
-    picks,
-    fixtures,
-  ] = await Promise.all([
-    getPicks(entry.id),
-
-    viewingCurrentRound
-      ? getFixtures(
-          currentRound
-        )
-      : Promise.resolve([]),
-  ])
-
-  const currentPick =
-    picks.find(
-      (pick) =>
-        pick.round ===
-        currentRound
-    )
-
-  const usedTeams =
-    picks.map(
-      (pick) =>
-        pick.team
-    )
-
-  return (
-    <section>
-
-      <div className="rounded-2xl border border-white/10 bg-[#151b25] p-7">
-
-        {viewingCurrentRound ? (
-
-          <>
-
-            <div className="flex items-start justify-between gap-6">
-
-              <div>
-
-                <div className="text-sm font-bold tracking-[0.3em] text-green-400">
-                  ROUND{" "}
-                  {
-                    currentRound
-                  }{" "}
-                  — CURRENT
-                </div>
-
-                <h2 className="mt-2 text-4xl font-black">
-                  {currentPick
-                    ? "YOUR PICK"
-                    : "CHOOSE YOUR WINNER"}
-                </h2>
-
-                <p className="mt-3 text-lg text-slate-400">
-                  Welcome,{" "}
-                  {
-                    entry.name
+                <form
+                  action={
+                    createLeagueAction
                   }
-                  .
-                  A win keeps you alive.
-                  Draw or loss = OUT.
-                </p>
-
-              </div>
-
-              <div className="rounded-xl bg-[#202733] px-4 py-3 text-center">
-
-                <div className="text-xs text-slate-400">
-                  LEAGUE CODE
-                </div>
-
-                <div className="font-black">
-                  {
-                    competition.code
-                  }
-                </div>
-
-              </div>
-
-            </div>
-
-            <CurrentRoundPick
-              competition={competition}
-              entry={entry}
-              fixtures={fixtures}
-              usedTeams={usedTeams}
-              currentPick={
-                currentPick || null
-              }
-            />
-
-          </>
-
-        ) : (
-
-          <PreviousRoundContent
-            competition={competition}
-            displayRound={displayRound}
-            currentRound={currentRound}
-          />
-
-        )}
-
-      </div>
-
-    </section>
-  )
-}
-
-/*
- * ------------------------------------------------------------
- * PREVIOUS ROUND CONTENT
- * ------------------------------------------------------------
- */
-
-async function PreviousRoundContent({
-  competition,
-  displayRound,
-  currentRound,
-}: {
-  competition: any
-  displayRound: number
-  currentRound: number
-}) {
-  const [
-    leaderboard,
-    roundPicks,
-  ] = await Promise.all([
-    getLeaderboard(
-      competition.code
-    ),
-
-    getRoundPicks(
-      displayRound,
-      competition.code
-    ),
-  ])
-
-  const roundPickMap =
-    new Map(
-      roundPicks.map(
-        (pick) => [
-          pick.entry_id,
-          pick,
-        ]
-      )
-    )
-
-  return (
-    <>
-
-      <div>
-
-        <div className="text-sm font-bold tracking-[0.3em] text-green-400">
-          ROUND{" "}
-          {
-            displayRound
-          }{" "}
-          — COMPLETED
-        </div>
-
-        <h2 className="mt-2 text-4xl font-black">
-          ROUND HISTORY
-        </h2>
-
-        <p className="mt-3 text-lg text-slate-400">
-          Everyone's picks are visible
-          because this round has finished.
-        </p>
-
-      </div>
-
-      <div className="mt-8 space-y-4">
-
-        {leaderboard.map(
-          (player) => {
-
-            const pick =
-              roundPickMap.get(
-                player.id
-              )
-
-            let statusLabel =
-              "NO PICK"
-
-            let statusClass =
-              "text-slate-400"
-
-            if (pick) {
-
-              if (
-                pick.result ===
-                "win"
-              ) {
-
-                statusLabel =
-                  "ALIVE"
-
-                statusClass =
-                  "text-green-400"
-
-              } else if (
-                pick.result ===
-                  "loss" ||
-                pick.result ===
-                  "draw"
-              ) {
-
-                statusLabel =
-                  "OUT"
-
-                statusClass =
-                  "text-red-400"
-
-              } else {
-
-                statusLabel =
-                  "PENDING"
-
-                statusClass =
-                  "text-yellow-400"
-
-              }
-
-            }
-
-            return (
-
-              <div
-                key={
-                  player.id
-                }
-                className="rounded-2xl border border-white/10 bg-[#0e141d] p-5"
-              >
-
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  className="mt-6 space-y-4"
+                >
 
                   <div>
 
-                    <div className="text-xl font-black">
-                      {
-                        player.name
-                      }
-                    </div>
+                    <label className="mb-2 block font-semibold text-slate-300">
+                      League name
+                    </label>
 
-                    <div className="mt-2 text-slate-400">
-
-                      {pick ? (
-
-                        <>
-                          Picked{" "}
-                          <strong className="text-white">
-                            {
-                              pick.team
-                            }
-                          </strong>
-                        </>
-
-                      ) : (
-
-                        "No pick recorded for this round."
-
-                      )}
-
-                    </div>
+                    <input
+                      name="leagueName"
+                      required
+                      maxLength={60}
+                      placeholder="e.g. Friday Night Football"
+                      className="w-full rounded-xl border border-white/10 bg-[#151b25] px-4 py-4 text-white outline-none focus:border-green-400"
+                    />
 
                   </div>
 
-                  <div
-                    className={`font-black ${statusClass}`}
+                  <div>
+
+                    <label className="mb-2 block font-semibold text-slate-300">
+                      Your name
+                    </label>
+
+                    <input
+                      name="playerName"
+                      required
+                      maxLength={40}
+                      placeholder="e.g. Rob"
+                      className="w-full rounded-xl border border-white/10 bg-[#151b25] px-4 py-4 text-white outline-none focus:border-green-400"
+                    />
+
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full rounded-xl bg-green-400 px-5 py-4 font-black text-[#07110b] hover:bg-green-300"
                   >
-                    {
-                      statusLabel
-                    }
-                  </div>
+                    CREATE LEAGUE
+                  </button>
 
-                </div>
-
-                {pick && (
-
-                  <div className="mt-4 border-t border-white/10 pt-4">
-
-                    <div className="flex flex-wrap gap-3 text-sm">
-
-                      <span className="rounded-full bg-[#202733] px-3 py-1 text-slate-300">
-                        Round{" "}
-                        {
-                          pick.round
-                        }
-                      </span>
-
-                      {pick.result && (
-
-                        <span className="rounded-full bg-[#202733] px-3 py-1 text-slate-300">
-                          Result:{" "}
-                          {
-                            pick.result
-                          }
-                        </span>
-
-                      )}
-
-                    </div>
-
-                  </div>
-
-                )}
+                </form>
 
               </div>
 
-            )
-          }
-        )}
+              {/* JOIN */}
 
-      </div>
+              <div className="rounded-2xl bg-[#0e141d] p-6">
 
-    </>
-  )
-}
+                <div className="text-sm font-bold tracking-[0.25em] text-green-400">
+                  JOIN A LEAGUE
+                </div>
 
-/*
- * ------------------------------------------------------------
- * SIDEBAR
- *
- * Loaded separately so it does not block the game.
- * ------------------------------------------------------------
- */
+                <h3 className="mt-2 text-2xl font-black">
+                  Got an invite?
+                </h3>
 
-async function LeagueSidebar({
-  competition,
-  currentRound,
-  displayRound,
-}: {
-  competition: any
-  currentRound: number
-  displayRound: number
-}) {
-  const leaderboard =
-    await getLeaderboard(
-      competition.code
-    )
+                <p className="mt-2 text-slate-400">
+                  Enter the league code shared with
+                  you.
+                </p>
 
-  return (
-    <aside>
+                <form
+                  action={joinAction}
+                  className="mt-6 space-y-4"
+                >
 
-      {/* LEADERBOARD */}
+                  <div>
 
-      <div className="rounded-2xl border border-white/10 bg-[#151b25] p-6">
+                    <label className="mb-2 block font-semibold text-slate-300">
+                      League code
+                    </label>
 
-        <div className="flex items-center justify-between">
+                    <input
+                      name="league"
+                      required
+                      maxLength={20}
+                      placeholder="e.g. F34BD5"
+                      className="w-full rounded-xl border border-white/10 bg-[#151b25] px-4 py-4 uppercase text-white outline-none focus:border-green-400"
+                    />
 
-          <h2 className="text-2xl font-black">
-            LEADERBOARD
-          </h2>
+                  </div>
 
-          <div className="rounded-full bg-[#202733] px-3 py-1 text-xs font-bold">
-            {
-              leaderboard.filter(
-                (player) =>
-                  player.alive
-              ).length
-            }{" "}
-            alive
+                  <div>
+
+                    <label className="mb-2 block font-semibold text-slate-300">
+                      Your name
+                    </label>
+
+                    <input
+                      name="name"
+                      required
+                      maxLength={40}
+                      placeholder="e.g. Rob"
+                      className="w-full rounded-xl border border-white/10 bg-[#151b25] px-4 py-4 text-white outline-none focus:border-green-400"
+                    />
+
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full rounded-xl bg-green-400 px-5 py-4 font-black text-[#07110b] hover:bg-green-300"
+                  >
+                    JOIN LEAGUE
+                  </button>
+
+                </form>
+
+              </div>
+
+            </div>
+
           </div>
 
         </div>
 
-        <div className="mt-5 space-y-3">
+      </main>
+    )
+  }
 
-          {leaderboard.map(
-            (
-              player,
-              index
-            ) => {
+  /*
+   * ----------------------------------------------------------
+   * LOAD COMPETITION
+   * ----------------------------------------------------------
+   */
 
-              const currentRoundPickCount =
-                player.picks.filter(
-                  (pick) =>
-                    pick.round ===
-                    currentRound
-                ).length
-
-              return (
-
-                <div
-                  key={
-                    player.id
-                  }
-                  className="rounded-xl bg-[#1c222d] p-4"
-                >
-
-                  <div className="flex items-center gap-4">
-
-                    <div className="text-slate-500">
-                      {
-                        index + 1
-                      }
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-
-                      <div className="font-bold">
-                        {
-                          player.name
-                        }
-                      </div>
-
-                      <div className="text-sm text-slate-400">
-                        {
-                          currentRoundPickCount
-                        }{" "}
-                        {currentRoundPickCount === 1
-                          ? "pick"
-                          : "picks"}
-                      </div>
-
-                    </div>
-
-                    <div
-                      className={
-                        player.alive
-                          ? "font-bold text-green-400"
-                          : "font-bold text-red-400"
-                      }
-                    >
-                      {player.alive
-                        ? "ALIVE"
-                        : "OUT"}
-                    </div>
-
-                  </div>
-
-                </div>
-
-              )
-            }
-          )}
-
-        </div>
-
-      </div>
-
-      {/* ROUND HISTORY */}
-
-      <div className="mt-6 rounded-2xl border border-white/10 bg-[#151b25] p-6">
-
-        <div className="text-xs font-bold tracking-[0.25em] text-green-400">
-          ROUND HISTORY
-        </div>
-
-        <h2 className="mt-2 text-2xl font-black">
-          View previous rounds
-        </h2>
-
-        <p className="mt-3 text-slate-400">
-          Previous round picks are visible.
-          Current round picks remain private.
-        </p>
-
-        <div className="mt-5 space-y-2">
-
-          {Array.from(
-            {
-              length:
-                currentRound,
-            },
-            (_, index) =>
-              currentRound -
-              index
-          ).map(
-            (round) => {
-
-              const active =
-                round ===
-                displayRound
-
-              return (
-
-                <Link
-                  key={round}
-                  href={`/?league=${encodeURIComponent(
-                    competition.code
-                  )}&round=${round}`}
-                  prefetch={false}
-                  className={`block rounded-xl px-4 py-3 font-bold transition ${
-                    active
-                      ? "bg-green-400 text-[#07110b]"
-                      : "bg-[#202733] text-slate-300 hover:text-white"
-                  }`}
-                >
-
-                  <div className="flex items-center justify-between">
-
-                    <span>
-                      Round{" "}
-                      {round}
-                    </span>
-
-                    {round ===
-                      currentRound && (
-                      <span className="text-xs uppercase">
-                        Current
-                      </span>
-                    )}
-
-                  </div>
-
-                </Link>
-
-              )
-            }
-          )}
-
-        </div>
-
-      </div>
-
-      {/* RULES */}
-
-      <div className="mt-6 rounded-2xl border border-white/10 bg-[#151b25] p-6">
-
-        <h2 className="text-2xl font-black">
-          RULES
-        </h2>
-
-        <ul className="mt-4 space-y-3 text-slate-400">
-
-          <li>
-            • Pick one Premier League
-            team each round.
-          </li>
-
-          <li>
-            • A win keeps you alive.
-          </li>
-
-          <li>
-            • A draw or loss knocks
-            you out.
-          </li>
-
-          <li>
-            • You cannot use the same
-            team twice.
-          </li>
-
-          <li>
-            • Current round picks are
-            private.
-          </li>
-
-          <li>
-            • Completed round picks are
-            visible to everyone.
-          </li>
-
-        </ul>
-
-      </div>
-
-    </aside>
-  )
-}
-
-/*
- * ------------------------------------------------------------
- * LEAGUE PAGE
- *
- * Competition + player entry are loaded once.
- * Critical game and sidebar are then separated.
- * ------------------------------------------------------------
- */
-
-async function LeaguePage({
-  leagueCode,
-  requestedRound,
-  joinError,
-}: {
-  leagueCode: string
-  requestedRound?: number
-  joinError?: string
-}) {
   let competition
 
   try {
@@ -1325,7 +624,22 @@ async function LeaguePage({
         <header className="border-b border-white/10 bg-[#111722] px-6 py-7">
 
           <div className="mx-auto max-w-7xl">
-            <HomeLink compact />
+
+            <Link
+              href="/"
+              className="group block"
+            >
+
+              <div className="text-sm font-bold tracking-[0.35em] text-green-400">
+                PREMIER LEAGUE
+              </div>
+
+              <h1 className="mt-1 text-3xl font-black tracking-tight">
+                LAST MAN STANDING
+              </h1>
+
+            </Link>
+
           </div>
 
         </header>
@@ -1352,6 +666,15 @@ async function LeaguePage({
     )
   }
 
+  /*
+   * ----------------------------------------------------------
+   * SHARED LEAGUE / JOIN SCREEN
+   * ----------------------------------------------------------
+   *
+   * A new browser with no stored entry will
+   * automatically receive the join screen.
+   */
+
   const entry =
     await getCurrentEntry(
       competition.code,
@@ -1359,7 +682,9 @@ async function LeaguePage({
     )
 
   /*
+   * ----------------------------------------------------------
    * JOIN SCREEN
+   * ----------------------------------------------------------
    */
 
   if (!entry) {
@@ -1369,7 +694,22 @@ async function LeaguePage({
         <header className="border-b border-white/10 bg-[#111722] px-6 py-7">
 
           <div className="mx-auto max-w-7xl">
-            <HomeLink compact />
+
+            <Link
+              href="/"
+              className="group block"
+            >
+
+              <div className="text-sm font-bold tracking-[0.35em] text-green-400">
+                PREMIER LEAGUE
+              </div>
+
+              <h1 className="mt-1 text-3xl font-black tracking-tight">
+                LAST MAN STANDING
+              </h1>
+
+            </Link>
+
           </div>
 
         </header>
@@ -1399,36 +739,6 @@ async function LeaguePage({
               Enter your name to join this Last Man
               Standing competition.
             </p>
-
-            {joinError ===
-              "name-taken" && (
-              <div className="mt-8 rounded-2xl border border-red-400/30 bg-red-400/10 p-5">
-                <div className="text-lg font-black text-red-300">
-                  PLAYER NAME ALREADY TAKEN
-                </div>
-
-                <p className="mt-2 text-slate-300">
-                  Someone has already joined this
-                  league using that name. Please
-                  choose a different name.
-                </p>
-              </div>
-            )}
-
-            {joinError ===
-              "join-error" && (
-              <div className="mt-8 rounded-2xl border border-red-400/30 bg-red-400/10 p-5">
-                <div className="text-lg font-black text-red-300">
-                  UNABLE TO JOIN LEAGUE
-                </div>
-
-                <p className="mt-2 text-slate-300">
-                  We couldn't join you to this
-                  league. Please check the details
-                  and try again.
-                </p>
-              </div>
-            )}
 
             <form
               action={joinAction}
@@ -1484,6 +794,12 @@ async function LeaguePage({
     )
   }
 
+  /*
+   * ----------------------------------------------------------
+   * DETERMINE DISPLAY ROUND
+   * ----------------------------------------------------------
+   */
+
   const currentRound =
     competition.round
 
@@ -1494,8 +810,87 @@ async function LeaguePage({
       : currentRound
 
   const viewingCurrentRound =
-    displayRound ===
-    currentRound
+    displayRound === currentRound
+
+  const viewingPreviousRound =
+    displayRound < currentRound
+
+  /*
+   * ----------------------------------------------------------
+   * LOAD GAME DATA
+   * ----------------------------------------------------------
+   */
+
+  const [
+    picks,
+    leaderboard,
+    fixtures,
+    roundPicks,
+  ] = await Promise.all([
+    getPicks(entry.id),
+
+    getLeaderboard(
+      competition.code
+    ),
+
+    viewingCurrentRound
+      ? getFixtures(
+          currentRound
+        )
+      : Promise.resolve([]),
+
+    getRoundPicks(
+      displayRound,
+      competition.code
+    ),
+  ])
+
+  /*
+   * ----------------------------------------------------------
+   * CURRENT PLAYER PICK
+   * ----------------------------------------------------------
+   */
+
+  const currentPick =
+    picks.find(
+      (pick) =>
+        pick.round ===
+        currentRound
+    )
+
+  /*
+   * ----------------------------------------------------------
+   * TEAMS ALREADY USED
+   * ----------------------------------------------------------
+   */
+
+  const usedTeams =
+    picks.map(
+      (pick) =>
+        pick.team
+    )
+
+  /*
+   * ----------------------------------------------------------
+   * HISTORICAL ROUND HELPERS
+   * ----------------------------------------------------------
+   */
+
+  const roundPickMap =
+    new Map(
+      roundPicks.map(
+        (pick) => [
+          pick.entry_id,
+          pick,
+        ]
+      )
+    )
+
+  /*
+   * ----------------------------------------------------------
+   * MAIN GAME
+   * ----------------------------------------------------------
+   */
 
   return (
     <main className="min-h-screen bg-[#0b1018] text-white">
@@ -1506,30 +901,34 @@ async function LeaguePage({
 
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-6">
 
-          <HomeLink />
+          <Link
+            href="/"
+            className="group block"
+          >
 
-          <div className="flex flex-col items-end gap-3 text-right">
+            <div className="text-sm font-bold tracking-[0.35em] text-green-400">
+              PREMIER LEAGUE
+            </div>
 
-  <div className="text-slate-400">
+            <h1 className="mt-1 text-3xl font-black">
+              LAST MAN STANDING
+            </h1>
 
-    <div className="text-sm">
-      League
-    </div>
+          </Link>
 
-    <div className="font-bold text-white">
-      {
-        competition.name
-      }
-    </div>
+          <div className="text-right text-slate-400">
 
-  </div>
+            <div className="text-sm">
+              League
+            </div>
 
-  <ShareLeagueButton
-    leagueName={competition.name}
-    leagueCode={competition.code}
-  />
+            <div className="font-bold text-white">
+              {
+                competition.name
+              }
+            </div>
 
-</div>
+          </div>
 
         </div>
 
@@ -1539,169 +938,694 @@ async function LeaguePage({
 
         {/* ROUND NAVIGATION */}
 
-        <RoundNavigation
-          competition={competition}
-          currentRound={currentRound}
-          displayRound={displayRound}
-        />
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#151b25] p-4">
+
+          <div>
+
+            <div className="text-xs font-bold tracking-[0.25em] text-green-400">
+              ROUND HISTORY
+            </div>
+
+            <div className="mt-1 text-lg font-bold">
+              {viewingCurrentRound
+                ? `Round ${currentRound} — Current`
+                : `Round ${displayRound} — Completed`}
+            </div>
+
+          </div>
+
+          <div className="flex items-center gap-3">
+
+            {displayRound > 1 ? (
+
+              <Link
+                href={`/?league=${encodeURIComponent(
+                  competition.code
+                )}&round=${displayRound - 1}`}
+                className="rounded-xl border border-white/10 bg-[#202733] px-4 py-3 font-bold hover:border-green-400"
+              >
+                ← ROUND{" "}
+                {displayRound - 1}
+              </Link>
+
+            ) : (
+
+              <span className="rounded-xl border border-white/5 bg-[#10151d] px-4 py-3 font-bold text-slate-600">
+                ← PREVIOUS
+              </span>
+
+            )}
+
+            {displayRound <
+            currentRound ? (
+
+              <Link
+                href={`/?league=${encodeURIComponent(
+                  competition.code
+                )}&round=${displayRound + 1}`}
+                className="rounded-xl border border-white/10 bg-[#202733] px-4 py-3 font-bold hover:border-green-400"
+              >
+                ROUND{" "}
+                {displayRound + 1} →
+              </Link>
+
+            ) : (
+
+              <span className="rounded-xl border border-white/5 bg-[#10151d] px-4 py-3 font-bold text-slate-600">
+                CURRENT ROUND
+              </span>
+
+            )}
+
+          </div>
+
+        </div>
 
         <div className="grid gap-8 lg:grid-cols-[1.7fr_1fr]">
 
-          {/* CRITICAL GAME */}
+          {/* GAME */}
 
-          <Suspense
-            fallback={
-              <section>
+          <section>
 
-                <div className="rounded-2xl border border-white/10 bg-[#151b25] p-7">
+            <div className="rounded-2xl border border-white/10 bg-[#151b25] p-7">
 
-                  <div className="h-4 w-40 animate-pulse rounded bg-[#202733]" />
+              {/* CURRENT ROUND */}
 
-                  <div className="mt-4 h-10 w-80 animate-pulse rounded bg-[#202733]" />
+              {viewingCurrentRound ? (
 
-                  <div className="mt-8 space-y-3">
+                <>
 
-                    {Array.from({
-                      length: 6,
-                    }).map(
-                      (_, index) => (
-                        <div
-                          key={
-                            index
+                  <div className="flex items-start justify-between gap-6">
+
+                    <div>
+
+                      <div className="text-sm font-bold tracking-[0.3em] text-green-400">
+                        ROUND{" "}
+                        {
+                          currentRound
+                        }{" "}
+                        — CURRENT
+                      </div>
+
+                      <h2 className="mt-2 text-4xl font-black">
+                        CHOOSE YOUR WINNER
+                      </h2>
+
+                      <p className="mt-3 text-lg text-slate-400">
+                        Welcome,{" "}
+                        {
+                          entry.name
+                        }
+                        .
+                        A win keeps you alive.
+                        Draw or loss = OUT.
+                      </p>
+
+                    </div>
+
+                    <div className="rounded-xl bg-[#202733] px-4 py-3 text-center">
+
+                      <div className="text-xs text-slate-400">
+                        LEAGUE CODE
+                      </div>
+
+                      <div className="font-black">
+                        {
+                          competition.code
+                        }
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                  {currentPick ? (
+
+                    <>
+                      <div className="mt-8 rounded-xl border border-green-400/40 bg-green-400/10 p-5">
+
+                        <div className="text-sm font-bold text-green-400">
+                          YOUR PICK
+                        </div>
+
+                        <div className="mt-1 text-2xl font-black">
+                          {
+                            currentPick.team
                           }
-                          className="h-20 animate-pulse rounded-2xl bg-[#202733]"
-                        />
-                      )
+                        </div>
+
+                        <div className="mt-1 text-slate-400">
+                          Your Round{" "}
+                          {
+                            currentRound
+                          }{" "}
+                          pick is locked.
+                        </div>
+
+                      </div>
+
+                      {/* NEW SHARE AREA */}
+
+                      <ShareLeague
+                        leagueCode={
+                          competition.code
+                        }
+                        leagueName={
+                          competition.name
+                        }
+                      />
+                    </>
+
+                  ) : !entry.alive ? (
+
+                    <div className="mt-8 rounded-xl border border-red-500/40 bg-red-500/10 p-5">
+
+                      <div className="text-2xl font-black text-red-400">
+                        YOU ARE OUT
+                      </div>
+
+                    </div>
+
+                  ) : (
+
+                    <div className="mt-8 grid gap-4 sm:grid-cols-2">
+
+                      {fixtures.map(
+                        (fixture) => {
+
+                          const homeTeam =
+                            fixture.home_team
+
+                          const awayTeam =
+                            fixture.away_team
+
+                          return [
+                            homeTeam,
+                            awayTeam,
+                          ].map(
+                            (
+                              teamName
+                            ) => {
+
+                              const used =
+                                usedTeams.includes(
+                                  teamName
+                                )
+
+                              return (
+
+                                <form
+                                  key={`${fixture.id}-${teamName}`}
+                                  action={
+                                    pickAction
+                                  }
+                                >
+
+                                  <input
+                                    type="hidden"
+                                    name="entryId"
+                                    value={
+                                      entry.id
+                                    }
+                                  />
+
+                                  <input
+                                    type="hidden"
+                                    name="team"
+                                    value={
+                                      teamName
+                                    }
+                                  />
+
+                                  <input
+                                    type="hidden"
+                                    name="league"
+                                    value={
+                                      competition.code
+                                    }
+                                  />
+
+                                  <button
+                                    type="submit"
+                                    disabled={
+                                      used
+                                    }
+                                    className={`w-full rounded-2xl border p-5 text-left transition ${
+                                      used
+                                        ? "cursor-not-allowed border-white/5 bg-[#10151d] opacity-40"
+                                        : "border-white/10 bg-[#151b25] hover:border-green-400 hover:bg-[#202733]"
+                                    }`}
+                                  >
+
+                                    <div className="flex items-center justify-between gap-4">
+
+                                      <div>
+
+                                        <div className="text-xl font-black">
+                                          {
+                                            teamName
+                                          }
+                                        </div>
+
+                                        <div className="mt-1 text-sm text-slate-400">
+                                          {
+                                            homeTeam
+                                          }{" "}
+                                          v{" "}
+                                          {
+                                            awayTeam
+                                          }
+                                        </div>
+
+                                      </div>
+
+                                      <span className="text-sm font-bold text-slate-400">
+                                        {used
+                                          ? "USED"
+                                          : "PICK"}
+                                      </span>
+
+                                    </div>
+
+                                  </button>
+
+                                </form>
+
+                              )
+                            }
+                          )
+                        }
+                      )}
+
+                    </div>
+
+                  )}
+
+                  {!fixtures.length && (
+
+                    <div className="mt-8 rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-5 text-yellow-200">
+                      No fixtures are currently
+                      available for Round{" "}
+                      {
+                        currentRound
+                      }.
+                    </div>
+
+                  )}
+
+                </>
+
+              ) : (
+
+                /* PREVIOUS ROUND */
+
+                <>
+
+                  <div>
+
+                    <div className="text-sm font-bold tracking-[0.3em] text-green-400">
+                      ROUND{" "}
+                      {
+                        displayRound
+                      }{" "}
+                      — COMPLETED
+                    </div>
+
+                    <h2 className="mt-2 text-4xl font-black">
+                      ROUND HISTORY
+                    </h2>
+
+                    <p className="mt-3 text-lg text-slate-400">
+                      Everyone's picks are visible
+                      because this round has finished.
+                    </p>
+
+                  </div>
+
+                  <div className="mt-8 space-y-4">
+
+                    {leaderboard.map(
+                      (player) => {
+
+                        const pick =
+                          roundPickMap.get(
+                            player.id
+                          )
+
+                        let statusLabel =
+                          "NO PICK"
+
+                        let statusClass =
+                          "text-slate-400"
+
+                        if (pick) {
+
+                          if (
+                            pick.result ===
+                            "win"
+                          ) {
+
+                            statusLabel =
+                              "ALIVE"
+
+                            statusClass =
+                              "text-green-400"
+
+                          } else if (
+                            pick.result ===
+                              "loss" ||
+                            pick.result ===
+                              "draw"
+                          ) {
+
+                            statusLabel =
+                              "OUT"
+
+                            statusClass =
+                              "text-red-400"
+
+                          } else {
+
+                            statusLabel =
+                              "PENDING"
+
+                            statusClass =
+                              "text-yellow-400"
+
+                          }
+
+                        }
+
+                        return (
+
+                          <div
+                            key={
+                              player.id
+                            }
+                            className="rounded-2xl border border-white/10 bg-[#0e141d] p-5"
+                          >
+
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
+                              <div>
+
+                                <div className="text-xl font-black">
+                                  {
+                                    player.name
+                                  }
+                                </div>
+
+                                <div className="mt-2 text-slate-400">
+
+                                  {pick ? (
+
+                                    <>
+                                      Picked{" "}
+                                      <strong className="text-white">
+                                        {
+                                          pick.team
+                                        }
+                                      </strong>
+                                    </>
+
+                                  ) : (
+
+                                    "No pick recorded for this round."
+
+                                  )}
+
+                                </div>
+
+                              </div>
+
+                              <div
+                                className={`font-black ${statusClass}`}
+                              >
+                                {
+                                  statusLabel
+                                }
+                              </div>
+
+                            </div>
+
+                            {pick && (
+
+                              <div className="mt-4 border-t border-white/10 pt-4">
+
+                                <div className="flex flex-wrap gap-3 text-sm">
+
+                                  <span className="rounded-full bg-[#202733] px-3 py-1 text-slate-300">
+                                    Round{" "}
+                                    {
+                                      pick.round
+                                    }
+                                  </span>
+
+                                  {pick.result && (
+
+                                    <span className="rounded-full bg-[#202733] px-3 py-1 text-slate-300">
+                                      Result:{" "}
+                                      {
+                                        pick.result
+                                      }
+                                    </span>
+
+                                  )}
+
+                                </div>
+
+                              </div>
+
+                            )}
+
+                          </div>
+
+                        )
+                      }
                     )}
 
                   </div>
 
+                </>
+
+              )}
+
+            </div>
+
+          </section>
+
+          {/* SIDEBAR */}
+
+          <aside>
+
+            {/* LEADERBOARD */}
+
+            <div className="rounded-2xl border border-white/10 bg-[#151b25] p-6">
+
+              <div className="flex items-center justify-between">
+
+                <h2 className="text-2xl font-black">
+                  LEADERBOARD
+                </h2>
+
+                <div className="rounded-full bg-[#202733] px-3 py-1 text-xs font-bold">
+                  {
+                    leaderboard.filter(
+                      (player) =>
+                        player.alive
+                    ).length
+                  }{" "}
+                  alive
                 </div>
 
-              </section>
-            }
-          >
-            <CriticalLeagueContent
-              competition={competition}
-              entry={entry}
-              displayRound={displayRound}
-              currentRound={currentRound}
-              viewingCurrentRound={
-                viewingCurrentRound
-              }
-            />
-          </Suspense>
+              </div>
 
-          {/* SECONDARY DATA */}
+              <div className="mt-5 space-y-3">
 
-          <Suspense
-            fallback={
-              <aside>
+                {leaderboard.map(
+                  (
+                    player,
+                    index
+                  ) => (
 
-                <div className="rounded-2xl border border-white/10 bg-[#151b25] p-6">
+                    <div
+                      key={
+                        player.id
+                      }
+                      className="rounded-xl bg-[#1c222d] p-4"
+                    >
 
-                  <div className="h-8 w-48 animate-pulse rounded bg-[#202733]" />
+                      <div className="flex items-center gap-4">
 
-                  <div className="mt-5 space-y-3">
-
-                    {Array.from({
-                      length: 5,
-                    }).map(
-                      (_, index) => (
-                        <div
-                          key={
-                            index
+                        <div className="text-slate-500">
+                          {
+                            index + 1
                           }
-                          className="h-16 animate-pulse rounded-xl bg-[#202733]"
-                        />
-                      )
-                    )}
+                        </div>
 
-                  </div>
+                        <div className="min-w-0 flex-1">
 
-                </div>
+                          <div className="font-bold">
+                            {
+                              player.name
+                            }
+                          </div>
 
-              </aside>
-            }
-          >
-            <LeagueSidebar
-              competition={competition}
-              currentRound={
-                currentRound
-              }
-              displayRound={
-                displayRound
-              }
-            />
-          </Suspense>
+                          <div className="text-sm text-slate-400">
+                            {
+                              player.picks.length
+                            }{" "}
+                            picks
+                          </div>
+
+                        </div>
+
+                        <div
+                          className={
+                            player.alive
+                              ? "font-bold text-green-400"
+                              : "font-bold text-red-400"
+                          }
+                        >
+                          {player.alive
+                            ? "ALIVE"
+                            : "OUT"}
+                        </div>
+
+                      </div>
+
+                    </div>
+
+                  )
+                )}
+
+              </div>
+
+            </div>
+
+            {/* ROUND HISTORY */}
+
+            <div className="mt-6 rounded-2xl border border-white/10 bg-[#151b25] p-6">
+
+              <div className="text-xs font-bold tracking-[0.25em] text-green-400">
+                ROUND HISTORY
+              </div>
+
+              <h2 className="mt-2 text-2xl font-black">
+                View previous rounds
+              </h2>
+
+              <p className="mt-3 text-slate-400">
+                Previous round picks are visible.
+                Current round picks remain private.
+              </p>
+
+              <div className="mt-5 space-y-2">
+
+                {Array.from(
+                  {
+                    length:
+                      currentRound,
+                  },
+                  (_, index) =>
+                    currentRound -
+                    index
+                ).map(
+                  (round) => {
+
+                    const active =
+                      round ===
+                      displayRound
+
+                    return (
+
+                      <Link
+                        key={round}
+                        href={`/?league=${encodeURIComponent(
+                          competition.code
+                        )}&round=${round}`}
+                        className={`block rounded-xl px-4 py-3 font-bold transition ${
+                          active
+                            ? "bg-green-400 text-[#07110b]"
+                            : "bg-[#202733] text-slate-300 hover:text-white"
+                        }`}
+                      >
+
+                        <div className="flex items-center justify-between">
+
+                          <span>
+                            Round{" "}
+                            {round}
+                          </span>
+
+                          {round ===
+                            currentRound && (
+                            <span className="text-xs uppercase">
+                              Current
+                            </span>
+                          )}
+
+                        </div>
+
+                      </Link>
+
+                    )
+                  }
+                )}
+
+              </div>
+
+            </div>
+
+            {/* RULES */}
+
+            <div className="mt-6 rounded-2xl border border-white/10 bg-[#151b25] p-6">
+
+              <h2 className="text-2xl font-black">
+                RULES
+              </h2>
+
+              <ul className="mt-4 space-y-3 text-slate-400">
+
+                <li>
+                  • Pick one Premier League
+                  team each round.
+                </li>
+
+                <li>
+                  • A win keeps you alive.
+                </li>
+
+                <li>
+                  • A draw or loss knocks
+                  you out.
+                </li>
+
+                <li>
+                  • You cannot use the same
+                  team twice.
+                </li>
+
+                <li>
+                  • Current round picks are
+                  private.
+                </li>
+
+                <li>
+                  • Completed round picks are
+                  visible to everyone.
+                </li>
+
+              </ul>
+
+            </div>
+
+          </aside>
 
         </div>
 
       </div>
 
     </main>
-  )
-}
-
-/*
- * ------------------------------------------------------------
- * MAIN PAGE
- * ------------------------------------------------------------
- */
-
-export default async function Home({
-  searchParams,
-}: HomeProps) {
-  const params =
-    searchParams
-      ? await searchParams
-      : {}
-
-  const leagueCode =
-    getLeagueCode(
-      params?.league
-    )
-
-  const explicitHomePage =
-    isHomePage(
-      params?.home
-    )
-
-  const requestedRound =
-    getRequestedRound(
-      params?.round
-    )
-
-  const joinError =
-    typeof params?.joinError ===
-    "string"
-      ? params.joinError
-      : Array.isArray(
-            params?.joinError
-          )
-        ? params.joinError[0]
-        : undefined
-
-  if (
-    explicitHomePage ||
-    !leagueCode
-  ) {
-    return (
-      <HomePage />
-    )
-  }
-
-  return (
-    <LeaguePage
-      leagueCode={
-        leagueCode
-      }
-      requestedRound={
-        requestedRound
-      }
-      joinError={
-        joinError
-      }
-    />
   )
 }
