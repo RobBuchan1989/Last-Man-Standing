@@ -53,12 +53,6 @@ export default function CurrentRoundPick({
   /*
    * This state is deliberately initialised from the database
    * pick, but can also be updated instantly by the pick button.
-   *
-   * This means:
-   *
-   * 1. Existing saved picks appear when returning to the league.
-   * 2. A new pick appears immediately without waiting for a
-   *    server re-render.
    */
   const [selectedTeam, setSelectedTeam] =
     useState<string | null>(
@@ -95,12 +89,6 @@ export default function CurrentRoundPick({
         return
       }
 
-      /*
-       * This is the important part:
-       *
-       * The prominent YOUR PICK confirmation is now
-       * switched on immediately in the browser.
-       */
       setSelectedTeam(teamName)
     }
 
@@ -141,14 +129,39 @@ export default function CurrentRoundPick({
 
   /*
    * ----------------------------------------------------------
+   * FIND DETAILS FOR THE SELECTED TEAM
+   * ----------------------------------------------------------
+   */
+
+  const selectedFixture =
+    selectedTeam
+      ? fixtures.find(
+          (fixture) =>
+            fixture.home_team === selectedTeam ||
+            fixture.away_team === selectedTeam
+        )
+      : null
+
+  const selectedOpponent =
+    selectedFixture
+      ? selectedFixture.home_team === selectedTeam
+        ? selectedFixture.away_team
+        : selectedFixture.home_team
+      : null
+
+  const selectedVenue =
+    selectedFixture
+      ? selectedFixture.home_team === selectedTeam
+        ? "HOME"
+        : "AWAY"
+      : null
+
+  /*
+   * ----------------------------------------------------------
    * PICK ALREADY SELECTED / SAVED
    * ----------------------------------------------------------
-   *
-   * This is shown both:
-   *
-   * - immediately after selecting a team
-   * - when returning to the league later
    */
+
   if (selectedTeam) {
     return (
       <>
@@ -169,6 +182,12 @@ export default function CurrentRoundPick({
               <div className="mt-1 text-3xl font-black uppercase">
                 {selectedTeam}
               </div>
+
+              {selectedOpponent && selectedVenue && (
+                <div className="mt-1 text-sm font-bold text-slate-300">
+                  vs {selectedOpponent} · {selectedVenue}
+                </div>
+              )}
 
               <div className="mt-2 text-lg font-black text-white">
                 ROUND {competition.round} PICK SAVED & LOCKED IN
@@ -237,10 +256,22 @@ export default function CurrentRoundPick({
                 fixture.away_team
 
               return [
-                homeTeam,
-                awayTeam,
+                {
+                  teamName: homeTeam,
+                  opponent: awayTeam,
+                  venue: "HOME" as const,
+                },
+                {
+                  teamName: awayTeam,
+                  opponent: homeTeam,
+                  venue: "AWAY" as const,
+                },
               ].map(
-                (teamName) => {
+                ({
+                  teamName,
+                  opponent,
+                  venue,
+                }) => {
 
                   const used =
                     usedTeams.includes(
@@ -254,6 +285,8 @@ export default function CurrentRoundPick({
                       teamName={teamName}
                       league={competition.code}
                       used={used}
+                      opponent={opponent}
+                      venue={venue}
                     />
                   )
                 }
