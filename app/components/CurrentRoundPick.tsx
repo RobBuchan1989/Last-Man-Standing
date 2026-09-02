@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import ShareLeague from "@/app/components/ShareLeague"
 import FastPickButton from "@/app/components/FastPickButton"
+import PickDeadline from "@/app/components/PickDeadline"
 
 const PICK_EVENT = "lms-pick-selected"
 const CLEAR_EVENT = "lms-pick-cleared"
@@ -50,29 +51,19 @@ export default function CurrentRoundPick({
   usedTeams,
   currentPick,
 }: Props) {
-  /*
-   * This state is deliberately initialised from the database
-   * pick, but can also be updated instantly by the pick button.
-   */
   const [selectedTeam, setSelectedTeam] =
     useState<string | null>(
       currentPick?.team || null
     )
 
-  /*
-   * Keep the client state synchronised if the server sends
-   * a newly saved pick after navigation/revalidation.
-   */
   useEffect(() => {
     if (currentPick?.team) {
-      setSelectedTeam(currentPick.team)
+      setSelectedTeam(
+        currentPick.team
+      )
     }
   }, [currentPick?.team])
 
-  /*
-   * Listen for the instant selection event emitted by
-   * FastPickButton.
-   */
   useEffect(() => {
     const handlePickSelected = (
       event: Event
@@ -89,16 +80,12 @@ export default function CurrentRoundPick({
         return
       }
 
-      setSelectedTeam(teamName)
+      setSelectedTeam(
+        teamName
+      )
     }
 
     const handlePickCleared = () => {
-      /*
-       * Only clear an optimistic selection.
-       *
-       * If there was already a database-saved pick,
-       * leave it visible.
-       */
       if (!currentPick?.team) {
         setSelectedTeam(null)
       }
@@ -129,7 +116,36 @@ export default function CurrentRoundPick({
 
   /*
    * ----------------------------------------------------------
-   * FIND DETAILS FOR THE SELECTED TEAM
+   * DEADLINE
+   * ----------------------------------------------------------
+   */
+
+  const deadline =
+    fixtures.length > 0
+      ? Math.min(
+          ...fixtures
+            .map(
+              (fixture) =>
+                new Date(
+                  fixture.kickoff
+                ).getTime()
+            )
+            .filter(
+              (time) =>
+                Number.isFinite(
+                  time
+                )
+            )
+        )
+      : null
+
+  const deadlinePassed =
+    deadline !== null &&
+    Date.now() >= deadline
+
+  /*
+   * ----------------------------------------------------------
+   * SELECTED TEAM
    * ----------------------------------------------------------
    */
 
@@ -137,21 +153,25 @@ export default function CurrentRoundPick({
     selectedTeam
       ? fixtures.find(
           (fixture) =>
-            fixture.home_team === selectedTeam ||
-            fixture.away_team === selectedTeam
+            fixture.home_team ===
+              selectedTeam ||
+            fixture.away_team ===
+              selectedTeam
         )
       : null
 
   const selectedOpponent =
     selectedFixture
-      ? selectedFixture.home_team === selectedTeam
+      ? selectedFixture.home_team ===
+        selectedTeam
         ? selectedFixture.away_team
         : selectedFixture.home_team
       : null
 
   const selectedVenue =
     selectedFixture
-      ? selectedFixture.home_team === selectedTeam
+      ? selectedFixture.home_team ===
+        selectedTeam
         ? "HOME"
         : "AWAY"
       : null
@@ -183,11 +203,13 @@ export default function CurrentRoundPick({
                 {selectedTeam}
               </div>
 
-              {selectedOpponent && selectedVenue && (
-                <div className="mt-1 text-sm font-bold text-slate-300">
-                  vs {selectedOpponent} · {selectedVenue}
-                </div>
-              )}
+              {selectedOpponent &&
+                selectedVenue && (
+                  <div className="mt-1 text-sm font-bold text-slate-300">
+                    vs {selectedOpponent} ·{" "}
+                    {selectedVenue}
+                  </div>
+                )}
 
               <div className="mt-2 text-lg font-black text-white">
                 ROUND {competition.round} PICK SAVED & LOCKED IN
@@ -204,8 +226,12 @@ export default function CurrentRoundPick({
         </div>
 
         <ShareLeague
-          leagueCode={competition.code}
-          leagueName={competition.name}
+          leagueCode={
+            competition.code
+          }
+          leagueName={
+            competition.name
+          }
         />
       </>
     )
@@ -238,8 +264,16 @@ export default function CurrentRoundPick({
   return (
     <div className="mt-8">
 
-      <div className="mb-4 text-sm font-bold tracking-[0.2em] text-slate-400">
-        AVAILABLE FIXTURES
+      <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
+        <div className="text-sm font-bold tracking-[0.2em] text-slate-400">
+          AVAILABLE FIXTURES
+        </div>
+
+        <PickDeadline
+          fixtures={fixtures}
+        />
+
       </div>
 
       {fixtures.length > 0 ? (
@@ -257,14 +291,20 @@ export default function CurrentRoundPick({
 
               return [
                 {
-                  teamName: homeTeam,
-                  opponent: awayTeam,
-                  venue: "HOME" as const,
+                  teamName:
+                    homeTeam,
+                  opponent:
+                    awayTeam,
+                  venue:
+                    "HOME" as const,
                 },
                 {
-                  teamName: awayTeam,
-                  opponent: homeTeam,
-                  venue: "AWAY" as const,
+                  teamName:
+                    awayTeam,
+                  opponent:
+                    homeTeam,
+                  venue:
+                    "AWAY" as const,
                 },
               ].map(
                 ({
@@ -281,12 +321,27 @@ export default function CurrentRoundPick({
                   return (
                     <FastPickButton
                       key={`${fixture.id}-${teamName}`}
-                      entryId={entry.id}
-                      teamName={teamName}
-                      league={competition.code}
-                      used={used}
-                      opponent={opponent}
-                      venue={venue}
+                      entryId={
+                        entry.id
+                      }
+                      teamName={
+                        teamName
+                      }
+                      league={
+                        competition.code
+                      }
+                      used={
+                        used
+                      }
+                      opponent={
+                        opponent
+                      }
+                      venue={
+                        venue
+                      }
+                      deadlinePassed={
+                        deadlinePassed
+                      }
                     />
                   )
                 }
