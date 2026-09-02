@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 
 type Props = {
   entryId: string
@@ -24,6 +25,8 @@ export default function FastPickButton({
   venue,
   deadlinePassed,
 }: Props) {
+  const router = useRouter()
+
   const [selectedTeam, setSelectedTeam] =
     useState<string | null>(null)
 
@@ -158,6 +161,13 @@ export default function FastPickButton({
        * immediately.
        */
       setSaving(false)
+
+      /*
+       * Refresh the server-rendered league data so
+       * the leaderboard immediately shows the new
+       * current-round pick count.
+       */
+      router.refresh()
 
     } catch (err) {
       /*
