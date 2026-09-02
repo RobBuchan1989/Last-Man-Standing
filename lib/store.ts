@@ -435,58 +435,19 @@ function getAutomaticRoundFromMatches(
     return fallbackRound
   }
 
-  /*
-   * A competition advances based on completion of its
-   * CURRENT round, not simply because there are no open
-   * fixtures left.
-   */
-  const currentRoundFixtures =
-    fixtures.filter(
-      (fixture) =>
-        fixture.round ===
-        fallbackRound
-    )
-
-  /*
-   * Do not guess if the API does not contain the current
-   * round's fixtures.
-   */
-  if (!currentRoundFixtures.length) {
-    return fallbackRound
-  }
-
-  /*
-   * The round is complete only when every fixture has
-   * finished and has a final score.
-   */
-  const roundComplete =
-    currentRoundFixtures.every(
-      isSettledFixture
-    )
-
-  if (!roundComplete) {
-    return fallbackRound
-  }
-
-  /*
-   * Find the earliest round after the completed round.
-   */
-  const nextRounds = fixtures
+  const activeRounds = fixtures
+    .filter(isOpenFixture)
     .map(
       (fixture) =>
         fixture.round
     )
-    .filter(
-      (round) =>
-        round > fallbackRound
-    )
 
-  if (!nextRounds.length) {
+  if (!activeRounds.length) {
     return fallbackRound
   }
 
   return Math.min(
-    ...nextRounds
+    ...activeRounds
   )
 }
 
@@ -562,55 +523,40 @@ async function eliminateMissedPicks(
    *
    * Anyone who was alive but did not submit a pick
    * for this round is automatically eliminated.
+   *
+   * We deliberately check each alive entry individually.
+   * This avoids relying on a PostgREST `in (...)` query
+   * containing encoded UUIDs and makes the elimination
+   * deterministic for every player.
    */
 
   const entries =
     await rest<Entry[]>(
       `entries?competition_id=eq.${encodeURIComponent(
         competition.id
-      )}&alive=eq.true&select=id,alive`
+      )}&alive=eq.true&select=id,name,alive`
     )
 
   if (!entries.length) {
     return
   }
 
-  const entryIds =
-    entries
-      .map(
-        (entry) =>
-          `"${entry.id}"`
-      )
-      .join(",")
-
-  const picks =
-    await rest<Pick[]>(
-      `picks?entry_id=in.(${encodeURIComponent(
-        entryIds
-      )})&round=eq.${encodeURIComponent(
-        String(competition.round)
-      )}&select=entry_id`
-    )
-
-  const pickedEntryIds =
-    new Set(
-      picks.map(
-        (pick) =>
-          pick.entry_id
-      )
-    )
-
-  const missedEntries =
-    entries.filter(
-      (entry) =>
-        !pickedEntryIds.has(
-          entry.id
-        )
-    )
-
   for (
-    const entry of missedEntries
+    const entry of entries
   ) {
+    const picks =
+      await rest<Pick[]>(
+        `picks?entry_id=eq.${encodeURIComponent(
+          entry.id
+        )}&round=eq.${encodeURIComponent(
+          String(competition.round)
+        )}&select=id,entry_id,round`
+      )
+
+    if (picks.length > 0) {
+      continue
+    }
+
     await rest(
       `entries?id=eq.${encodeURIComponent(
         entry.id
@@ -629,7 +575,7 @@ async function eliminateMissedPicks(
     )
 
     console.log(
-      `[LMS SYNC] ${competition.code}: ${entry.id} eliminated for missing Round ${competition.round} deadline.`
+      `[LMS SYNC] ${competition.code}: ${entry.name} (${entry.id}) eliminated for missing Round ${competition.round} deadline.`
     )
   }
 }
@@ -812,6 +758,12 @@ async function syncCompetitionRound(
     return competition
   }
 
+  const automaticRound =
+    getAutomaticRoundFromMatches(
+      matches,
+      competition.round
+    )
+
   const fixtures = matches
     .map(convertMatch)
     .filter(
@@ -819,85 +771,28 @@ async function syncCompetitionRound(
         fixture !== null
     )
 
-  /*
-   * Only inspect fixtures belonging to the competition's
-   * current round.
-   */
-  const currentRoundFixtures =
-    fixtures.filter(
-      (fixture) =>
-        fixture.round ===
-        competition.round
+  const hasOpenFixtures =
+    fixtures.some(
+      isOpenFixture
     )
 
-  /*
-   * Never advance if the current round cannot be verified.
-   */
-  if (!currentRoundFixtures.length) {
-    console.log(
-      `[LMS SYNC] ${competition.code}: no fixtures found for Round ${competition.round}; holding current round.`
-    )
+  const nextStatus =
+    competition.status ===
+    "finished"
+      ? "finished"
+      : hasOpenFixtures
+        ? "active"
+        : competition.status
 
+  const needsUpdate =
+    automaticRound !==
+      competition.round ||
+    competition.status !==
+      nextStatus
+
+  if (!needsUpdate) {
     return competition
   }
-
-  /*
-   * A round is complete only when EVERY fixture in that
-   * round has finished and has a final score.
-   */
-  const roundComplete =
-    currentRoundFixtures.every(
-      isSettledFixture
-    )
-
-  if (!roundComplete) {
-    return competition
-  }
-
-  console.log(
-    `[LMS SYNC] ${competition.code}: Round ${competition.round} is complete.`
-  )
-
-  /*
-   * Find the next round that exists in the Football Data
-   * response.
-   */
-  const nextRounds = fixtures
-    .map(
-      (fixture) =>
-        fixture.round
-    )
-    .filter(
-      (round) =>
-        round > competition.round
-    )
-
-  /*
-   * If a later round is not available yet, do not guess.
-   */
-  if (!nextRounds.length) {
-    console.log(
-      `[LMS SYNC] ${competition.code}: Round ${competition.round} complete, but no later round is available yet.`
-    )
-
-    return competition
-  }
-
-  const nextRound =
-    Math.min(
-      ...nextRounds
-    )
-
-  if (
-    nextRound ===
-    competition.round
-  ) {
-    return competition
-  }
-
-  console.log(
-    `[LMS SYNC] ${competition.code}: advancing Round ${competition.round} → Round ${nextRound}.`
-  )
 
   try {
     const rows =
@@ -914,9 +809,9 @@ async function syncCompetitionRound(
           body:
             JSON.stringify({
               round:
-                nextRound,
+                automaticRound,
               status:
-                "active",
+                nextStatus,
             }),
         }
       )
@@ -925,34 +820,30 @@ async function syncCompetitionRound(
       rows[0] ?? {
         ...competition,
         round:
-          nextRound,
+          automaticRound,
         status:
-          "active",
+          nextStatus,
       }
 
     competitionCache.set(
       competition.code,
       {
-        competition:
-          updated,
+        competition: updated,
         expiresAt:
           Date.now() +
           COMPETITION_CACHE_MS,
       }
     )
 
-    console.log(
-      `[LMS SYNC] ${competition.code}: Round ${nextRound} is now active.`
-    )
-
     return updated
-  } catch (error) {
-    console.error(
-      `[LMS SYNC] ${competition.code}: failed to advance to Round ${nextRound}:`,
-      error
-    )
-
-    return competition
+  } catch {
+    return {
+      ...competition,
+      round:
+        automaticRound,
+      status:
+        nextStatus,
+    }
   }
 }
 
@@ -1025,8 +916,8 @@ export async function runBackgroundSync() {
         )
 
       /*
-       * Finally check whether only one
-       * player remains alive.
+       * Finally determine whether the competition has
+       * a winner or whether every player has been eliminated.
        */
 
       const entries =
@@ -1092,8 +983,50 @@ export async function runBackgroundSync() {
       } else if (
         aliveEntries.length === 0
       ) {
+        /*
+         * Everyone has been eliminated.
+         *
+         * The competition must not remain ACTIVE
+         * indefinitely with zero surviving players.
+         */
+        await rest(
+          `competitions?id=eq.${encodeURIComponent(
+            competition.id
+          )}`,
+          {
+            method: "PATCH",
+            headers: {
+              Prefer:
+                "return=minimal",
+            },
+            body:
+              JSON.stringify({
+                status:
+                  "finished",
+                owner_entry_id:
+                  null,
+              }),
+          }
+        )
+
+        competitionCache.set(
+          competition.code,
+          {
+            competition: {
+              ...updatedCompetition,
+              status:
+                "finished",
+              owner_entry_id:
+                null,
+            } as Competition,
+            expiresAt:
+              Date.now() +
+              COMPETITION_CACHE_MS,
+          }
+        )
+
         console.log(
-          `[LMS SYNC] ${competition.code}: no players remain alive.`
+          `[LMS SYNC] ${competition.code}: no players remain alive. Competition finished with no winner.`
         )
       }
 
