@@ -4,6 +4,7 @@ import { Suspense } from "react"
 import CurrentRoundPick from "@/app/components/CurrentRoundPick"
 import LeagueReturnButton from "@/app/components/LeagueReturnButton"
 import ShareLeagueButton from "@/app/components/ShareLeagueButton"
+import LiveLeaderboard from "@/app/components/LiveLeaderboard"
 
 import {
   getCompetition,
@@ -1076,100 +1077,10 @@ async function LeagueSidebar({
 
       {/* LEADERBOARD */}
 
-      <div className="rounded-2xl border border-white/10 bg-[#151b25] p-6">
-
-        <div className="flex items-center justify-between">
-
-          <h2 className="text-2xl font-black">
-            LEADERBOARD
-          </h2>
-
-          <div className="rounded-full bg-[#202733] px-3 py-1 text-xs font-bold">
-            {
-              leaderboard.filter(
-                (player) =>
-                  player.alive
-              ).length
-            }{" "}
-            alive
-          </div>
-
-        </div>
-
-        <div className="mt-5 space-y-3">
-
-          {leaderboard.map(
-            (
-              player,
-              index
-            ) => {
-
-              const currentRoundPickCount =
-                player.picks.filter(
-                  (pick) =>
-                    pick.round ===
-                    currentRound
-                ).length
-
-              return (
-
-                <div
-                  key={
-                    player.id
-                  }
-                  className="rounded-xl bg-[#1c222d] p-4"
-                >
-
-                  <div className="flex items-center gap-4">
-
-                    <div className="text-slate-500">
-                      {
-                        index + 1
-                      }
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-
-                      <div className="font-bold">
-                        {
-                          player.name
-                        }
-                      </div>
-
-                      <div className="text-sm text-slate-400">
-                        {
-                          currentRoundPickCount
-                        }{" "}
-                        {currentRoundPickCount === 1
-                          ? "pick"
-                          : "picks"}
-                      </div>
-
-                    </div>
-
-                    <div
-                      className={
-                        player.alive
-                          ? "font-bold text-green-400"
-                          : "font-bold text-red-400"
-                      }
-                    >
-                      {player.alive
-                        ? "ALIVE"
-                        : "OUT"}
-                    </div>
-
-                  </div>
-
-                </div>
-
-              )
-            }
-          )}
-
-        </div>
-
-      </div>
+      <LiveLeaderboard
+        leaderboard={leaderboard}
+        currentRound={currentRound}
+      />
 
       {/* ROUND HISTORY */}
 
