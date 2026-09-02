@@ -7,6 +7,8 @@ type Props = {
   teamName: string
   league: string
   used: boolean
+  opponent: string
+  venue: "HOME" | "AWAY"
 }
 
 const PICK_EVENT = "lms-pick-selected"
@@ -17,6 +19,8 @@ export default function FastPickButton({
   teamName,
   league,
   used,
+  opponent,
+  venue,
 }: Props) {
   const [selectedTeam, setSelectedTeam] =
     useState<string | null>(null)
@@ -183,6 +187,10 @@ export default function FastPickButton({
           {teamName}
         </div>
 
+        <div className="mt-1 text-sm font-bold text-slate-300">
+          vs {opponent} · {venue}
+        </div>
+
         <div className="mt-1 text-slate-400">
           Your pick is locked.
         </div>
@@ -212,8 +220,14 @@ export default function FastPickButton({
       >
         <div className="flex items-center justify-between gap-4">
 
-          <div className="text-xl font-black">
-            {teamName}
+          <div>
+            <div className="text-xl font-black">
+              {teamName}
+            </div>
+
+            <div className="mt-1 text-sm font-medium text-slate-500">
+              vs {opponent} · {venue}
+            </div>
           </div>
 
           <span className="text-sm font-bold text-slate-600">
@@ -240,8 +254,14 @@ export default function FastPickButton({
       >
         <div className="flex items-center justify-between gap-4">
 
-          <div className="text-xl font-black">
-            {teamName}
+          <div>
+            <div className="text-xl font-black">
+              {teamName}
+            </div>
+
+            <div className="mt-1 text-sm font-medium text-slate-500">
+              vs {opponent} · {venue}
+            </div>
           </div>
 
           <span className="text-sm font-bold text-slate-600">
@@ -271,11 +291,17 @@ export default function FastPickButton({
 
         <div className="flex items-center justify-between gap-4">
 
-          <div className="text-xl font-black">
-            {teamName}
+          <div>
+            <div className="text-xl font-black">
+              {teamName}
+            </div>
+
+            <div className="mt-1 text-sm font-medium text-slate-400">
+              vs {opponent} · {venue}
+            </div>
           </div>
 
-          <span className="text-sm font-bold text-slate-400">
+          <span className="shrink-0 text-sm font-bold text-slate-400">
             PICK
           </span>
 
