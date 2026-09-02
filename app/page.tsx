@@ -12,7 +12,7 @@ import {
   getLeaderboard,
   getPicks,
   getRoundPicks,
-  getPlayerLeagues,
+  getPlayers,
   joinCompetition,
   createCompetition,
 } from "@/lib/store"
@@ -1438,19 +1438,28 @@ async function LeaguePage({
 
           <HomeLink />
 
-          <div className="text-right text-slate-400">
+          <div className="flex flex-col items-end gap-3 text-right">
 
-            <div className="text-sm">
-              League
-            </div>
+  <div className="text-slate-400">
 
-            <div className="font-bold text-white">
-              {
-                competition.name
-              }
-            </div>
+    <div className="text-sm">
+      League
+    </div>
 
-          </div>
+    <div className="font-bold text-white">
+      {
+        competition.name
+      }
+    </div>
+
+  </div>
+
+  <ShareLeagueButton
+    leagueName={competition.name}
+    leagueCode={competition.code}
+  />
+
+</div>
 
         </div>
 
