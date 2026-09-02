@@ -853,6 +853,41 @@ async function syncCompetitionRound(
  * ------------------------------------------------------------
  */
 
+function isRoundComplete(
+  matches: FootballDataMatch[],
+  round: number
+): boolean {
+  const roundMatches =
+    matches.filter(
+      (match) =>
+        match.matchday ===
+        round
+    )
+
+  if (!roundMatches.length) {
+    return false
+  }
+
+  return roundMatches.every(
+    (match) => {
+      const status =
+        fixtureStatus(
+          match.status
+        )
+
+      return (
+        isFinishedFixtureStatus(
+          status
+        ) &&
+        match.score?.fullTime
+          ?.home !== null &&
+        match.score?.fullTime
+          ?.away !== null
+      )
+    }
+  )
+}
+
 export async function runBackgroundSync() {
   console.log(
     "[LMS SYNC] Fetching latest Premier League data..."
@@ -907,6 +942,20 @@ export async function runBackgroundSync() {
       )
 
       /*
+       * Capture whether the round that players have just
+       * played is actually complete BEFORE advancing the
+       * competition to the next round.
+       *
+       * This is important: having one player alive during
+       * an active round does NOT make them the winner yet.
+       */
+      const currentRoundComplete =
+        isRoundComplete(
+          matches,
+          competition.round
+        )
+
+      /*
        * Then update the competition round.
        */
 
@@ -933,8 +982,16 @@ export async function runBackgroundSync() {
             entry.alive
         )
 
+      /*
+       * A single surviving player is only a winner once
+       * the round they have just played has completely
+       * finished. This prevents a league with one player
+       * from being marked FINISHED immediately after
+       * that player submits a pick.
+       */
       if (
-        aliveEntries.length === 1
+        aliveEntries.length === 1 &&
+        currentRoundComplete
       ) {
         const winner =
           aliveEntries[0]
@@ -979,6 +1036,12 @@ export async function runBackgroundSync() {
 
         console.log(
           `[LMS SYNC] Winner detected in ${competition.code}: ${winner.name}`
+        )
+      } else if (
+        aliveEntries.length === 1
+      ) {
+        console.log(
+          `[LMS SYNC] ${competition.code}: one player remains alive, but Round ${competition.round} is not complete yet.`
         )
       } else if (
         aliveEntries.length === 0
