@@ -435,19 +435,58 @@ function getAutomaticRoundFromMatches(
     return fallbackRound
   }
 
-  const activeRounds = fixtures
-    .filter(isOpenFixture)
+  /*
+   * A competition advances based on completion of its
+   * CURRENT round, not simply because there are no open
+   * fixtures left.
+   */
+  const currentRoundFixtures =
+    fixtures.filter(
+      (fixture) =>
+        fixture.round ===
+        fallbackRound
+    )
+
+  /*
+   * Do not guess if the API does not contain the current
+   * round's fixtures.
+   */
+  if (!currentRoundFixtures.length) {
+    return fallbackRound
+  }
+
+  /*
+   * The round is complete only when every fixture has
+   * finished and has a final score.
+   */
+  const roundComplete =
+    currentRoundFixtures.every(
+      isSettledFixture
+    )
+
+  if (!roundComplete) {
+    return fallbackRound
+  }
+
+  /*
+   * Find the earliest round after the completed round.
+   */
+  const nextRounds = fixtures
     .map(
       (fixture) =>
         fixture.round
     )
+    .filter(
+      (round) =>
+        round > fallbackRound
+    )
 
-  if (!activeRounds.length) {
+  if (!nextRounds.length) {
     return fallbackRound
   }
 
   return Math.min(
-    ...activeRounds
+    ...nextRounds
   )
 }
 
@@ -773,12 +812,6 @@ async function syncCompetitionRound(
     return competition
   }
 
-  const automaticRound =
-    getAutomaticRoundFromMatches(
-      matches,
-      competition.round
-    )
-
   const fixtures = matches
     .map(convertMatch)
     .filter(
@@ -786,28 +819,85 @@ async function syncCompetitionRound(
         fixture !== null
     )
 
-  const hasOpenFixtures =
-    fixtures.some(
-      isOpenFixture
+  /*
+   * Only inspect fixtures belonging to the competition's
+   * current round.
+   */
+  const currentRoundFixtures =
+    fixtures.filter(
+      (fixture) =>
+        fixture.round ===
+        competition.round
     )
 
-  const nextStatus =
-    competition.status ===
-    "finished"
-      ? "finished"
-      : hasOpenFixtures
-        ? "active"
-        : competition.status
+  /*
+   * Never advance if the current round cannot be verified.
+   */
+  if (!currentRoundFixtures.length) {
+    console.log(
+      `[LMS SYNC] ${competition.code}: no fixtures found for Round ${competition.round}; holding current round.`
+    )
 
-  const needsUpdate =
-    automaticRound !==
-      competition.round ||
-    competition.status !==
-      nextStatus
-
-  if (!needsUpdate) {
     return competition
   }
+
+  /*
+   * A round is complete only when EVERY fixture in that
+   * round has finished and has a final score.
+   */
+  const roundComplete =
+    currentRoundFixtures.every(
+      isSettledFixture
+    )
+
+  if (!roundComplete) {
+    return competition
+  }
+
+  console.log(
+    `[LMS SYNC] ${competition.code}: Round ${competition.round} is complete.`
+  )
+
+  /*
+   * Find the next round that exists in the Football Data
+   * response.
+   */
+  const nextRounds = fixtures
+    .map(
+      (fixture) =>
+        fixture.round
+    )
+    .filter(
+      (round) =>
+        round > competition.round
+    )
+
+  /*
+   * If a later round is not available yet, do not guess.
+   */
+  if (!nextRounds.length) {
+    console.log(
+      `[LMS SYNC] ${competition.code}: Round ${competition.round} complete, but no later round is available yet.`
+    )
+
+    return competition
+  }
+
+  const nextRound =
+    Math.min(
+      ...nextRounds
+    )
+
+  if (
+    nextRound ===
+    competition.round
+  ) {
+    return competition
+  }
+
+  console.log(
+    `[LMS SYNC] ${competition.code}: advancing Round ${competition.round} → Round ${nextRound}.`
+  )
 
   try {
     const rows =
@@ -824,9 +914,9 @@ async function syncCompetitionRound(
           body:
             JSON.stringify({
               round:
-                automaticRound,
+                nextRound,
               status:
-                nextStatus,
+                "active",
             }),
         }
       )
@@ -835,30 +925,34 @@ async function syncCompetitionRound(
       rows[0] ?? {
         ...competition,
         round:
-          automaticRound,
+          nextRound,
         status:
-          nextStatus,
+          "active",
       }
 
     competitionCache.set(
       competition.code,
       {
-        competition: updated,
+        competition:
+          updated,
         expiresAt:
           Date.now() +
           COMPETITION_CACHE_MS,
       }
     )
 
+    console.log(
+      `[LMS SYNC] ${competition.code}: Round ${nextRound} is now active.`
+    )
+
     return updated
-  } catch {
-    return {
-      ...competition,
-      round:
-        automaticRound,
-      status:
-        nextStatus,
-    }
+  } catch (error) {
+    console.error(
+      `[LMS SYNC] ${competition.code}: failed to advance to Round ${nextRound}:`,
+      error
+    )
+
+    return competition
   }
 }
 
