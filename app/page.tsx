@@ -1076,57 +1076,69 @@ async function LeagueSidebar({
             (
               player,
               index
-            ) => (
+            ) => {
 
-              <div
-                key={
-                  player.id
-                }
-                className="rounded-xl bg-[#1c222d] p-4"
-              >
+              const currentRoundPickCount =
+                player.picks.filter(
+                  (pick) =>
+                    pick.round ===
+                    currentRound
+                ).length
 
-                <div className="flex items-center gap-4">
+              return (
 
-                  <div className="text-slate-500">
-                    {
-                      index + 1
-                    }
-                  </div>
+                <div
+                  key={
+                    player.id
+                  }
+                  className="rounded-xl bg-[#1c222d] p-4"
+                >
 
-                  <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-4">
 
-                    <div className="font-bold">
+                    <div className="text-slate-500">
                       {
-                        player.name
+                        index + 1
                       }
                     </div>
 
-                    <div className="text-sm text-slate-400">
-                      {
-                        player.picks.length
-                      }{" "}
-                      picks
+                    <div className="min-w-0 flex-1">
+
+                      <div className="font-bold">
+                        {
+                          player.name
+                        }
+                      </div>
+
+                      <div className="text-sm text-slate-400">
+                        {
+                          currentRoundPickCount
+                        }{" "}
+                        {currentRoundPickCount === 1
+                          ? "pick"
+                          : "picks"}
+                      </div>
+
                     </div>
 
-                  </div>
+                    <div
+                      className={
+                        player.alive
+                          ? "font-bold text-green-400"
+                          : "font-bold text-red-400"
+                      }
+                    >
+                      {player.alive
+                        ? "ALIVE"
+                        : "OUT"}
+                    </div>
 
-                  <div
-                    className={
-                      player.alive
-                        ? "font-bold text-green-400"
-                        : "font-bold text-red-400"
-                    }
-                  >
-                    {player.alive
-                      ? "ALIVE"
-                      : "OUT"}
                   </div>
 
                 </div>
 
-              </div>
-
-            )
+              )
+            }
           )}
 
         </div>
