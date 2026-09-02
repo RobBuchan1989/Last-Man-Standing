@@ -9,6 +9,7 @@ type Props = {
   used: boolean
   opponent: string
   venue: "HOME" | "AWAY"
+  deadlinePassed: boolean
 }
 
 const PICK_EVENT = "lms-pick-selected"
@@ -21,6 +22,7 @@ export default function FastPickButton({
   used,
   opponent,
   venue,
+  deadlinePassed,
 }: Props) {
   const [selectedTeam, setSelectedTeam] =
     useState<string | null>(null)
@@ -85,11 +87,16 @@ export default function FastPickButton({
 
   const handlePick = async () => {
     /*
-     * Never allow another pick once any team has
-     * been selected on this page.
+     * Never allow a pick if:
+     *
+     * - the team has already been used
+     * - the round deadline has passed
+     * - another team has already been selected
+     * - a pick is currently being saved
      */
     if (
       used ||
+      deadlinePassed ||
       selectedTeam !== null ||
       saving
     ) {
@@ -148,7 +155,7 @@ export default function FastPickButton({
 
       /*
        * The successful pick remains displayed
-       * immediately. No refresh or redirect.
+       * immediately.
        */
       setSaving(false)
 
@@ -266,6 +273,40 @@ export default function FastPickButton({
 
           <span className="text-sm font-bold text-slate-600">
             USED
+          </span>
+
+        </div>
+      </button>
+    )
+  }
+
+  /*
+   * ----------------------------------------------------------
+   * DEADLINE PASSED
+   * ----------------------------------------------------------
+   */
+
+  if (deadlinePassed) {
+    return (
+      <button
+        type="button"
+        disabled
+        className="w-full cursor-not-allowed rounded-xl border border-red-500/20 bg-[#10151d] p-5 text-left opacity-40"
+      >
+        <div className="flex items-center justify-between gap-4">
+
+          <div>
+            <div className="text-xl font-black">
+              {teamName}
+            </div>
+
+            <div className="mt-1 text-sm font-medium text-slate-500">
+              vs {opponent} · {venue}
+            </div>
+          </div>
+
+          <span className="shrink-0 text-sm font-bold text-red-400">
+            LOCKED
           </span>
 
         </div>
