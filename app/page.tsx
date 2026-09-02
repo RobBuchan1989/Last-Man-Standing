@@ -25,6 +25,7 @@ type HomeProps = {
     league?: string | string[]
     home?: string | string[]
     round?: string | string[]
+    joinError?: string | string[]
   }>
 }
 
@@ -129,19 +130,44 @@ async function joinAction(
     )
   }
 
-  await joinCompetition(
-    name,
-    league
-  )
-
   const { redirect } =
     await import("next/navigation")
 
-  redirect(
-    `/?league=${encodeURIComponent(
+  try {
+    await joinCompetition(
+      name,
       league
-    )}`
-  )
+    )
+
+    redirect(
+      `/?league=${encodeURIComponent(
+        league
+      )}`
+    )
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : ""
+
+    if (
+      message.includes(
+        "already taken"
+      )
+    ) {
+      redirect(
+        `/?league=${encodeURIComponent(
+          league
+        )}&joinError=name-taken`
+      )
+    }
+
+    redirect(
+      `/?league=${encodeURIComponent(
+        league
+      )}&joinError=join-error`
+    )
+  }
 }
 
 /*
@@ -1279,9 +1305,11 @@ async function LeagueSidebar({
 async function LeaguePage({
   leagueCode,
   requestedRound,
+  joinError,
 }: {
   leagueCode: string
   requestedRound?: number
+  joinError?: string
 }) {
   let competition
 
@@ -1371,6 +1399,36 @@ async function LeaguePage({
               Enter your name to join this Last Man
               Standing competition.
             </p>
+
+            {joinError ===
+              "name-taken" && (
+              <div className="mt-8 rounded-2xl border border-red-400/30 bg-red-400/10 p-5">
+                <div className="text-lg font-black text-red-300">
+                  PLAYER NAME ALREADY TAKEN
+                </div>
+
+                <p className="mt-2 text-slate-300">
+                  Someone has already joined this
+                  league using that name. Please
+                  choose a different name.
+                </p>
+              </div>
+            )}
+
+            {joinError ===
+              "join-error" && (
+              <div className="mt-8 rounded-2xl border border-red-400/30 bg-red-400/10 p-5">
+                <div className="text-lg font-black text-red-300">
+                  UNABLE TO JOIN LEAGUE
+                </div>
+
+                <p className="mt-2 text-slate-300">
+                  We couldn't join you to this
+                  league. Please check the details
+                  and try again.
+                </p>
+              </div>
+            )}
 
             <form
               action={joinAction}
@@ -1614,6 +1672,16 @@ export default async function Home({
       params?.round
     )
 
+  const joinError =
+    typeof params?.joinError ===
+    "string"
+      ? params.joinError
+      : Array.isArray(
+            params?.joinError
+          )
+        ? params.joinError[0]
+        : undefined
+
   if (
     explicitHomePage ||
     !leagueCode
@@ -1630,6 +1698,9 @@ export default async function Home({
       }
       requestedRound={
         requestedRound
+      }
+      joinError={
+        joinError
       }
     />
   )
