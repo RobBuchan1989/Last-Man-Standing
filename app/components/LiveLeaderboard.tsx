@@ -45,19 +45,18 @@ export default function LiveLeaderboard({
       const customEvent =
         event as CustomEvent<{
           entryId: string
-          round: number
         }>
 
       const entryId =
         customEvent.detail?.entryId
 
-      const round =
-        customEvent.detail?.round
-
-      if (
-        !entryId ||
-        round !== currentRound
-      ) {
+      /*
+       * FastPickButton fires this event only after the
+       * current-round pick has been successfully saved.
+       * The event intentionally contains only the entryId,
+       * so we do not require a round value here.
+       */
+      if (!entryId) {
         return
       }
 
