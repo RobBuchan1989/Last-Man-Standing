@@ -1,4 +1,5 @@
 import { cookies } from "next/headers"
+import { revalidatePath } from "next/cache"
 
 const SUPABASE_URL =
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -2355,6 +2356,15 @@ export async function makePick(
           null,
       }),
   })
+
+  /*
+   * Refresh the league page after a successful pick so the
+   * leaderboard immediately reflects the new pick.
+   *
+   * This is deliberately done here, after the database write
+   * succeeds, so failed picks do not trigger a refresh.
+   */
+  revalidatePath("/", "page")
 }
 
 /*
