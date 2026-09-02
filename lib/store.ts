@@ -1348,6 +1348,8 @@ export type PlayerLeague = {
   entry: Entry
 }
 
+/* Player league lookup */
+
 export async function getPlayerLeagues(): Promise<
   PlayerLeague[]
 > {
