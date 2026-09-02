@@ -14,6 +14,7 @@ type Props = {
 
 const PICK_EVENT = "lms-pick-selected"
 const CLEAR_EVENT = "lms-pick-cleared"
+const PICK_SAVED_EVENT = "lms-pick-saved"
 
 export default function FastPickButton({
   entryId,
@@ -160,17 +161,22 @@ export default function FastPickButton({
       setSaving(false)
 
       /*
-       * The pick is now safely saved in the database.
+       * Tell the live leaderboard that the database
+       * has successfully accepted this player's pick.
        *
-       * Do a full page reload so every server-rendered
-       * section, including the separate leaderboard,
-       * is rebuilt from fresh database data.
-       *
-       * This is more reliable here than router.refresh()
-       * because the leaderboard is rendered inside its
-       * own Suspense boundary.
+       * This fires only after a successful response,
+       * so rejected picks cannot change the count.
        */
-      window.location.reload()
+      window.dispatchEvent(
+        new CustomEvent(
+          PICK_SAVED_EVENT,
+          {
+            detail: {
+              entryId,
+            },
+          }
+        )
+      )
 
     } catch (err) {
       /*
