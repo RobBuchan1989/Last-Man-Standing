@@ -12,7 +12,7 @@ import {
   getLeaderboard,
   getPicks,
   getRoundPicks,
-  getPlayers,
+  getPlayerLeagues,
   joinCompetition,
   createCompetition,
 } from "@/lib/store"
