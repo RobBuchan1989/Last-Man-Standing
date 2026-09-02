@@ -3,6 +3,7 @@ import { Suspense } from "react"
 
 import CurrentRoundPick from "@/app/components/CurrentRoundPick"
 import LeagueReturnButton from "@/app/components/LeagueReturnButton"
+import ShareLeagueButton from "@/app/components/ShareLeagueButton"
 
 import {
   getCompetition,
