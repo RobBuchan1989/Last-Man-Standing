@@ -34,15 +34,6 @@ let footballMatchesCache:
 
 const FOOTBALL_CACHE_MS = 30_000
 
-/*
- * Short-lived database cache.
- *
- * The league page was repeatedly asking Supabase for the
- * exact same competition. Keeping this in memory for a few
- * seconds removes those duplicate round trips while still
- * allowing normal league/round changes to appear quickly.
- */
-
 const competitionCache =
   new Map<
     string,
@@ -462,6 +453,150 @@ function getAutomaticRoundFromMatches(
 
 /*
  * ------------------------------------------------------------
+ * ROUND DEADLINE
+ * ------------------------------------------------------------
+ */
+
+function getRoundDeadline(
+  fixtures: Fixture[]
+): number | null {
+  const kickoffTimes =
+    fixtures
+      .map(
+        (fixture) =>
+          new Date(
+            fixture.kickoff
+          ).getTime()
+      )
+      .filter(
+        (time) =>
+          Number.isFinite(time)
+      )
+
+  if (!kickoffTimes.length) {
+    return null
+  }
+
+  return Math.min(
+    ...kickoffTimes
+  )
+}
+
+/*
+ * ------------------------------------------------------------
+ * MARK PLAYERS WITHOUT A PICK AS OUT
+ * ------------------------------------------------------------
+ */
+
+async function eliminateMissedPicks(
+  competition: Competition,
+  matches: FootballDataMatch[]
+) {
+  const fixtures = matches
+    .map(convertMatch)
+    .filter(
+      (fixture): fixture is Fixture =>
+        fixture !== null &&
+        fixture.round ===
+          competition.round
+    )
+
+  if (!fixtures.length) {
+    return
+  }
+
+  const deadline =
+    getRoundDeadline(
+      fixtures
+    )
+
+  if (
+    deadline === null ||
+    Date.now() <
+      deadline
+  ) {
+    return
+  }
+
+  /*
+   * The first fixture of the round has kicked off.
+   *
+   * Anyone who was alive but did not submit a pick
+   * for this round is automatically eliminated.
+   */
+
+  const entries =
+    await rest<Entry[]>(
+      `entries?competition_id=eq.${encodeURIComponent(
+        competition.id
+      )}&alive=eq.true&select=id,alive`
+    )
+
+  if (!entries.length) {
+    return
+  }
+
+  const entryIds =
+    entries
+      .map(
+        (entry) =>
+          `"${entry.id}"`
+      )
+      .join(",")
+
+  const picks =
+    await rest<Pick[]>(
+      `picks?entry_id=in.(${encodeURIComponent(
+        entryIds
+      )})&round=eq.${encodeURIComponent(
+        String(competition.round)
+      )}&select=entry_id`
+    )
+
+  const pickedEntryIds =
+    new Set(
+      picks.map(
+        (pick) =>
+          pick.entry_id
+      )
+    )
+
+  const missedEntries =
+    entries.filter(
+      (entry) =>
+        !pickedEntryIds.has(
+          entry.id
+        )
+    )
+
+  for (
+    const entry of missedEntries
+  ) {
+    await rest(
+      `entries?id=eq.${encodeURIComponent(
+        entry.id
+      )}`,
+      {
+        method: "PATCH",
+        headers: {
+          Prefer:
+            "return=minimal",
+        },
+        body:
+          JSON.stringify({
+            alive: false,
+          }),
+      }
+    )
+
+    console.log(
+      `[LMS SYNC] ${competition.code}: ${entry.id} eliminated for missing Round ${competition.round} deadline.`
+    )
+  }
+}
+
+/*
+ * ------------------------------------------------------------
  * SETTLE COMPLETED PICKS
  * ------------------------------------------------------------
  */
@@ -656,13 +791,6 @@ async function syncCompetitionRound(
       isOpenFixture
     )
 
-  /*
-   * IMPORTANT:
-   *
-   * Once a competition has been marked finished,
-   * a later background sync must never reactivate it.
-   */
-
   const nextStatus =
     competition.status ===
     "finished"
@@ -738,22 +866,6 @@ async function syncCompetitionRound(
  * ------------------------------------------------------------
  * BACKGROUND GAME SYNC
  * ------------------------------------------------------------
- *
- * This is deliberately separate from getCompetition().
- *
- * Render Cron calls this function every few minutes.
- *
- * It:
- *
- * 1. Gets the latest Football Data matches once.
- * 2. Finds all active competitions.
- * 3. Settles completed picks.
- * 4. Advances each competition to the correct round.
- * 5. Detects a single remaining player.
- * 6. Marks that player as the winner.
- *
- * No browser cookies are required.
- * No player has to open the website.
  */
 
 export async function runBackgroundSync() {
@@ -801,6 +913,15 @@ export async function runBackgroundSync() {
       )
 
       /*
+       * Then enforce the round deadline.
+       */
+
+      await eliminateMissedPicks(
+        competition,
+        matches
+      )
+
+      /*
        * Then update the competition round.
        */
 
@@ -826,11 +947,6 @@ export async function runBackgroundSync() {
           (entry) =>
             entry.alive
         )
-
-      /*
-       * Exactly one surviving player means
-       * the competition has a winner.
-       */
 
       if (
         aliveEntries.length === 1
@@ -882,15 +998,6 @@ export async function runBackgroundSync() {
       } else if (
         aliveEntries.length === 0
       ) {
-        /*
-         * No surviving players.
-         *
-         * Do not assign a winner.
-         * Leave the competition active unless
-         * existing game rules later define a draw/
-         * no-winner state.
-         */
-
         console.log(
           `[LMS SYNC] ${competition.code}: no players remain alive.`
         )
@@ -1119,20 +1226,6 @@ export async function getCompetition(
       "That league could not be found."
     )
   }
-
-  /*
-   * IMPORTANT PERFORMANCE FIX
-   *
-   * Loading a league is on the critical user path.
-   * Do not call the Football Data API, settle picks,
-   * or synchronise the round here.
-   *
-   * Those operations were responsible for the large
-   * delay before the league could render.
-   *
-   * The league already stores its current round, while
-   * fixtures are loaded separately when required.
-   */
 
   const competition =
     rows[0]
@@ -1717,13 +1810,6 @@ export async function getRoundPicks(
   round: number,
   competitionCode?: string
 ): Promise<Pick[]> {
-  /*
-   * PERFORMANCE:
-   *
-   * Use a lightweight competition lookup.
-   * Do NOT run Football Data synchronisation here.
-   */
-
   const c =
     await getCompetitionByCodeFast(
       competitionCode
@@ -1773,12 +1859,6 @@ export async function getRoundHistory(
   round: number,
   competitionCode?: string
 ): Promise<RoundHistoryPlayer[]> {
-  /*
-   * PERFORMANCE:
-   *
-   * Use a lightweight competition lookup.
-   */
-
   const c =
     await getCompetitionByCodeFast(
       competitionCode
@@ -1934,13 +2014,6 @@ export async function makePick(
     )
   }
 
-  /*
-   * IMPORTANT:
-   *
-   * Lightweight competition lookup only.
-   * No full Football Data synchronisation.
-   */
-
   const c =
     await getCompetitionById(
       entry.competition_id
@@ -1966,6 +2039,34 @@ export async function makePick(
   if (!fixtures.length) {
     throw new Error(
       "There are no fixtures available for the current round."
+    )
+  }
+
+  /*
+   * ----------------------------------------------------------
+   * HARD ROUND DEADLINE
+   * ----------------------------------------------------------
+   *
+   * The first fixture of the round is the deadline
+   * for EVERY player and EVERY team.
+   *
+   * This is intentionally checked on the server.
+   * A player cannot bypass it by changing their device
+   * clock or selecting a later fixture.
+   */
+
+  const deadline =
+    getRoundDeadline(
+      fixtures
+    )
+
+  if (
+    deadline !== null &&
+    Date.now() >=
+      deadline
+  ) {
+    throw new Error(
+      "The pick deadline has passed. Picks are locked for this round."
     )
   }
 
@@ -2031,6 +2132,13 @@ export async function makePick(
     fixtureStatus(
       fixture.status
     )
+
+  /*
+   * Also check the individual fixture.
+   *
+   * This is an additional safety check in case a fixture
+   * has an unusual status.
+   */
 
   if (
     new Date(
@@ -2098,14 +2206,6 @@ export async function makePick(
 export async function getLeaderboard(
   competitionCode?: string
 ) {
-  /*
-   * PERFORMANCE:
-   *
-   * Use a lightweight competition lookup.
-   * The league page has already loaded the competition and
-   * synchronised the football data once.
-   */
-
   const c =
     await getCompetitionByCodeFast(
       competitionCode
