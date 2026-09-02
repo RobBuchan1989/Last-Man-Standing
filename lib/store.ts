@@ -1718,20 +1718,63 @@ export async function joinCompetition(
       )}&select=*&order=created_at.asc&limit=1`
     )
 
+  /*
+   * IMPORTANT:
+   *
+   * A name identifies a player only when that player is
+   * already recognised by this browser/session.
+   *
+   * Previously, any person entering an existing player's
+   * name would be silently logged into that existing entry.
+   * That is unsafe for a shared league.
+   *
+   * If the name already exists:
+   *
+   * - The recognised player can return to their entry.
+   * - A new browser/session gets "name already taken".
+   */
+
   if (existing[0]) {
+    const existingEntry =
+      existing[0]
+
+    const jar =
+      await cookies()
+
+    const currentEntryId =
+      jar.get(
+        ENTRY_COOKIE
+      )?.value
+
+    const storedEntryIds =
+      await getStoredEntryIds()
+
+    const isRecognisedPlayer =
+      currentEntryId ===
+        existingEntry.id ||
+      storedEntryIds.includes(
+        existingEntry.id
+      )
+
+    if (!isRecognisedPlayer) {
+      throw new Error(
+        "That player name is already taken in this league."
+      )
+    }
+
     await setCompetitionCookie(
       c.code
     )
 
     await setEntryCookie(
-      existing[0].id
+      existingEntry.id
     )
 
     await rememberEntry(
-      existing[0].id
+      existingEntry.id
     )
 
-    return existing[0]
+    return existingEntry
   }
 
   const id =
@@ -1797,19 +1840,46 @@ export async function joinCompetition(
         )
 
       if (duplicate[0]) {
+        const duplicateEntry =
+          duplicate[0]
+
+        const jar =
+          await cookies()
+
+        const currentEntryId =
+          jar.get(
+            ENTRY_COOKIE
+          )?.value
+
+        const storedEntryIds =
+          await getStoredEntryIds()
+
+        const isRecognisedPlayer =
+          currentEntryId ===
+            duplicateEntry.id ||
+          storedEntryIds.includes(
+            duplicateEntry.id
+          )
+
+        if (!isRecognisedPlayer) {
+          throw new Error(
+            "That player name is already taken in this league."
+          )
+        }
+
         await setCompetitionCookie(
           c.code
         )
 
         await setEntryCookie(
-          duplicate[0].id
+          duplicateEntry.id
         )
 
         await rememberEntry(
-          duplicate[0].id
+          duplicateEntry.id
         )
 
-        return duplicate[0]
+        return duplicateEntry
       }
     }
 
