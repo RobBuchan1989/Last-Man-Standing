@@ -1,6 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from "react"
 
 type LeaderboardPlayer = {
   id: string
@@ -14,83 +18,151 @@ type LeaderboardPlayer = {
 type Props = {
   leaderboard: LeaderboardPlayer[]
   currentRound: number
+  leagueCode: string
 }
 
-const PICK_SAVED_EVENT = "lms-pick-saved"
+function currentRoundPickCount(
+  player: LeaderboardPlayer,
+  currentRound: number
+) {
+  return player.picks.filter(
+    (pick) =>
+      pick.round === currentRound
+  ).length
+}
 
 export default function LiveLeaderboard({
   leaderboard,
   currentRound,
+  leagueCode,
 }: Props) {
-  const [pickCounts, setPickCounts] = useState<
-    Record<string, number>
-  >(() => {
-    const initial: Record<string, number> = {}
+  const [players, setPlayers] =
+    useState<LeaderboardPlayer[]>(
+      leaderboard
+    )
 
-    for (const player of leaderboard) {
-      initial[player.id] =
-        player.picks.filter(
-          (pick) =>
-            pick.round === currentRound
-        ).length
-    }
+  const refreshLeaderboard =
+    useCallback(async () => {
+      try {
+        const response =
+          await fetch(
+            `/api/leaderboard?league=${encodeURIComponent(
+              leagueCode
+            )}`,
+            {
+              cache: "no-store",
+              headers: {
+                "Cache-Control":
+                  "no-cache",
+              },
+            }
+          )
 
-    return initial
-  })
+        if (!response.ok) {
+          return
+        }
+
+        const result =
+          (await response.json()) as {
+            leaderboard?:
+              LeaderboardPlayer[]
+          }
+
+        if (
+          Array.isArray(
+            result.leaderboard
+          )
+        ) {
+          setPlayers(
+            result.leaderboard
+          )
+        }
+      } catch {
+        /*
+         * Keep the last known leaderboard
+         * if a refresh temporarily fails.
+         */
+      }
+    }, [leagueCode])
+
+  /*
+   * ----------------------------------------------------------
+   * LIVE REFRESH
+   * ----------------------------------------------------------
+   *
+   * Refresh immediately when:
+   *
+   * 1. A pick has just been saved
+   * 2. Every 5 seconds
+   *
+   */
 
   useEffect(() => {
-    const handlePickSaved = (
-      event: Event
-    ) => {
-      const customEvent =
-        event as CustomEvent<{
-          entryId: string
-        }>
-
-      const entryId =
-        customEvent.detail?.entryId
-
-      /*
-       * FastPickButton fires this event only after the
-       * current-round pick has been successfully saved.
-       * The event intentionally contains only the entryId,
-       * so we do not require a round value here.
-       */
-      if (!entryId) {
-        return
+    const handlePickSaved =
+      () => {
+        void refreshLeaderboard()
       }
 
-      setPickCounts((current) => {
-        /*
-         * A player can only make one pick per round.
-         * Ignore duplicate success events so the UI
-         * cannot accidentally show 2 picks.
-         */
-        if (
-          (current[entryId] ?? 0) >= 1
-        ) {
-          return current
-        }
-
-        return {
-          ...current,
-          [entryId]: 1,
-        }
-      })
-    }
-
     window.addEventListener(
-      PICK_SAVED_EVENT,
+      "lms-pick-saved",
       handlePickSaved
     )
 
+    const interval =
+      window.setInterval(
+        () => {
+          void refreshLeaderboard()
+        },
+        5000
+      )
+
     return () => {
       window.removeEventListener(
-        PICK_SAVED_EVENT,
+        "lms-pick-saved",
         handlePickSaved
       )
+
+      window.clearInterval(
+        interval
+      )
     }
-  }, [currentRound])
+  }, [refreshLeaderboard])
+
+  /*
+   * ----------------------------------------------------------
+   * REFRESH WHEN TAB BECOMES VISIBLE
+   * ----------------------------------------------------------
+   */
+
+  useEffect(() => {
+    const handleVisibility =
+      () => {
+        if (
+          document.visibilityState ===
+          "visible"
+        ) {
+          void refreshLeaderboard()
+        }
+      }
+
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibility
+    )
+
+    return () => {
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibility
+      )
+    }
+  }, [refreshLeaderboard])
+
+  /*
+   * ----------------------------------------------------------
+   * DISPLAY
+   * ----------------------------------------------------------
+   */
 
   return (
     <div className="rounded-2xl border border-white/10 bg-[#151b25] p-6">
@@ -103,7 +175,7 @@ export default function LiveLeaderboard({
 
         <div className="rounded-full bg-[#202733] px-3 py-1 text-xs font-bold">
           {
-            leaderboard.filter(
+            players.filter(
               (player) =>
                 player.alive
             ).length
@@ -115,37 +187,49 @@ export default function LiveLeaderboard({
 
       <div className="mt-5 space-y-3">
 
-        {leaderboard.map(
+        {players.map(
           (
             player,
             index
           ) => {
-            const currentRoundPickCount =
-              pickCounts[player.id] ?? 0
+
+            const count =
+              currentRoundPickCount(
+                player,
+                currentRound
+              )
 
             return (
               <div
-                key={player.id}
+                key={
+                  player.id
+                }
                 className="rounded-xl bg-[#1c222d] p-4"
               >
 
                 <div className="flex items-center gap-4">
 
                   <div className="text-slate-500">
-                    {index + 1}
+                    {
+                      index + 1
+                    }
                   </div>
 
                   <div className="min-w-0 flex-1">
 
                     <div className="font-bold">
-                      {player.name}
+                      {
+                        player.name
+                      }
                     </div>
 
                     <div className="text-sm text-slate-400">
-                      {currentRoundPickCount}{" "}
-                      {currentRoundPickCount === 1
-                        ? "pick"
-                        : "picks"}
+                      {count}{" "}
+                      {
+                        count === 1
+                          ? "pick"
+                          : "picks"
+                      }
                     </div>
 
                   </div>
@@ -157,9 +241,11 @@ export default function LiveLeaderboard({
                         : "font-bold text-red-400"
                     }
                   >
-                    {player.alive
-                      ? "ALIVE"
-                      : "OUT"}
+                    {
+                      player.alive
+                        ? "ALIVE"
+                        : "OUT"
+                    }
                   </div>
 
                 </div>
