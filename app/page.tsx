@@ -1080,6 +1080,7 @@ async function LeagueSidebar({
       <LiveLeaderboard
         leaderboard={leaderboard}
         currentRound={currentRound}
+        leagueCode={competition.code}
       />
 
       {/* ROUND HISTORY */}
