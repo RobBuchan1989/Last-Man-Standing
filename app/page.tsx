@@ -289,48 +289,33 @@ async function HomePage() {
     await getPlayerLeagues()
 
   return (
-    <main className="min-h-screen bg-[#080d14] text-white">
+    <main className="min-h-screen bg-[#0b1018] text-white">
 
-      <header className="border-b border-white/10 bg-[#0d131d] px-4 py-5 sm:px-6 sm:py-6">
+      <header className="border-b border-white/10 bg-[#111722] px-6 py-7">
         <div className="mx-auto max-w-7xl">
           <HomeLink />
         </div>
       </header>
 
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10 lg:py-14">
+      <div className="mx-auto max-w-5xl px-6 py-16">
 
-        <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#111923] p-6 shadow-2xl sm:p-10 lg:p-12">
+        <div className="rounded-2xl border border-white/10 bg-[#151b25] p-8 shadow-2xl">
 
-          <div className="text-xs font-black tracking-[0.35em] text-green-400 sm:text-sm">
-            PREMIER LEAGUE LAST MAN STANDING
+          <div className="text-sm font-bold tracking-[0.3em] text-green-400">
+            LAST MAN STANDING
           </div>
 
-          <h2 className="mt-4 text-5xl font-black uppercase leading-[0.92] tracking-tight sm:text-6xl lg:text-8xl">
-            WHO WILL
-            <br />
-            YOU PICK?
+          <h2 className="mt-3 text-5xl font-black">
+            Welcome
           </h2>
 
-          <p className="mt-5 max-w-2xl text-base leading-7 text-slate-400 sm:text-xl sm:leading-8">
-            Pick a team. Survive the round.
-            Be the last one standing.
+          <p className="mt-5 max-w-2xl text-xl text-slate-400">
+            Pick. Win. Survive.
           </p>
-
-          <div className="mt-7 flex flex-wrap gap-2">
-            <span className="rounded-full border border-white/10 bg-[#0b1119] px-4 py-2 text-xs font-black tracking-[0.18em] text-slate-300">
-              PICK
-            </span>
-            <span className="rounded-full border border-white/10 bg-[#0b1119] px-4 py-2 text-xs font-black tracking-[0.18em] text-slate-300">
-              WIN
-            </span>
-            <span className="rounded-full border border-white/10 bg-[#0b1119] px-4 py-2 text-xs font-black tracking-[0.18em] text-slate-300">
-              SURVIVE
-            </span>
-          </div>
 
           {/* YOUR LEAGUES */}
 
-          <div className="mt-6 rounded-3xl border border-white/10 bg-[#111923] p-5 sm:p-7">
+          <div className="mt-10 rounded-2xl bg-[#0e141d] p-6">
 
             <div className="text-sm font-bold tracking-[0.25em] text-green-400">
               YOUR LEAGUES
@@ -348,7 +333,7 @@ async function HomePage() {
 
                     <div
                       key={entry.id}
-                      className="rounded-2xl border border-white/10 bg-[#0b1119] p-4 sm:p-5"
+                      className="rounded-2xl border border-white/10 bg-[#151b25] p-5"
                     >
 
                       <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
@@ -399,7 +384,7 @@ async function HomePage() {
 
               <div className="mt-5 rounded-xl border border-white/10 bg-[#151b25] p-5">
 
-                <div className="text-base font-black sm:text-lg">
+                <div className="text-lg font-bold">
                   You haven't joined any leagues yet.
                 </div>
 
@@ -416,11 +401,11 @@ async function HomePage() {
 
           {/* CREATE + JOIN */}
 
-          <div className="mt-5 grid gap-5 lg:grid-cols-2">
+          <div className="mt-8 grid gap-6 md:grid-cols-2">
 
             {/* CREATE */}
 
-            <div className="rounded-3xl border border-green-400/20 bg-[#101a18] p-5 sm:p-7">
+            <div className="rounded-2xl bg-[#0e141d] p-6">
 
               <div className="text-sm font-bold tracking-[0.25em] text-green-400">
                 CREATE A LEAGUE
@@ -487,7 +472,7 @@ async function HomePage() {
 
             {/* JOIN */}
 
-            <div className="rounded-3xl border border-white/10 bg-[#111923] p-5 sm:p-7">
+            <div className="rounded-2xl bg-[#0e141d] p-6">
 
               <div className="text-sm font-bold tracking-[0.25em] text-green-400">
                 JOIN A LEAGUE
@@ -560,6 +545,98 @@ async function HomePage() {
   )
 }
 
+
+/*
+ * ------------------------------------------------------------
+ * STADIUM HERO
+ * ------------------------------------------------------------
+ */
+
+function StadiumHero({
+  competition,
+  currentRound,
+  entry,
+}: {
+  competition: any
+  currentRound: number
+  entry: any
+}) {
+  return (
+    <section className="relative mb-5 overflow-hidden rounded-[28px] border border-white/10 bg-[#0c1519] shadow-2xl">
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 opacity-90"
+        style={{
+          background:
+            "radial-gradient(circle at 50% 110%, rgba(34,197,94,.24), transparent 42%), radial-gradient(circle at 12% 15%, rgba(255,255,255,.08), transparent 22%), radial-gradient(circle at 88% 15%, rgba(255,255,255,.07), transparent 22%), linear-gradient(180deg,#111923 0%,#0b1118 55%,#07110b 100%)",
+        }}
+      />
+
+      <div
+        aria-hidden="true"
+        className="absolute inset-x-0 bottom-0 h-24 opacity-40"
+        style={{
+          background:
+            "repeating-linear-gradient(90deg, transparent 0, transparent 47px, rgba(255,255,255,.08) 48px, transparent 49px)",
+        }}
+      />
+
+      <div
+        aria-hidden="true"
+        className="absolute left-1/2 top-1/2 h-56 w-[82%] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border border-green-300/20"
+      />
+
+      <div
+        aria-hidden="true"
+        className="absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full border border-green-300/20"
+      />
+
+      <div
+        aria-hidden="true"
+        className="absolute left-5 top-5 h-2 w-20 rounded-full bg-white/70 blur-[2px] sm:left-8 sm:w-28"
+      />
+
+      <div
+        aria-hidden="true"
+        className="absolute right-5 top-5 h-2 w-20 rounded-full bg-white/70 blur-[2px] sm:right-8 sm:w-28"
+      />
+
+      <div className="relative px-5 py-8 sm:px-8 sm:py-10 lg:px-10 lg:py-12">
+        <div className="max-w-4xl">
+          <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-green-400 sm:text-xs">
+            <span>PREMIER LEAGUE</span>
+            <span className="text-slate-600">•</span>
+            <span>ROUND {currentRound}</span>
+            <span className="text-slate-600">•</span>
+            <span>{competition.code}</span>
+          </div>
+
+          <h2 className="mt-4 text-4xl font-black uppercase leading-[0.9] tracking-tight sm:text-6xl lg:text-7xl">
+            WHO WILL
+            <br />
+            YOU PICK?
+          </h2>
+
+          <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-300 sm:text-lg">
+            {entry.alive
+              ? `Choose one team to survive Round ${currentRound}. Pick wisely — you can only use each team once.`
+              : "Your Last Man Standing journey has ended."}
+          </p>
+
+          <div className="mt-6 flex flex-wrap gap-2">
+            <span className="rounded-full border border-green-400/30 bg-green-400/10 px-4 py-2 text-xs font-black uppercase tracking-wide text-green-300">
+              {entry.name}
+            </span>
+            <span className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs font-black uppercase tracking-wide text-slate-300">
+              {entry.alive ? "ALIVE" : "OUT"}
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 /*
  * ------------------------------------------------------------
  * LEAGUE LOADING FALLBACK
@@ -568,7 +645,7 @@ async function HomePage() {
 
 function LeagueLoading() {
   return (
-    <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-7 lg:py-8">
+    <div className="mx-auto max-w-7xl px-6 py-8">
 
       <div className="mb-6 rounded-2xl border border-white/10 bg-[#151b25] p-5">
 
@@ -582,7 +659,7 @@ function LeagueLoading() {
 
         <section>
 
-          <div className="rounded-3xl border border-white/10 bg-[#101821] p-5 sm:p-7">
+          <div className="rounded-2xl border border-white/10 bg-[#151b25] p-7">
 
             <div className="h-4 w-40 animate-pulse rounded bg-[#202733]" />
 
@@ -655,15 +732,15 @@ function RoundNavigation({
     displayRound === currentRound
 
   return (
-    <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-white/10 bg-[#101821] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+    <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#151b25] p-4">
 
       <div>
 
-        <div className="text-[10px] font-black tracking-[0.3em] text-green-400 sm:text-xs">
+        <div className="text-xs font-bold tracking-[0.25em] text-green-400">
           ROUND HISTORY
         </div>
 
-        <div className="mt-1 text-base font-black sm:text-lg">
+        <div className="mt-1 text-lg font-bold">
           {viewingCurrentRound
             ? `Round ${currentRound} — Current`
             : `Round ${displayRound} — Completed`}
@@ -784,7 +861,7 @@ async function CriticalLeagueContent({
 
               <div>
 
-                <div className="text-xs font-black tracking-[0.3em] text-green-400">
+                <div className="text-sm font-bold tracking-[0.3em] text-green-400">
                   ROUND{" "}
                   {
                     currentRound
@@ -792,13 +869,13 @@ async function CriticalLeagueContent({
                   — CURRENT
                 </div>
 
-                <h2 className="mt-2 text-4xl font-black uppercase leading-none sm:text-5xl">
+                <h2 className="mt-2 text-4xl font-black">
                   {currentPick
                     ? "YOUR PICK"
                     : "CHOOSE YOUR WINNER"}
                 </h2>
 
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400 sm:text-base">
+                <p className="mt-3 text-lg text-slate-400">
                   Welcome,{" "}
                   {
                     entry.name
@@ -898,7 +975,7 @@ async function PreviousRoundContent({
 
       <div>
 
-        <div className="text-xs font-black tracking-[0.3em] text-green-400">
+        <div className="text-sm font-bold tracking-[0.3em] text-green-400">
           ROUND{" "}
           {
             displayRound
@@ -1100,9 +1177,9 @@ async function LeagueSidebar({
 
       {/* ROUND HISTORY */}
 
-      <div className="mt-4 rounded-3xl border border-white/10 bg-[#101821] p-5 sm:p-6">
+      <div className="mt-6 rounded-2xl border border-white/10 bg-[#151b25] p-6">
 
-        <div className="text-[10px] font-black tracking-[0.3em] text-green-400 sm:text-xs">
+        <div className="text-xs font-bold tracking-[0.25em] text-green-400">
           ROUND HISTORY
         </div>
 
@@ -1175,7 +1252,7 @@ async function LeagueSidebar({
 
       {/* RULES */}
 
-      <div className="mt-4 rounded-3xl border border-white/10 bg-[#101821] p-5 sm:p-6">
+      <div className="mt-6 rounded-2xl border border-white/10 bg-[#151b25] p-6">
 
         <h2 className="text-2xl font-black">
           RULES
@@ -1247,9 +1324,9 @@ async function LeaguePage({
       )
   } catch {
     return (
-      <main className="min-h-screen bg-[#080d14] text-white">
+      <main className="min-h-screen bg-[#0b1018] text-white">
 
-        <header className="border-b border-white/10 bg-[#0d131d] px-4 py-5 sm:px-6 sm:py-6">
+        <header className="border-b border-white/10 bg-[#111722] px-6 py-7">
 
           <div className="mx-auto max-w-7xl">
             <HomeLink compact />
@@ -1291,9 +1368,9 @@ async function LeaguePage({
 
   if (!entry) {
     return (
-      <main className="min-h-screen bg-[#080d14] text-white">
+      <main className="min-h-screen bg-[#0b1018] text-white">
 
-        <header className="border-b border-white/10 bg-[#0d131d] px-4 py-5 sm:px-6 sm:py-6">
+        <header className="border-b border-white/10 bg-[#111722] px-6 py-7">
 
           <div className="mx-auto max-w-7xl">
             <HomeLink compact />
@@ -1303,7 +1380,7 @@ async function LeaguePage({
 
         <div className="mx-auto max-w-xl px-6 py-16">
 
-          <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#111923] p-6 shadow-2xl sm:p-10 lg:p-12">
+          <div className="rounded-2xl border border-white/10 bg-[#151b25] p-8 shadow-2xl">
 
             <div className="text-sm font-bold tracking-[0.3em] text-green-400">
               JOIN LEAGUE
@@ -1425,13 +1502,13 @@ async function LeaguePage({
     currentRound
 
   return (
-    <main className="min-h-screen bg-[#080d14] text-white">
+    <main className="min-h-screen bg-[#0b1018] text-white">
 
       {/* HEADER */}
 
-      <header className="border-b border-white/10 bg-[#0d131d] px-4 py-5 sm:px-6 sm:py-6">
+      <header className="border-b border-white/10 bg-[#111722] px-6 py-7">
 
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-6">
 
           <HomeLink />
 
@@ -1443,7 +1520,7 @@ async function LeaguePage({
       League
     </div>
 
-    <div className="text-sm font-black text-white">
+    <div className="font-bold text-white">
       {
         competition.name
       }
@@ -1462,7 +1539,13 @@ async function LeaguePage({
 
       </header>
 
-      <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-7">
+
+        <StadiumHero
+          competition={competition}
+          currentRound={currentRound}
+          entry={entry}
+        />
 
         {/* ROUND NAVIGATION */}
 
@@ -1472,7 +1555,7 @@ async function LeaguePage({
           displayRound={displayRound}
         />
 
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
+        <div className="grid gap-8 lg:grid-cols-[1.7fr_1fr]">
 
           {/* CRITICAL GAME */}
 
