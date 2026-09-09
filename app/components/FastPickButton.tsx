@@ -27,35 +27,19 @@ export default function FastPickButton({
 }: Props) {
   const [selectedTeam, setSelectedTeam] =
     useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
 
-  const [error, setError] =
-    useState<string | null>(null)
-
-  const [saving, setSaving] =
-    useState(false)
-
-  const pickedByThisButton =
-    selectedTeam === teamName
-
+  const pickedByThisButton = selectedTeam === teamName
   const anotherTeamPicked =
-    selectedTeam !== null &&
-    selectedTeam !== teamName
+    selectedTeam !== null && selectedTeam !== teamName
 
   useEffect(() => {
-    const handlePickSelected = (
-      event: Event
-    ) => {
+    const handlePickSelected = (event: Event) => {
       const customEvent =
-        event as CustomEvent<{
-          teamName: string
-        }>
-
-      const picked =
-        customEvent.detail?.teamName
-
-      if (!picked) return
-
-      setSelectedTeam(picked)
+        event as CustomEvent<{ teamName: string }>
+      const picked = customEvent.detail?.teamName
+      if (picked) setSelectedTeam(picked)
     }
 
     const handlePickCleared = () => {
@@ -63,38 +47,16 @@ export default function FastPickButton({
       setSaving(false)
     }
 
-    window.addEventListener(
-      PICK_EVENT,
-      handlePickSelected
-    )
-
-    window.addEventListener(
-      CLEAR_EVENT,
-      handlePickCleared
-    )
+    window.addEventListener(PICK_EVENT, handlePickSelected)
+    window.addEventListener(CLEAR_EVENT, handlePickCleared)
 
     return () => {
-      window.removeEventListener(
-        PICK_EVENT,
-        handlePickSelected
-      )
-
-      window.removeEventListener(
-        CLEAR_EVENT,
-        handlePickCleared
-      )
+      window.removeEventListener(PICK_EVENT, handlePickSelected)
+      window.removeEventListener(CLEAR_EVENT, handlePickCleared)
     }
   }, [])
 
   const handlePick = async () => {
-    /*
-     * Never allow a pick if:
-     *
-     * - the team has already been used
-     * - the round deadline has passed
-     * - another team has already been selected
-     * - a pick is currently being saved
-     */
     if (
       used ||
       deadlinePassed ||
@@ -106,83 +68,44 @@ export default function FastPickButton({
 
     setError(null)
 
-    /*
-     * Lock ALL team buttons immediately.
-     */
     window.dispatchEvent(
-      new CustomEvent(
-        PICK_EVENT,
-        {
-          detail: {
-            teamName,
-          },
-        }
-      )
+      new CustomEvent(PICK_EVENT, {
+        detail: { teamName },
+      })
     )
 
     setSaving(true)
 
     try {
-      const response =
-        await fetch(
-          "/api/pick",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-            body:
-              JSON.stringify({
-                entryId,
-                teamName,
-                league,
-              }),
-          }
-        )
+      const response = await fetch("/api/pick", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          entryId,
+          teamName,
+          league,
+        }),
+      })
 
-      const result =
-        await response.json()
+      const result = await response.json()
 
-      if (
-        !response.ok ||
-        result?.error
-      ) {
+      if (!response.ok || result?.error) {
         throw new Error(
           result?.error ||
             "Could not lock in your pick."
         )
       }
 
-      /*
-       * The successful pick remains displayed
-       * immediately.
-       */
       setSaving(false)
 
-      /*
-       * Tell the live leaderboard that the database
-       * has successfully accepted this player's pick.
-       *
-       * This fires only after a successful response,
-       * so rejected picks cannot change the count.
-       */
       window.dispatchEvent(
-        new CustomEvent(
-          PICK_SAVED_EVENT,
-          {
-            detail: {
-              entryId,
-            },
-          }
-        )
+        new CustomEvent(PICK_SAVED_EVENT, {
+          detail: { entryId },
+        })
       )
-
     } catch (err) {
-      /*
-       * Server rejected the pick.
-       * Restore all buttons.
-       */
       setError(
         err instanceof Error
           ? err.message
@@ -195,178 +118,135 @@ export default function FastPickButton({
     }
   }
 
-  /*
-   * ----------------------------------------------------------
-   * SELECTED TEAM
-   * ----------------------------------------------------------
-   */
-
   if (pickedByThisButton) {
     return (
-      <div className="sm:col-span-2 rounded-xl border border-green-400/40 bg-green-400/10 p-5">
+      <div className="rounded-xl border border-green-400/50 bg-green-400/10 p-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-400 text-lg font-black text-[#07110b]">
+            ✓
+          </div>
 
-        <div className="text-sm font-bold tracking-[0.2em] text-green-400">
-          YOUR PICK
+          <div className="min-w-0">
+            <div className="text-[10px] font-black uppercase tracking-[0.2em] text-green-400">
+              YOUR PICK
+            </div>
+            <div className="mt-0.5 text-lg font-black">
+              {teamName}
+            </div>
+            <div className="text-xs font-semibold text-slate-300">
+              {venue} · vs {opponent}
+            </div>
+          </div>
         </div>
 
-        <div className="mt-1 text-2xl font-black">
-          {teamName}
-        </div>
-
-        <div className="mt-1 text-sm font-bold text-slate-300">
-          vs {opponent} · {venue}
-        </div>
-
-        <div className="mt-1 text-slate-400">
-          Your pick is locked.
+        <div className="mt-3 text-xs font-black uppercase tracking-wide text-white">
+          Round pick saved & locked in
         </div>
 
         {error && (
-          <p className="mt-3 text-sm text-red-400">
+          <p className="mt-2 text-sm text-red-400">
             {error}
           </p>
         )}
-
       </div>
     )
   }
-
-  /*
-   * ----------------------------------------------------------
-   * ANOTHER TEAM HAS BEEN PICKED
-   * ----------------------------------------------------------
-   */
 
   if (anotherTeamPicked) {
     return (
       <button
         type="button"
         disabled
-        className="w-full cursor-not-allowed rounded-xl border border-white/5 bg-[#10151d] p-5 text-left opacity-35"
+        className="w-full cursor-not-allowed rounded-xl border border-white/5 bg-[#10151d] px-4 py-3 text-left opacity-35"
       >
-        <div className="flex items-center justify-between gap-4">
-
-          <div>
-            <div className="text-xl font-black">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="truncate text-base font-black">
               {teamName}
             </div>
-
-            <div className="mt-1 text-sm font-medium text-slate-500">
-              vs {opponent} · {venue}
+            <div className="mt-0.5 text-xs font-medium text-slate-500">
+              {venue} · vs {opponent}
             </div>
           </div>
-
-          <span className="text-sm font-bold text-slate-600">
-            PICK
+          <span className="shrink-0 text-[10px] font-bold text-slate-600">
+            NOT SELECTED
           </span>
-
         </div>
       </button>
     )
   }
-
-  /*
-   * ----------------------------------------------------------
-   * ALREADY USED
-   * ----------------------------------------------------------
-   */
 
   if (used) {
     return (
       <button
         type="button"
         disabled
-        className="w-full cursor-not-allowed rounded-xl border border-white/5 bg-[#10151d] p-5 text-left opacity-35"
+        className="w-full cursor-not-allowed rounded-xl border border-white/5 bg-[#10151d] px-4 py-3 text-left opacity-45"
       >
-        <div className="flex items-center justify-between gap-4">
-
-          <div>
-            <div className="text-xl font-black">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="truncate text-base font-black text-slate-500">
               {teamName}
             </div>
-
-            <div className="mt-1 text-sm font-medium text-slate-500">
-              vs {opponent} · {venue}
+            <div className="mt-0.5 text-xs font-medium text-slate-600">
+              {venue} · vs {opponent}
             </div>
           </div>
-
-          <span className="text-sm font-bold text-slate-600">
+          <span className="shrink-0 rounded-full bg-[#202733] px-2.5 py-1 text-[10px] font-black text-slate-500">
             USED
           </span>
-
         </div>
       </button>
     )
   }
-
-  /*
-   * ----------------------------------------------------------
-   * DEADLINE PASSED
-   * ----------------------------------------------------------
-   */
 
   if (deadlinePassed) {
     return (
       <button
         type="button"
         disabled
-        className="w-full cursor-not-allowed rounded-xl border border-red-500/20 bg-[#10151d] p-5 text-left opacity-40"
+        className="w-full cursor-not-allowed rounded-xl border border-red-500/20 bg-[#10151d] px-4 py-3 text-left opacity-45"
       >
-        <div className="flex items-center justify-between gap-4">
-
-          <div>
-            <div className="text-xl font-black">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="truncate text-base font-black text-slate-500">
               {teamName}
             </div>
-
-            <div className="mt-1 text-sm font-medium text-slate-500">
-              vs {opponent} · {venue}
+            <div className="mt-0.5 text-xs font-medium text-slate-600">
+              {venue} · vs {opponent}
             </div>
           </div>
-
-          <span className="shrink-0 text-sm font-bold text-red-400">
+          <span className="shrink-0 text-[10px] font-black text-red-400">
             LOCKED
           </span>
-
         </div>
       </button>
     )
   }
 
-  /*
-   * ----------------------------------------------------------
-   * AVAILABLE TEAM
-   * ----------------------------------------------------------
-   */
-
   return (
     <div className="w-full">
-
       <button
         type="button"
         disabled={saving}
         onClick={handlePick}
-        className="w-full rounded-xl border border-white/10 bg-[#151b25] p-5 text-left transition hover:border-green-400 hover:bg-[#202733]"
+        aria-label={`Pick ${teamName}`}
+        className="group w-full rounded-xl border border-white/10 bg-[#151b25] px-4 py-3 text-left transition hover:border-green-400 hover:bg-[#202733] focus:outline-none focus:ring-2 focus:ring-green-400/60 disabled:cursor-wait"
       >
-
-        <div className="flex items-center justify-between gap-4">
-
-          <div>
-            <div className="text-xl font-black">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="truncate text-base font-black">
               {teamName}
             </div>
-
-            <div className="mt-1 text-sm font-medium text-slate-400">
-              vs {opponent} · {venue}
+            <div className="mt-0.5 text-xs font-medium text-slate-400">
+              {venue} · vs {opponent}
             </div>
           </div>
 
-          <span className="shrink-0 text-sm font-bold text-slate-400">
-            PICK
+          <span className="shrink-0 rounded-lg bg-green-400 px-3 py-2 text-[10px] font-black text-[#07110b] transition group-hover:bg-green-300 sm:text-xs">
+            {saving ? "SAVING..." : `PICK ${teamName}`}
           </span>
-
         </div>
-
       </button>
 
       {error && (
@@ -374,7 +254,6 @@ export default function FastPickButton({
           {error}
         </p>
       )}
-
     </div>
   )
 }
