@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 620" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#07111d"/>
+      <stop offset="0.52" stop-color="#0b1a2a"/>
+      <stop offset="1" stop-color="#07140d"/>
+    </linearGradient>
+    <radialGradient id="lights" cx="50%" cy="5%" r="70%">
+      <stop offset="0" stop-color="#dcecff" stop-opacity=".34"/>
+      <stop offset=".45" stop-color="#8db4d8" stop-opacity=".08"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="pitch" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#164a2a"/>
+      <stop offset="1" stop-color="#06140b"/>
+    </linearGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="18"/></filter>
+  </defs>
+
+  <rect width="1600" height="620" fill="url(#sky)"/>
+  <rect width="1600" height="620" fill="url(#lights)"/>
+
+  <!-- stadium roof / upper bowl -->
+  <path d="M70 250 Q800 35 1530 250 L1530 360 Q800 185 70 360 Z"
+        fill="#0b1724" stroke="#26394b" stroke-width="4"/>
+  <path d="M125 270 Q800 95 1475 270" fill="none" stroke="#41566a" stroke-opacity=".45" stroke-width="5"/>
+
+  <!-- floodlights -->
+  <g fill="#eef7ff">
+    <circle cx="170" cy="100" r="10"/><circle cx="205" cy="94" r="7"/><circle cx="240" cy="91" r="5"/>
+    <circle cx="1360" cy="91" r="5"/><circle cx="1395" cy="94" r="7"/><circle cx="1430" cy="100" r="10"/>
+  </g>
+  <g fill="#d7efff" opacity=".18" filter="url(#blur)">
+    <ellipse cx="205" cy="100" rx="125" ry="70"/>
+    <ellipse cx="1395" cy="100" rx="125" ry="70"/>
+  </g>
+
+  <!-- lower stands -->
+  <path d="M0 300 Q800 170 1600 300 L1600 440 Q800 335 0 440 Z" fill="#101f2d"/>
+  <path d="M0 345 Q800 245 1600 345" fill="none" stroke="#34495b" stroke-width="3" opacity=".6"/>
+  <path d="M0 390 Q800 300 1600 390" fill="none" stroke="#263b4d" stroke-width="3" opacity=".65"/>
+
+  <!-- pitch -->
+  <path d="M0 430 Q800 350 1600 430 L1600 620 L0 620 Z" fill="url(#pitch)"/>
+  <path d="M800 430 L800 620" stroke="#dff7e6" stroke-opacity=".45" stroke-width="3"/>
+  <ellipse cx="800" cy="535" rx="145" ry="54" fill="none" stroke="#dff7e6" stroke-opacity=".5" stroke-width="3"/>
+  <circle cx="800" cy="535" r="5" fill="#dff7e6" fill-opacity=".55"/>
+  <path d="M0 500 Q800 455 1600 500" fill="none" stroke="#bfe6c8" stroke-opacity=".16" stroke-width="3"/>
+
+  <!-- subtle pitch stripes -->
+  <path d="M120 620 L390 450 L470 445 L260 620 Z" fill="#4c9a61" opacity=".08"/>
+  <path d="M520 620 L690 430 L755 430 L650 620 Z" fill="#4c9a61" opacity=".08"/>
+  <path d="M1080 620 L910 430 L845 430 L950 620 Z" fill="#4c9a61" opacity=".08"/>
+  <path d="M1480 620 L1210 450 L1130 445 L1340 620 Z" fill="#4c9a61" opacity=".08"/>
+
+  <rect width="1600" height="620" fill="#000" opacity=".22"/>
+</svg>
