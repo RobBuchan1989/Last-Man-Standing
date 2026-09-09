@@ -224,7 +224,7 @@ async function createLeagueAction(
 
 /*
  * ------------------------------------------------------------
- * HOME ICON
+ * HOME / BRAND
  * ------------------------------------------------------------
  */
 
@@ -242,7 +242,9 @@ function HomeLink({
     >
       <span
         aria-hidden="true"
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-[#202733] text-white transition group-hover:border-green-400 group-hover:bg-[#29313e]"
+        className={`flex shrink-0 items-center justify-center rounded-xl border border-white/20 bg-[#202733]/90 text-white shadow-lg transition group-hover:border-green-400 ${
+          compact ? "h-10 w-10" : "h-12 w-12"
+        }`}
       >
         <svg
           viewBox="0 0 24 24"
@@ -251,7 +253,7 @@ function HomeLink({
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="h-5 w-5"
+          className={compact ? "h-5 w-5" : "h-6 w-6"}
         >
           <path d="M3 10.5 12 3l9 7.5" />
           <path d="M5.5 9.5V21h13V9.5" />
@@ -259,22 +261,57 @@ function HomeLink({
         </svg>
       </span>
 
-      <div>
-        <div className="text-sm font-bold tracking-[0.35em] text-green-400">
+      <div className="min-w-0">
+        <div className="text-[10px] font-black tracking-[0.34em] text-green-400 sm:text-xs">
           PREMIER LEAGUE
         </div>
 
         <h1
           className={
             compact
-              ? "mt-1 text-2xl font-black"
-              : "mt-1 text-3xl font-black tracking-tight"
+              ? "mt-0.5 text-xl font-black tracking-tight sm:text-2xl"
+              : "mt-0.5 text-2xl font-black tracking-tight sm:text-3xl"
           }
         >
           LAST MAN STANDING
         </h1>
+
+        {!compact && (
+          <div className="mt-1 text-[10px] font-black tracking-[0.3em] text-slate-400 sm:text-xs">
+            PICK. WIN. SURVIVE.
+          </div>
+        )}
       </div>
     </Link>
+  )
+}
+
+/*
+ * ------------------------------------------------------------
+ * STADIUM HERO BACKDROP
+ * ------------------------------------------------------------
+ */
+
+function StadiumBackdrop() {
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 overflow-hidden"
+    >
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_8%,rgba(148,163,184,0.2),transparent_24%),linear-gradient(180deg,#07111d_0%,#0b1623_48%,#06120d_100%)]" />
+      <div className="absolute left-1/2 top-0 h-28 w-[140%] -translate-x-1/2 rounded-[50%] bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.22),transparent_55%)] blur-2xl" />
+      <div className="absolute left-[-8%] top-7 h-8 w-24 rotate-[18deg] rounded-full bg-white/50 blur-md" />
+      <div className="absolute right-[-8%] top-7 h-8 w-24 -rotate-[18deg] rounded-full bg-white/50 blur-md" />
+      <div className="absolute left-1/2 top-[42%] h-24 w-[90%] -translate-x-1/2 rounded-[50%] border border-white/10 bg-[#101b25]/70 shadow-[0_0_80px_rgba(255,255,255,0.05)]" />
+      <div className="absolute bottom-0 left-1/2 h-[43%] w-[125%] -translate-x-1/2 rounded-[50%_50%_0_0] bg-[linear-gradient(180deg,#123d25,#07180d)]" />
+      <div className="absolute bottom-[13%] left-1/2 h-24 w-[72%] -translate-x-1/2 rounded-[50%] border-2 border-white/35" />
+      <div className="absolute bottom-0 left-1/2 h-[50%] w-px -translate-x-1/2 bg-white/20" />
+      <div className="absolute bottom-[37%] left-1/2 h-px w-[76%] -translate-x-1/2 bg-white/10" />
+      <div className="absolute bottom-0 left-[16%] h-[38%] w-px rotate-[15deg] bg-green-300/10" />
+      <div className="absolute bottom-0 right-[16%] h-[38%] w-px -rotate-[15deg] bg-green-300/10" />
+      <div className="absolute inset-x-0 bottom-0 h-1/2 bg-[linear-gradient(90deg,rgba(0,0,0,0.35),transparent_30%,transparent_70%,rgba(0,0,0,0.35))]" />
+      <div className="absolute inset-0 bg-black/25" />
+    </div>
   )
 }
 
@@ -545,98 +582,6 @@ async function HomePage() {
   )
 }
 
-
-/*
- * ------------------------------------------------------------
- * STADIUM HERO
- * ------------------------------------------------------------
- */
-
-function StadiumHero({
-  competition,
-  currentRound,
-  entry,
-}: {
-  competition: any
-  currentRound: number
-  entry: any
-}) {
-  return (
-    <section className="relative mb-5 overflow-hidden rounded-[28px] border border-white/10 bg-[#0c1519] shadow-2xl">
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 opacity-90"
-        style={{
-          background:
-            "radial-gradient(circle at 50% 110%, rgba(34,197,94,.24), transparent 42%), radial-gradient(circle at 12% 15%, rgba(255,255,255,.08), transparent 22%), radial-gradient(circle at 88% 15%, rgba(255,255,255,.07), transparent 22%), linear-gradient(180deg,#111923 0%,#0b1118 55%,#07110b 100%)",
-        }}
-      />
-
-      <div
-        aria-hidden="true"
-        className="absolute inset-x-0 bottom-0 h-24 opacity-40"
-        style={{
-          background:
-            "repeating-linear-gradient(90deg, transparent 0, transparent 47px, rgba(255,255,255,.08) 48px, transparent 49px)",
-        }}
-      />
-
-      <div
-        aria-hidden="true"
-        className="absolute left-1/2 top-1/2 h-56 w-[82%] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border border-green-300/20"
-      />
-
-      <div
-        aria-hidden="true"
-        className="absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full border border-green-300/20"
-      />
-
-      <div
-        aria-hidden="true"
-        className="absolute left-5 top-5 h-2 w-20 rounded-full bg-white/70 blur-[2px] sm:left-8 sm:w-28"
-      />
-
-      <div
-        aria-hidden="true"
-        className="absolute right-5 top-5 h-2 w-20 rounded-full bg-white/70 blur-[2px] sm:right-8 sm:w-28"
-      />
-
-      <div className="relative px-5 py-8 sm:px-8 sm:py-10 lg:px-10 lg:py-12">
-        <div className="max-w-4xl">
-          <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.28em] text-green-400 sm:text-xs">
-            <span>PREMIER LEAGUE</span>
-            <span className="text-slate-600">•</span>
-            <span>ROUND {currentRound}</span>
-            <span className="text-slate-600">•</span>
-            <span>{competition.code}</span>
-          </div>
-
-          <h2 className="mt-4 text-4xl font-black uppercase leading-[0.9] tracking-tight sm:text-6xl lg:text-7xl">
-            WHO WILL
-            <br />
-            YOU PICK?
-          </h2>
-
-          <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-300 sm:text-lg">
-            {entry.alive
-              ? `Choose one team to survive Round ${currentRound}. Pick wisely — you can only use each team once.`
-              : "Your Last Man Standing journey has ended."}
-          </p>
-
-          <div className="mt-6 flex flex-wrap gap-2">
-            <span className="rounded-full border border-green-400/30 bg-green-400/10 px-4 py-2 text-xs font-black uppercase tracking-wide text-green-300">
-              {entry.name}
-            </span>
-            <span className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs font-black uppercase tracking-wide text-slate-300">
-              {entry.alive ? "ALIVE" : "OUT"}
-            </span>
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
 /*
  * ------------------------------------------------------------
  * LEAGUE LOADING FALLBACK
@@ -655,7 +600,7 @@ function LeagueLoading() {
 
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
+      <div className="grid gap-8 lg:grid-cols-[1.7fr_1fr]">
 
         <section>
 
@@ -732,69 +677,54 @@ function RoundNavigation({
     displayRound === currentRound
 
   return (
-    <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#151b25] p-4">
+    <div className="rounded-2xl border border-white/10 bg-[#101821] p-3 sm:p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="text-[10px] font-black tracking-[0.3em] text-green-400 sm:text-xs">
+            ROUND HISTORY
+          </div>
 
-      <div>
-
-        <div className="text-xs font-bold tracking-[0.25em] text-green-400">
-          ROUND HISTORY
+          <div className="mt-1 text-base font-black sm:text-lg">
+            {viewingCurrentRound
+              ? `Round ${currentRound} — Current`
+              : `Round ${displayRound} — Completed`}
+          </div>
         </div>
 
-        <div className="mt-1 text-lg font-bold">
-          {viewingCurrentRound
-            ? `Round ${currentRound} — Current`
-            : `Round ${displayRound} — Completed`}
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+          {displayRound > 1 ? (
+            <Link
+              href={`/?league=${encodeURIComponent(
+                competition.code
+              )}&round=${displayRound - 1}`}
+              prefetch={false}
+              className="rounded-xl border border-white/10 bg-[#202733] px-4 py-3 text-center text-sm font-black text-slate-200 transition hover:border-green-400"
+            >
+              ← ROUND {displayRound - 1}
+            </Link>
+          ) : (
+            <span className="rounded-xl border border-white/5 bg-[#10151d] px-4 py-3 text-center text-sm font-black text-slate-600">
+              ← PREVIOUS
+            </span>
+          )}
+
+          {displayRound < currentRound ? (
+            <Link
+              href={`/?league=${encodeURIComponent(
+                competition.code
+              )}&round=${displayRound + 1}`}
+              prefetch={false}
+              className="rounded-xl border border-white/10 bg-[#202733] px-4 py-3 text-center text-sm font-black text-slate-200 transition hover:border-green-400"
+            >
+              ROUND {displayRound + 1} →
+            </Link>
+          ) : (
+            <span className="rounded-xl border border-white/5 bg-[#10151d] px-4 py-3 text-center text-sm font-black text-slate-600">
+              CURRENT ROUND
+            </span>
+          )}
         </div>
-
       </div>
-
-      <div className="flex items-center gap-3">
-
-        {displayRound > 1 ? (
-
-          <Link
-            href={`/?league=${encodeURIComponent(
-              competition.code
-            )}&round=${displayRound - 1}`}
-            prefetch={false}
-            className="rounded-xl border border-white/10 bg-[#202733] px-4 py-3 font-bold hover:border-green-400"
-          >
-            ← ROUND{" "}
-            {displayRound - 1}
-          </Link>
-
-        ) : (
-
-          <span className="rounded-xl border border-white/5 bg-[#10151d] px-4 py-3 font-bold text-slate-600">
-            ← PREVIOUS
-          </span>
-
-        )}
-
-        {displayRound <
-        currentRound ? (
-
-          <Link
-            href={`/?league=${encodeURIComponent(
-              competition.code
-            )}&round=${displayRound + 1}`}
-            prefetch={false}
-            className="rounded-xl border border-white/10 bg-[#202733] px-4 py-3 font-bold hover:border-green-400"
-          >
-            ROUND{" "}
-            {displayRound + 1} →
-          </Link>
-
-        ) : (
-
-          <span className="rounded-xl border border-white/5 bg-[#10151d] px-4 py-3 font-bold text-slate-600">
-            CURRENT ROUND
-          </span>
-
-        )}
-
-      </div>
-
     </div>
   )
 }
@@ -802,10 +732,6 @@ function RoundNavigation({
 /*
  * ------------------------------------------------------------
  * CRITICAL GAME CONTENT
- *
- * This is deliberately separate from leaderboard/history.
- * The player should not have to wait for those queries before
- * seeing their actual game.
  * ------------------------------------------------------------
  */
 
@@ -822,111 +748,90 @@ async function CriticalLeagueContent({
   currentRound: number
   viewingCurrentRound: boolean
 }) {
-  const [
-    picks,
-    fixtures,
-  ] = await Promise.all([
-    getPicks(entry.id),
-
-    viewingCurrentRound
-      ? getFixtures(
-          currentRound
-        )
-      : Promise.resolve([]),
-  ])
+  const [picks, fixtures] =
+    await Promise.all([
+      getPicks(entry.id),
+      viewingCurrentRound
+        ? getFixtures(currentRound)
+        : Promise.resolve([]),
+    ])
 
   const currentPick =
     picks.find(
       (pick) =>
-        pick.round ===
-        currentRound
+        pick.round === currentRound
     )
 
   const usedTeams =
     picks.map(
-      (pick) =>
-        pick.team
+      (pick) => pick.team
     )
 
   return (
     <section>
+      {viewingCurrentRound ? (
+        <>
+          <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#101821] p-5 shadow-xl sm:p-7">
+            <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-green-400/10 blur-3xl" />
 
-      <div className="rounded-2xl border border-white/10 bg-[#151b25] p-7">
-
-        {viewingCurrentRound ? (
-
-          <>
-
-            <div className="flex items-start justify-between gap-6">
-
-              <div>
-
-                <div className="text-sm font-bold tracking-[0.3em] text-green-400">
-                  ROUND{" "}
-                  {
-                    currentRound
-                  }{" "}
-                  — CURRENT
-                </div>
-
-                <h2 className="mt-2 text-4xl font-black">
-                  {currentPick
-                    ? "YOUR PICK"
-                    : "CHOOSE YOUR WINNER"}
-                </h2>
-
-                <p className="mt-3 text-lg text-slate-400">
-                  Welcome,{" "}
-                  {
-                    entry.name
-                  }
-                  .
-                  A win keeps you alive.
-                  Draw or loss = OUT.
-                </p>
-
+            <div className="relative">
+              <div className="text-xs font-black tracking-[0.3em] text-green-400 sm:text-sm">
+                ROUND {currentRound} — CURRENT
               </div>
 
-              <div className="rounded-xl bg-[#202733] px-4 py-3 text-center">
+              <h2 className="mt-2 max-w-4xl text-4xl font-black uppercase leading-[0.94] tracking-tight sm:text-5xl lg:text-6xl">
+                {currentPick
+                  ? "YOUR PICK IS LOCKED"
+                  : "WHO WILL YOU PICK?"}
+              </h2>
 
-                <div className="text-xs text-slate-400">
-                  LEAGUE CODE
-                </div>
+              <p className="mt-4 max-w-3xl text-base leading-7 text-slate-400 sm:text-lg">
+                {currentPick
+                  ? "Your team is locked in. Now sit back and see if they get the win."
+                  : `Choose ONE team to survive Round ${currentRound}. Pick wisely — you can only use each team once.`}
+              </p>
 
-                <div className="font-black">
-                  {
-                    competition.code
-                  }
-                </div>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <span
+                  className={`rounded-full border px-4 py-2 text-xs font-black tracking-wide ${
+                    entry.alive
+                      ? "border-green-400/40 bg-green-400/10 text-green-400"
+                      : "border-red-400/30 bg-red-400/10 text-red-400"
+                  }`}
+                >
+                  {entry.alive ? "ALIVE" : "OUT"}
+                </span>
 
+                <span className="rounded-full border border-white/10 bg-[#202733] px-4 py-2 text-xs font-black tracking-wide text-slate-300">
+                  {entry.name}
+                </span>
+
+                <span className="rounded-full border border-white/10 bg-[#202733] px-4 py-2 text-xs font-black tracking-wide text-slate-300">
+                  CODE · {competition.code}
+                </span>
               </div>
-
             </div>
+          </div>
 
-            <CurrentRoundPick
-              competition={competition}
-              entry={entry}
-              fixtures={fixtures}
-              usedTeams={usedTeams}
-              currentPick={
-                currentPick || null
-              }
-            />
-
-          </>
-
-        ) : (
-
+          <CurrentRoundPick
+            competition={competition}
+            entry={entry}
+            fixtures={fixtures}
+            usedTeams={usedTeams}
+            currentPick={
+              currentPick || null
+            }
+          />
+        </>
+      ) : (
+        <div className="rounded-3xl border border-white/10 bg-[#101821] p-5 sm:p-7">
           <PreviousRoundContent
             competition={competition}
             displayRound={displayRound}
             currentRound={currentRound}
           />
-
-        )}
-
-      </div>
-
+        </div>
+      )}
     </section>
   )
 }
@@ -1300,9 +1205,6 @@ async function LeagueSidebar({
 /*
  * ------------------------------------------------------------
  * LEAGUE PAGE
- *
- * Competition + player entry are loaded once.
- * Critical game and sidebar are then separated.
  * ------------------------------------------------------------
  */
 
@@ -1324,34 +1226,33 @@ async function LeaguePage({
       )
   } catch {
     return (
-      <main className="min-h-screen bg-[#0b1018] text-white">
-
-        <header className="border-b border-white/10 bg-[#111722] px-6 py-7">
-
-          <div className="mx-auto max-w-7xl">
+      <main className="min-h-screen bg-[#080d14] text-white">
+        <header className="border-b border-white/10 bg-[#0d131d]">
+          <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6">
             <HomeLink compact />
           </div>
-
         </header>
 
-        <div className="mx-auto max-w-xl px-6 py-16">
-
-          <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-8 text-center">
-
-            <h2 className="text-2xl font-bold">
+        <div className="mx-auto max-w-xl px-4 py-12 sm:px-6">
+          <div className="rounded-3xl border border-red-500/30 bg-red-500/10 p-7 text-center">
+            <h2 className="text-3xl font-black">
               League not found
             </h2>
 
             <p className="mt-3 text-slate-300">
-              The league code could not be
-              found. Please check the league
-              link and try again.
+              The league code could not be found.
+              Please check the league link and try
+              again.
             </p>
 
+            <Link
+              href="/?home=true"
+              className="mt-6 inline-flex rounded-xl bg-green-400 px-5 py-3 font-black text-[#07110b]"
+            >
+              BACK TO HOME
+            </Link>
           </div>
-
         </div>
-
       </main>
     )
   }
@@ -1362,128 +1263,97 @@ async function LeaguePage({
       false
     )
 
-  /*
-   * JOIN SCREEN
-   */
-
   if (!entry) {
     return (
-      <main className="min-h-screen bg-[#0b1018] text-white">
-
-        <header className="border-b border-white/10 bg-[#111722] px-6 py-7">
-
-          <div className="mx-auto max-w-7xl">
+      <main className="min-h-screen bg-[#080d14] text-white">
+        <header className="border-b border-white/10 bg-[#0d131d]">
+          <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6">
             <HomeLink compact />
           </div>
-
         </header>
 
-        <div className="mx-auto max-w-xl px-6 py-16">
-
-          <div className="rounded-2xl border border-white/10 bg-[#151b25] p-8 shadow-2xl">
-
-            <div className="text-sm font-bold tracking-[0.3em] text-green-400">
-              JOIN LEAGUE
-            </div>
-
-            <h2 className="mt-2 text-5xl font-black">
-              {
-                competition.name
-              }
-            </h2>
-
-            <p className="mt-5 text-2xl text-slate-400">
-              Round{" "}
-              {
-                competition.round
-              }
-            </p>
-
-            <p className="mt-8 text-xl text-slate-300">
-              Enter your name to join this Last Man
-              Standing competition.
-            </p>
-
-            {joinError ===
-              "name-taken" && (
-              <div className="mt-8 rounded-2xl border border-red-400/30 bg-red-400/10 p-5">
-                <div className="text-lg font-black text-red-300">
-                  PLAYER NAME ALREADY TAKEN
-                </div>
-
-                <p className="mt-2 text-slate-300">
-                  Someone has already joined this
-                  league using that name. Please
-                  choose a different name.
-                </p>
-              </div>
-            )}
-
-            {joinError ===
-              "join-error" && (
-              <div className="mt-8 rounded-2xl border border-red-400/30 bg-red-400/10 p-5">
-                <div className="text-lg font-black text-red-300">
-                  UNABLE TO JOIN LEAGUE
-                </div>
-
-                <p className="mt-2 text-slate-300">
-                  We couldn't join you to this
-                  league. Please check the details
-                  and try again.
-                </p>
-              </div>
-            )}
-
-            <form
-              action={joinAction}
-              className="mt-10"
-            >
-
-              <input
-                type="hidden"
-                name="league"
-                value={
-                  competition.code
-                }
-              />
-
-              <label className="mb-3 block text-xl font-semibold text-slate-300">
-                Your name
-              </label>
-
-              <input
-                name="name"
-                required
-                maxLength={40}
-                placeholder="e.g. Test Manager 5"
-                className="w-full rounded-2xl border border-white/10 bg-[#0e141d] px-5 py-5 text-xl text-white outline-none focus:border-green-400"
-              />
-
-              <button
-                type="submit"
-                className="mt-5 w-full rounded-2xl bg-green-400 px-5 py-6 text-2xl font-black text-[#07110b] hover:bg-green-300"
-              >
+        <div className="mx-auto max-w-xl px-4 py-10 sm:px-6 sm:py-14">
+          <div className="overflow-hidden rounded-3xl border border-white/10 bg-[#111923] shadow-2xl">
+            <div className="bg-[#101a18] p-6 sm:p-8">
+              <div className="text-xs font-black tracking-[0.3em] text-green-400">
                 JOIN LEAGUE
-              </button>
+              </div>
 
-            </form>
+              <h2 className="mt-2 break-words text-4xl font-black uppercase sm:text-5xl">
+                {competition.name}
+              </h2>
 
-            <div className="mt-8 rounded-2xl bg-[#0e141d] p-5 text-lg text-slate-400">
-
-              League code:
-
-              <strong className="ml-2 text-white">
-                {
-                  competition.code
-                }
-              </strong>
-
+              <div className="mt-4 inline-flex rounded-full bg-[#202733] px-3 py-1 text-xs font-black tracking-wide text-slate-300">
+                LEAGUE CODE · {competition.code}
+              </div>
             </div>
 
+            <div className="p-6 sm:p-8">
+              <p className="text-base leading-7 text-slate-300">
+                Enter your name to join this Last Man
+                Standing competition.
+              </p>
+
+              {joinError === "name-taken" && (
+                <div className="mt-6 rounded-2xl border border-red-400/30 bg-red-400/10 p-5">
+                  <div className="text-sm font-black tracking-wide text-red-300">
+                    PLAYER NAME ALREADY TAKEN
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    Someone has already joined this
+                    league using that name. Please
+                    choose a different name.
+                  </p>
+                </div>
+              )}
+
+              {joinError === "join-error" && (
+                <div className="mt-6 rounded-2xl border border-red-400/30 bg-red-400/10 p-5">
+                  <div className="text-sm font-black tracking-wide text-red-300">
+                    UNABLE TO JOIN LEAGUE
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    We couldn't join you to this
+                    league. Please try again.
+                  </p>
+                </div>
+              )}
+
+              <form
+                action={joinAction}
+                className="mt-7 space-y-5"
+              >
+                <input
+                  type="hidden"
+                  name="league"
+                  value={competition.code}
+                />
+
+                <div>
+                  <label className="mb-2 block text-sm font-black text-slate-300">
+                    YOUR NAME
+                  </label>
+
+                  <input
+                    name="name"
+                    required
+                    maxLength={40}
+                    placeholder="e.g. Rob"
+                    autoComplete="name"
+                    className="w-full rounded-2xl border border-white/10 bg-[#0b1119] px-5 py-4 text-lg text-white outline-none transition focus:border-green-400"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full rounded-2xl bg-green-400 px-5 py-5 text-lg font-black text-[#07110b] transition hover:bg-green-300"
+                >
+                  JOIN LEAGUE
+                </button>
+              </form>
+            </div>
           </div>
-
         </div>
-
       </main>
     )
   }
@@ -1498,96 +1368,132 @@ async function LeaguePage({
       : currentRound
 
   const viewingCurrentRound =
-    displayRound ===
-    currentRound
+    displayRound === currentRound
 
   return (
-    <main className="min-h-screen bg-[#0b1018] text-white">
+    <main className="min-h-screen bg-[#080d14] text-white">
+      {/* STADIUM HEADER */}
 
-      {/* HEADER */}
+      <header className="relative overflow-hidden border-b border-white/10">
+        <StadiumBackdrop />
 
-      <header className="border-b border-white/10 bg-[#111722] px-6 py-7">
+        <div className="relative mx-auto max-w-7xl px-4 pb-8 pt-6 sm:px-6 sm:pb-10 sm:pt-7">
+          <div className="flex flex-col gap-7 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
+              <HomeLink />
 
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-6">
+              <div className="mt-6">
+                <div className="text-xs font-black tracking-[0.3em] text-green-400">
+                  YOUR LEAGUE
+                </div>
 
-          <HomeLink />
+                <div className="mt-1 text-2xl font-black uppercase sm:text-3xl">
+                  {competition.name}
+                </div>
+              </div>
+            </div>
 
-          <div className="flex flex-col items-end gap-3 text-right">
+            <div className="flex w-full flex-col gap-3 sm:w-auto sm:min-w-[220px]">
+              <div className="rounded-2xl border border-white/10 bg-[#0b1119]/80 px-5 py-3 backdrop-blur">
+                <div className="text-xs text-slate-400">
+                  League
+                </div>
 
-  <div className="text-slate-400">
+                <div className="font-black text-white">
+                  {competition.name}
+                </div>
+              </div>
 
-    <div className="text-sm">
-      League
-    </div>
-
-    <div className="font-bold text-white">
-      {
-        competition.name
-      }
-    </div>
-
-  </div>
-
-  <ShareLeagueButton
-    leagueName={competition.name}
-    leagueCode={competition.code}
-  />
-
-</div>
-
+              <ShareLeagueButton
+                leagueName={competition.name}
+                leagueCode={competition.code}
+              />
+            </div>
+          </div>
         </div>
-
       </header>
 
       <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-7">
+        {/* GAME STATUS */}
 
-        <StadiumHero
-          competition={competition}
-          currentRound={currentRound}
-          entry={entry}
-        />
+        <section className="rounded-3xl border border-white/10 bg-[#0d151f] p-4 shadow-2xl sm:p-5">
+          <div className="grid grid-cols-3 divide-x divide-white/10">
+            <div className="px-2 text-center sm:px-5">
+              <div className="text-[10px] font-black tracking-[0.25em] text-green-400 sm:text-xs">
+                ROUND
+              </div>
 
-        {/* ROUND NAVIGATION */}
+              <div className="mt-1 text-3xl font-black sm:text-4xl">
+                {currentRound}
+              </div>
 
-        <RoundNavigation
-          competition={competition}
-          currentRound={currentRound}
-          displayRound={displayRound}
-        />
+              <div className="text-xs text-slate-400">
+                {viewingCurrentRound
+                  ? "Current"
+                  : "Completed"}
+              </div>
+            </div>
 
-        <div className="grid gap-8 lg:grid-cols-[1.7fr_1fr]">
+            <div className="px-2 text-center sm:px-5">
+              <div className="text-[10px] font-black tracking-[0.25em] text-green-400 sm:text-xs">
+                YOUR STATUS
+              </div>
 
-          {/* CRITICAL GAME */}
+              <div
+                className={`mx-auto mt-2 inline-flex rounded-full border px-4 py-2 text-sm font-black sm:text-base ${
+                  entry.alive
+                    ? "border-green-400 bg-green-400/10 text-green-400"
+                    : "border-red-400 bg-red-400/10 text-red-400"
+                }`}
+              >
+                {entry.alive
+                  ? "ALIVE"
+                  : "OUT"}
+              </div>
+            </div>
 
+            <div className="px-2 text-center sm:px-5">
+              <div className="text-[10px] font-black tracking-[0.25em] text-green-400 sm:text-xs">
+                LEAGUE CODE
+              </div>
+
+              <div className="mt-2 text-xl font-black sm:text-2xl">
+                {competition.code}
+              </div>
+
+              <div className="text-xs text-slate-400">
+                Share with friends
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div className="mt-5">
+          <RoundNavigation
+            competition={competition}
+            currentRound={currentRound}
+            displayRound={displayRound}
+          />
+        </div>
+
+        <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
           <Suspense
             fallback={
               <section>
-
-                <div className="rounded-2xl border border-white/10 bg-[#151b25] p-7">
-
+                <div className="rounded-3xl border border-white/10 bg-[#101821] p-6">
                   <div className="h-4 w-40 animate-pulse rounded bg-[#202733]" />
-
-                  <div className="mt-4 h-10 w-80 animate-pulse rounded bg-[#202733]" />
-
-                  <div className="mt-8 space-y-3">
-
-                    {Array.from({
-                      length: 6,
-                    }).map(
+                  <div className="mt-4 h-12 w-80 max-w-full animate-pulse rounded bg-[#202733]" />
+                  <div className="mt-7 space-y-3">
+                    {Array.from({ length: 6 }).map(
                       (_, index) => (
                         <div
-                          key={
-                            index
-                          }
-                          className="h-20 animate-pulse rounded-2xl bg-[#202733]"
+                          key={index}
+                          className="h-24 animate-pulse rounded-2xl bg-[#202733]"
                         />
                       )
                     )}
-
                   </div>
-
                 </div>
-
               </section>
             }
           >
@@ -1602,53 +1508,38 @@ async function LeaguePage({
             />
           </Suspense>
 
-          {/* SECONDARY DATA */}
-
           <Suspense
             fallback={
               <aside>
-
-                <div className="rounded-2xl border border-white/10 bg-[#151b25] p-6">
-
+                <div className="rounded-3xl border border-white/10 bg-[#101821] p-6">
                   <div className="h-8 w-48 animate-pulse rounded bg-[#202733]" />
-
                   <div className="mt-5 space-y-3">
-
-                    {Array.from({
-                      length: 5,
-                    }).map(
+                    {Array.from({ length: 5 }).map(
                       (_, index) => (
                         <div
-                          key={
-                            index
-                          }
+                          key={index}
                           className="h-16 animate-pulse rounded-xl bg-[#202733]"
                         />
                       )
                     )}
-
                   </div>
-
                 </div>
-
               </aside>
             }
           >
             <LeagueSidebar
               competition={competition}
-              currentRound={
-                currentRound
-              }
-              displayRound={
-                displayRound
-              }
+              currentRound={currentRound}
+              displayRound={displayRound}
             />
           </Suspense>
-
         </div>
 
+        <div className="mt-5 rounded-2xl border border-white/5 bg-[#0d141d] px-4 py-4 text-center text-xs leading-5 text-slate-500 sm:text-sm">
+          Pick one team before the round deadline.
+          Once saved, your pick is locked.
+        </div>
       </div>
-
     </main>
   )
 }
