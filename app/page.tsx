@@ -296,21 +296,17 @@ function StadiumBackdrop() {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 overflow-hidden"
+      className="pointer-events-none absolute inset-0 overflow-hidden bg-[#06100d]"
     >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_8%,rgba(148,163,184,0.2),transparent_24%),linear-gradient(180deg,#07111d_0%,#0b1623_48%,#06120d_100%)]" />
-      <div className="absolute left-1/2 top-0 h-28 w-[140%] -translate-x-1/2 rounded-[50%] bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.22),transparent_55%)] blur-2xl" />
-      <div className="absolute left-[-8%] top-7 h-8 w-24 rotate-[18deg] rounded-full bg-white/50 blur-md" />
-      <div className="absolute right-[-8%] top-7 h-8 w-24 -rotate-[18deg] rounded-full bg-white/50 blur-md" />
-      <div className="absolute left-1/2 top-[42%] h-24 w-[90%] -translate-x-1/2 rounded-[50%] border border-white/10 bg-[#101b25]/70 shadow-[0_0_80px_rgba(255,255,255,0.05)]" />
-      <div className="absolute bottom-0 left-1/2 h-[43%] w-[125%] -translate-x-1/2 rounded-[50%_50%_0_0] bg-[linear-gradient(180deg,#123d25,#07180d)]" />
-      <div className="absolute bottom-[13%] left-1/2 h-24 w-[72%] -translate-x-1/2 rounded-[50%] border-2 border-white/35" />
-      <div className="absolute bottom-0 left-1/2 h-[50%] w-px -translate-x-1/2 bg-white/20" />
-      <div className="absolute bottom-[37%] left-1/2 h-px w-[76%] -translate-x-1/2 bg-white/10" />
-      <div className="absolute bottom-0 left-[16%] h-[38%] w-px rotate-[15deg] bg-green-300/10" />
-      <div className="absolute bottom-0 right-[16%] h-[38%] w-px -rotate-[15deg] bg-green-300/10" />
-      <div className="absolute inset-x-0 bottom-0 h-1/2 bg-[linear-gradient(90deg,rgba(0,0,0,0.35),transparent_30%,transparent_70%,rgba(0,0,0,0.35))]" />
-      <div className="absolute inset-0 bg-black/25" />
+      <img
+        src="/stadium-header.svg"
+        alt=""
+        className="absolute inset-0 h-full w-full object-cover object-center"
+      />
+
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,8,14,0.82),rgba(3,8,14,0.38)_48%,rgba(3,8,14,0.72))]" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(3,8,14,0.38),transparent_42%,rgba(3,8,14,0.72))]" />
+      <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#06100d] to-transparent" />
     </div>
   )
 }
@@ -1378,28 +1374,39 @@ async function LeaguePage({
         <StadiumBackdrop />
 
         <div className="relative mx-auto max-w-7xl px-4 pb-8 pt-6 sm:px-6 sm:pb-10 sm:pt-7">
-          <div className="flex flex-col gap-7 lg:flex-row lg:items-start lg:justify-between">
+          <div className="grid gap-7 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-center">
             <div className="min-w-0">
               <HomeLink />
 
-              <div className="mt-6">
-                <div className="text-xs font-black tracking-[0.3em] text-green-400">
-                  YOUR LEAGUE
+              <div className="mt-7 max-w-3xl">
+                <div className="text-xs font-black tracking-[0.32em] text-green-400 sm:text-sm">
+                  {competition.name.toUpperCase()} · ROUND {currentRound}
                 </div>
 
-                <div className="mt-1 text-2xl font-black uppercase sm:text-3xl">
-                  {competition.name}
-                </div>
+                <h2 className="mt-3 text-5xl font-black uppercase leading-[0.9] tracking-tight sm:text-6xl lg:text-7xl">
+                  WHO WILL
+                  <br />
+                  YOU PICK?
+                </h2>
+
+                <p className="mt-4 text-sm font-black uppercase tracking-[0.3em] text-slate-200 sm:text-base">
+                  PICK. WIN. SURVIVE.
+                </p>
+
+                <p className="mt-3 max-w-xl text-base leading-6 text-slate-300 sm:text-lg">
+                  Choose one team to survive the round.
+                  Pick wisely — you can only use each team once.
+                </p>
               </div>
             </div>
 
-            <div className="flex w-full flex-col gap-3 sm:w-auto sm:min-w-[220px]">
-              <div className="rounded-2xl border border-white/10 bg-[#0b1119]/80 px-5 py-3 backdrop-blur">
-                <div className="text-xs text-slate-400">
-                  League
+            <div className="flex w-full flex-col gap-3 sm:w-auto">
+              <div className="rounded-2xl border border-white/10 bg-[#0b1119]/85 px-5 py-4 text-center shadow-xl backdrop-blur">
+                <div className="text-xs font-black tracking-[0.25em] text-slate-400">
+                  YOUR LEAGUE
                 </div>
 
-                <div className="font-black text-white">
+                <div className="mt-1 truncate text-xl font-black text-white">
                   {competition.name}
                 </div>
               </div>
