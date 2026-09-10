@@ -290,22 +290,22 @@ export default function CurrentRoundPick({
                   onClick={() =>
                     setExpandedFixture(expanded ? null : fixture.id)
                   }
-                  className="flex w-full min-w-0 items-center gap-3 p-3 text-left sm:gap-5 sm:p-4"
+                  className="flex w-full min-w-0 items-center gap-2 p-3 text-left sm:gap-5 sm:p-4"
                   aria-expanded={expanded}
                 >
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#202a36] text-xs font-black text-slate-300 sm:h-10 sm:w-10">
                     {index + 1}
                   </div>
 
-                  <div className="flex min-w-0 flex-1 items-center justify-between gap-2 sm:gap-5">
-                    <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+                  <div className="flex min-w-0 flex-1 items-center justify-between gap-1 sm:gap-5">
+                    <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-3">
                       <TeamLogo name={fixture.home_team} />
                       <span className="min-w-0 truncate text-sm font-black text-white sm:text-base">
                         {fixture.home_team}
                       </span>
                     </div>
 
-                    <div className="flex w-16 shrink-0 flex-col items-center text-center sm:w-24">
+                    <div className="flex w-14 shrink-0 flex-col items-center text-center sm:w-24">
                       <span className="rounded-full bg-[#202733] px-2 py-0.5 text-[10px] font-black tracking-[0.18em] text-slate-400 sm:text-xs">
                         VS
                       </span>
@@ -317,7 +317,7 @@ export default function CurrentRoundPick({
                       </span>
                     </div>
 
-                    <div className="flex min-w-0 flex-1 items-center justify-end gap-2 text-right sm:gap-3">
+                    <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5 text-right sm:gap-3">
                       <span className="min-w-0 truncate text-sm font-black text-white sm:text-base">
                         {fixture.away_team}
                       </span>
@@ -338,22 +338,24 @@ export default function CurrentRoundPick({
 
                 {expanded && (
                   <div className="border-t border-white/10 bg-[#0a111a] p-3 sm:p-4">
-                    <div className="mb-3 rounded-xl bg-[#101923] px-4 py-3 text-center text-xs font-black tracking-[0.2em] text-slate-400">
+                    <div className="mb-3 rounded-xl bg-[#101923] px-3 py-3 text-center text-[11px] font-black tracking-[0.2em] text-slate-400 sm:text-xs">
                       WHO WILL YOU PICK?
                     </div>
 
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="flex min-w-0 items-center gap-3 rounded-xl border border-white/10 bg-[#151e29] p-3">
-                        <TeamLogo name={fixture.home_team} />
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate text-sm font-black text-white">
-                            {fixture.home_team}
-                          </div>
-                          <div className="mt-1 text-[11px] font-bold text-slate-500">
-                            HOME
+                    <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+                      <div className="min-w-0 rounded-xl border border-white/10 bg-[#151e29] p-3 sm:p-4">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <TeamLogo name={fixture.home_team} />
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-sm font-black text-white sm:text-base">
+                              {fixture.home_team}
+                            </div>
+                            <div className="mt-1 text-[11px] font-bold text-slate-500">
+                              HOME
+                            </div>
                           </div>
                         </div>
-                        <div className="w-[112px] shrink-0">
+                        <div className="mt-3">
                           <FastPickButton
                             entryId={entry.id}
                             teamName={fixture.home_team}
@@ -366,17 +368,19 @@ export default function CurrentRoundPick({
                         </div>
                       </div>
 
-                      <div className="flex min-w-0 items-center gap-3 rounded-xl border border-white/10 bg-[#151e29] p-3">
-                        <TeamLogo name={fixture.away_team} />
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate text-sm font-black text-white">
-                            {fixture.away_team}
-                          </div>
-                          <div className="mt-1 text-[11px] font-bold text-slate-500">
-                            AWAY
+                      <div className="min-w-0 rounded-xl border border-white/10 bg-[#151e29] p-3 sm:p-4">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <TeamLogo name={fixture.away_team} />
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-sm font-black text-white sm:text-base">
+                              {fixture.away_team}
+                            </div>
+                            <div className="mt-1 text-[11px] font-bold text-slate-500">
+                              AWAY
+                            </div>
                           </div>
                         </div>
-                        <div className="w-[112px] shrink-0">
+                        <div className="mt-3">
                           <FastPickButton
                             entryId={entry.id}
                             teamName={fixture.away_team}
