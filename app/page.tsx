@@ -759,7 +759,7 @@ async function CriticalLeagueContent({
   return (
     <section>
 
-      <div className="rounded-2xl border border-white/10 bg-[#151b25] p-7">
+      <div className="rounded-2xl border border-white/10 bg-[#151b25] p-4 sm:p-7">
 
         {viewingCurrentRound ? (
 
@@ -1395,42 +1395,42 @@ async function LeaguePage({
       {/* HERO */}
 
       <section className="relative isolate overflow-hidden border-b border-white/10">
-        <div
+        <img
+          src="/stadium-hero.jpg"
+          alt=""
           aria-hidden="true"
-          className="absolute inset-0 -z-20 bg-[#06111a] bg-cover bg-center"
-          style={{ backgroundImage: "url('/stadium-hero.jpg')" }}
+          className="absolute inset-0 -z-20 h-full w-full object-cover object-center"
         />
-        <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(3,10,17,0.94)_0%,rgba(3,10,17,0.72)_45%,rgba(3,10,17,0.32)_100%)]" />
-        <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(3,10,17,0.28)_0%,rgba(3,10,17,0.05)_52%,rgba(3,10,17,0.92)_100%)]" />
+        <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[#06111a]/35" />
+        <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(3,10,17,0.95)_0%,rgba(3,10,17,0.78)_38%,rgba(3,10,17,0.34)_72%,rgba(3,10,17,0.18)_100%)]" />
+        <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(3,10,17,0.24)_0%,rgba(3,10,17,0.06)_55%,rgba(3,10,17,0.82)_100%)]" />
 
-        <div className="mx-auto max-w-7xl px-4 pb-10 pt-5 sm:px-6 sm:pb-14 sm:pt-7 lg:px-8">
-          <div className="flex items-start justify-between gap-4">
-            <HomeLink />
-          </div>
+        <div className="mx-auto max-w-7xl px-4 pb-7 pt-5 sm:px-6 sm:pb-10 sm:pt-7 lg:px-8">
+          <HomeLink />
 
-          <div className="mt-12 grid min-w-0 items-end gap-8 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-12">
+          <div className="mt-8 grid min-w-0 items-center gap-6 sm:mt-10 sm:gap-7 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-12">
             <div className="min-w-0">
-              <div className="text-xs font-black tracking-[0.28em] text-green-400 sm:text-sm">
+              <div className="text-[11px] font-black tracking-[0.28em] text-green-400 sm:text-sm">
                 {competition.name.toUpperCase()} · ROUND {currentRound}
               </div>
 
-              <h2 className="mt-3 max-w-3xl text-[3.25rem] font-black uppercase leading-[0.86] tracking-[-0.04em] text-white sm:text-6xl lg:text-8xl">
+              <h2 className="mt-3 max-w-3xl text-[3rem] font-black uppercase leading-[0.86] tracking-[-0.045em] text-white sm:text-6xl lg:text-8xl">
                 WHO WILL
                 <br />
                 YOU <span className="text-green-400">PICK?</span>
               </h2>
 
-              <div className="mt-5 text-sm font-black tracking-[0.28em] text-white sm:text-base">
+              <div className="mt-5 text-xs font-black tracking-[0.28em] text-white sm:text-base">
                 PICK. WIN. SURVIVE.
               </div>
 
-              <p className="mt-3 max-w-2xl text-base leading-6 text-slate-200 sm:text-lg">
+              <p className="mt-3 max-w-2xl text-sm leading-5 text-slate-200 sm:text-lg sm:leading-6">
                 Choose one team to survive the round. Pick wisely, you can only use each team once.
               </p>
             </div>
 
             <div className="hidden lg:block">
-              <div className="relative overflow-hidden rounded-xl border-2 border-white/30 bg-[#07111b]/85 p-6 shadow-2xl backdrop-blur-sm">
+              <div className="relative rounded-xl border-2 border-white/30 bg-[#07111b]/75 p-6 shadow-2xl backdrop-blur-sm">
                 <div className="absolute inset-2 rounded-lg border border-white/10" />
                 <div className="relative text-center">
                   <div className="text-2xl font-black uppercase leading-tight text-green-400">
@@ -1448,8 +1448,8 @@ async function LeaguePage({
             </div>
 
             <div className="lg:hidden">
-              <div className="max-w-xs rounded-xl border border-green-400/30 bg-[#07111b]/80 px-4 py-3 backdrop-blur-sm">
-                <div className="text-center text-sm font-black uppercase leading-tight tracking-[0.08em] text-green-400">
+              <div className="inline-flex rounded-lg border border-green-400/30 bg-[#07111b]/80 px-4 py-2 backdrop-blur-sm">
+                <div className="text-[11px] font-black uppercase tracking-[0.08em] text-green-400 sm:text-sm">
                   CAN YOU BE THE LAST MAN STANDING?
                 </div>
               </div>
@@ -1462,31 +1462,31 @@ async function LeaguePage({
 
       <section className="border-b border-white/10 bg-[#080f17]">
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-          <div className="grid min-w-0 gap-3 rounded-2xl border border-white/10 bg-[#101923] p-3 sm:grid-cols-2 lg:grid-cols-5">
-            <div className="rounded-xl bg-[#151f2b] px-4 py-4 text-center">
-              <div className="text-[10px] font-black tracking-[0.25em] text-green-400">ROUND</div>
-              <div className="mt-1 text-3xl font-black">{currentRound}</div>
-              <div className="text-xs text-slate-500">Current</div>
+          <div className="grid min-w-0 grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-[#101923] p-2 sm:gap-3 sm:p-3 lg:grid-cols-[1fr_1fr_1.45fr_1fr_1fr_1fr]">
+            <div className="min-w-0 rounded-xl bg-[#151f2b] px-3 py-3 text-center sm:px-4 sm:py-4">
+              <div className="text-[9px] font-black tracking-[0.22em] text-green-400 sm:text-[10px]">ROUND</div>
+              <div className="mt-1 text-2xl font-black sm:text-3xl">{currentRound}</div>
+              <div className="text-[10px] text-slate-500 sm:text-xs">Current</div>
             </div>
 
-            <div className="rounded-xl bg-[#151f2b] px-4 py-4 text-center">
-              <div className="text-[10px] font-black tracking-[0.25em] text-green-400">YOUR STATUS</div>
-              <div className="mt-2 inline-flex rounded-full border border-green-400 px-4 py-1.5 text-sm font-black text-green-400">
+            <div className="min-w-0 rounded-xl bg-[#151f2b] px-3 py-3 text-center sm:px-4 sm:py-4">
+              <div className="text-[9px] font-black tracking-[0.22em] text-green-400 sm:text-[10px]">YOUR STATUS</div>
+              <div className="mt-2 inline-flex rounded-full border border-green-400 px-3 py-1 text-xs font-black text-green-400 sm:px-4 sm:py-1.5 sm:text-sm">
                 {entry.alive ? "ALIVE" : "OUT"}
               </div>
             </div>
 
-            <div className="rounded-xl bg-[#151f2b] px-4 py-4 text-center">
-              <div className="text-[10px] font-black tracking-[0.25em] text-green-400">YOUR LEAGUE</div>
-              <div className="mt-2 truncate text-xl font-black text-white">{competition.name}</div>
+            <div className="min-w-0 rounded-xl bg-[#151f2b] px-3 py-3 text-center sm:px-4 sm:py-4">
+              <div className="text-[9px] font-black tracking-[0.22em] text-green-400 sm:text-[10px]">YOUR LEAGUE</div>
+              <div className="mt-2 truncate text-base font-black text-white sm:text-xl">{competition.name}</div>
             </div>
 
-            <div className="rounded-xl bg-[#151f2b] px-4 py-4 text-center">
-              <div className="text-[10px] font-black tracking-[0.25em] text-green-400">LEAGUE CODE</div>
-              <div className="mt-2 text-xl font-black text-white">{competition.code}</div>
+            <div className="min-w-0 rounded-xl bg-[#151f2b] px-3 py-3 text-center sm:px-4 sm:py-4">
+              <div className="text-[9px] font-black tracking-[0.22em] text-green-400 sm:text-[10px]">LEAGUE CODE</div>
+              <div className="mt-2 text-base font-black text-white sm:text-xl">{competition.code}</div>
             </div>
 
-            <div className="flex min-w-0 flex-col gap-2 sm:col-span-2 lg:col-span-1">
+            <div className="col-span-2 flex min-w-0 gap-2 lg:col-span-2">
               <ShareLeagueButton
                 leagueName={competition.name}
                 leagueCode={competition.code}
@@ -1496,7 +1496,7 @@ async function LeaguePage({
         </div>
       </section>
 
-      <div className="mx-auto max-w-7xl min-w-0 overflow-x-hidden px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
+      <div className="mx-auto max-w-7xl min-w-0 overflow-x-hidden px-3 py-4 sm:px-6 sm:py-8 lg:px-8">
 
         {/* ROUND NAVIGATION */}
 
@@ -1506,7 +1506,7 @@ async function LeaguePage({
           displayRound={displayRound}
         />
 
-        <div className="grid gap-8 lg:grid-cols-[1.7fr_1fr]">
+        <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(300px,1fr)] lg:gap-8">
 
           {/* CRITICAL GAME */}
 
