@@ -3,7 +3,7 @@ import { Suspense } from "react"
 
 import CurrentRoundPick from "@/app/components/CurrentRoundPick"
 import LeagueReturnButton from "@/app/components/LeagueReturnButton"
-import ShareLeagueButton from "@/app/components/ShareLeagueButton"
+import LeagueActions from "@/app/components/LeagueActions"
 import LiveLeaderboard from "@/app/components/LiveLeaderboard"
 
 import {
@@ -289,7 +289,7 @@ async function HomePage() {
     await getPlayerLeagues()
 
   return (
-    <main className="min-h-screen bg-[#0b1018] text-white">
+    <main className="min-h-screen overflow-x-hidden bg-[#0b1018] text-white">
 
       <header className="border-b border-white/10 bg-[#111722] px-6 py-7">
         <div className="mx-auto max-w-7xl">
@@ -1053,7 +1053,7 @@ async function LeagueSidebar({
     )
 
   return (
-    <aside>
+    <aside className="min-w-0 overflow-hidden">
 
       {/* LEADERBOARD */}
 
@@ -1065,17 +1065,17 @@ async function LeagueSidebar({
 
       {/* ROUND HISTORY */}
 
-      <div className="mt-6 rounded-2xl border border-white/10 bg-[#151b25] p-6">
+      <div className="mt-6 min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-[#151b25] p-4 sm:p-6">
 
         <div className="text-xs font-bold tracking-[0.25em] text-green-400">
           ROUND HISTORY
         </div>
 
-        <h2 className="mt-2 text-2xl font-black">
+        <h2 className="mt-2 break-words text-2xl font-black">
           View previous rounds
         </h2>
 
-        <p className="mt-3 text-slate-400">
+        <p className="mt-3 break-words text-slate-400">
           Previous round picks are visible.
           Current round picks remain private.
         </p>
@@ -1140,13 +1140,13 @@ async function LeagueSidebar({
 
       {/* RULES */}
 
-      <div className="mt-6 rounded-2xl border border-white/10 bg-[#151b25] p-6">
+      <div className="mt-6 min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-[#151b25] p-4 sm:p-6">
 
         <h2 className="text-2xl font-black">
           RULES
         </h2>
 
-        <ul className="mt-4 space-y-3 text-slate-400">
+        <ul className="mt-4 space-y-3 break-words text-slate-400">
 
           <li>
             • Pick one Premier League
@@ -1461,42 +1461,51 @@ async function LeaguePage({
       {/* LEAGUE STATUS BAR */}
 
       <section className="border-b border-white/10 bg-[#080f17]">
-        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-          <div className="grid min-w-0 grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-[#101923] p-2 sm:gap-3 sm:p-3 lg:grid-cols-[1fr_1fr_1.45fr_1fr_1fr_1fr]">
-            <div className="min-w-0 rounded-xl bg-[#151f2b] px-3 py-3 text-center sm:px-4 sm:py-4">
+        <div className="mx-auto max-w-7xl min-w-0 px-4 py-4 sm:px-6 lg:px-8">
+          <div className="grid min-w-0 grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-[#101923] p-2 sm:gap-3 sm:p-3 lg:grid-cols-6">
+            <div className="min-w-0 rounded-xl bg-[#151f2b] px-3 py-4 text-center sm:px-4">
               <div className="text-[9px] font-black tracking-[0.22em] text-green-400 sm:text-[10px]">ROUND</div>
               <div className="mt-1 text-2xl font-black sm:text-3xl">{currentRound}</div>
               <div className="text-[10px] text-slate-500 sm:text-xs">Current</div>
             </div>
 
-            <div className="min-w-0 rounded-xl bg-[#151f2b] px-3 py-3 text-center sm:px-4 sm:py-4">
+            <div className="min-w-0 rounded-xl bg-[#151f2b] px-3 py-4 text-center sm:px-4">
               <div className="text-[9px] font-black tracking-[0.22em] text-green-400 sm:text-[10px]">YOUR STATUS</div>
               <div className="mt-2 inline-flex rounded-full border border-green-400 px-3 py-1 text-xs font-black text-green-400 sm:px-4 sm:py-1.5 sm:text-sm">
                 {entry.alive ? "ALIVE" : "OUT"}
               </div>
             </div>
 
-            <div className="min-w-0 rounded-xl bg-[#151f2b] px-3 py-3 text-center sm:px-4 sm:py-4">
+            <div className="min-w-0 rounded-xl bg-[#151f2b] px-3 py-4 text-center sm:px-4">
               <div className="text-[9px] font-black tracking-[0.22em] text-green-400 sm:text-[10px]">YOUR LEAGUE</div>
               <div className="mt-2 truncate text-base font-black text-white sm:text-xl">{competition.name}</div>
             </div>
 
-            <div className="min-w-0 rounded-xl bg-[#151f2b] px-3 py-3 text-center sm:px-4 sm:py-4">
+            <div className="min-w-0 rounded-xl bg-[#151f2b] px-3 py-4 text-center sm:px-4">
               <div className="text-[9px] font-black tracking-[0.22em] text-green-400 sm:text-[10px]">LEAGUE CODE</div>
               <div className="mt-2 text-base font-black text-white sm:text-xl">{competition.code}</div>
             </div>
 
-            <div className="col-span-2 flex min-w-0 gap-2 lg:col-span-2">
-              <ShareLeagueButton
+            <div className="min-w-0 rounded-xl bg-[#151f2b] p-2 sm:p-3">
+              <LeagueActions
                 leagueName={competition.name}
                 leagueCode={competition.code}
+                action="share"
+              />
+            </div>
+
+            <div className="min-w-0 rounded-xl bg-[#151f2b] p-2 sm:p-3">
+              <LeagueActions
+                leagueName={competition.name}
+                leagueCode={competition.code}
+                action="copy"
               />
             </div>
           </div>
         </div>
       </section>
 
-      <div className="mx-auto max-w-7xl min-w-0 overflow-x-hidden px-3 py-4 sm:px-6 sm:py-8 lg:px-8">
+      <div className="mx-auto w-full max-w-7xl min-w-0 overflow-x-hidden px-3 py-4 sm:px-6 sm:py-8 lg:px-8">
 
         {/* ROUND NAVIGATION */}
 
@@ -1506,7 +1515,7 @@ async function LeaguePage({
           displayRound={displayRound}
         />
 
-        <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(300px,1fr)] lg:gap-8">
+        <div className="grid w-full min-w-0 gap-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(300px,1fr)] lg:gap-8">
 
           {/* CRITICAL GAME */}
 
