@@ -290,35 +290,86 @@ export default function CurrentRoundPick({
                   onClick={() =>
                     setExpandedFixture(expanded ? null : fixture.id)
                   }
-                  className="flex w-full min-w-0 items-center gap-2 p-3 text-left sm:gap-5 sm:p-4"
+                  className="block w-full min-w-0 p-3 text-left sm:hidden"
                   aria-expanded={expanded}
                 >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#202a36] text-xs font-black text-slate-300 sm:h-10 sm:w-10">
-                    {index + 1}
-                  </div>
+                  <div className="grid min-w-0 grid-cols-[32px_minmax(0,1fr)_52px_minmax(0,1fr)_32px] items-center gap-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#202a36] text-xs font-black text-slate-300">
+                      {index + 1}
+                    </div>
 
-                  <div className="flex min-w-0 flex-1 items-center justify-between gap-1 sm:gap-5">
-                    <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-3">
-                      <TeamLogo name={fixture.home_team} />
-                      <span className="min-w-0 truncate text-sm font-black text-white sm:text-base">
+                    <div className="flex min-w-0 flex-col items-center gap-1 text-center">
+                      <TeamLogo name={fixture.home_team} size="sm" />
+                      <span className="w-full truncate text-[11px] font-black text-white">
                         {fixture.home_team}
                       </span>
                     </div>
 
-                    <div className="flex w-14 shrink-0 flex-col items-center text-center sm:w-24">
-                      <span className="rounded-full bg-[#202733] px-2 py-0.5 text-[10px] font-black tracking-[0.18em] text-slate-400 sm:text-xs">
+                    <div className="flex min-w-0 flex-col items-center text-center">
+                      <span className="rounded-full bg-[#202733] px-2 py-0.5 text-[9px] font-black tracking-[0.15em] text-slate-400">
                         VS
                       </span>
-                      <span className="mt-1 text-[10px] font-bold text-slate-500 sm:text-xs">
+                      <span className="mt-1 whitespace-nowrap text-[9px] font-bold text-slate-500">
                         {kickoff.date}
                       </span>
-                      <span className="text-xs font-black text-slate-300 sm:text-sm">
+                      <span className="text-[11px] font-black text-slate-300">
                         {kickoff.time}
                       </span>
                     </div>
 
-                    <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5 text-right sm:gap-3">
-                      <span className="min-w-0 truncate text-sm font-black text-white sm:text-base">
+                    <div className="flex min-w-0 flex-col items-center gap-1 text-center">
+                      <TeamLogo name={fixture.away_team} size="sm" />
+                      <span className="w-full truncate text-[11px] font-black text-white">
+                        {fixture.away_team}
+                      </span>
+                    </div>
+
+                    <span
+                      className={`flex h-8 w-8 items-center justify-center rounded-full border text-lg font-black transition ${
+                        expanded
+                          ? "border-green-400 bg-green-400/10 text-green-400"
+                          : "border-white/10 bg-[#202733] text-slate-300"
+                      }`}
+                    >
+                      {expanded ? "↑" : "›"}
+                    </span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setExpandedFixture(expanded ? null : fixture.id)
+                  }
+                  className="hidden w-full min-w-0 items-center gap-2 p-3 text-left sm:flex sm:gap-5 sm:p-4"
+                  aria-expanded={expanded}
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#202a36] text-xs font-black text-slate-300">
+                    {index + 1}
+                  </div>
+
+                  <div className="flex min-w-0 flex-1 items-center justify-between gap-5">
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <TeamLogo name={fixture.home_team} />
+                      <span className="min-w-0 truncate text-base font-black text-white">
+                        {fixture.home_team}
+                      </span>
+                    </div>
+
+                    <div className="flex w-24 shrink-0 flex-col items-center text-center">
+                      <span className="rounded-full bg-[#202733] px-2 py-0.5 text-xs font-black tracking-[0.18em] text-slate-400">
+                        VS
+                      </span>
+                      <span className="mt-1 text-xs font-bold text-slate-500">
+                        {kickoff.date}
+                      </span>
+                      <span className="text-sm font-black text-slate-300">
+                        {kickoff.time}
+                      </span>
+                    </div>
+
+                    <div className="flex min-w-0 flex-1 items-center justify-end gap-3 text-right">
+                      <span className="min-w-0 truncate text-base font-black text-white">
                         {fixture.away_team}
                       </span>
                       <TeamLogo name={fixture.away_team} />
@@ -326,7 +377,7 @@ export default function CurrentRoundPick({
                   </div>
 
                   <span
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-lg font-black transition sm:h-10 sm:w-10 ${
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border text-lg font-black transition ${
                       expanded
                         ? "border-green-400 bg-green-400/10 text-green-400"
                         : "border-white/10 bg-[#202733] text-slate-300"
@@ -343,7 +394,7 @@ export default function CurrentRoundPick({
                     </div>
 
                     <div className="grid min-w-0 gap-3 sm:grid-cols-2">
-                      <div className="min-w-0 rounded-xl border border-white/10 bg-[#151e29] p-3 sm:p-4">
+                      <div className="min-w-0 overflow-hidden rounded-xl border border-white/10 bg-[#151e29] p-3 sm:p-4">
                         <div className="flex min-w-0 items-center gap-3">
                           <TeamLogo name={fixture.home_team} />
                           <div className="min-w-0 flex-1">
@@ -368,7 +419,7 @@ export default function CurrentRoundPick({
                         </div>
                       </div>
 
-                      <div className="min-w-0 rounded-xl border border-white/10 bg-[#151e29] p-3 sm:p-4">
+                      <div className="min-w-0 overflow-hidden rounded-xl border border-white/10 bg-[#151e29] p-3 sm:p-4">
                         <div className="flex min-w-0 items-center gap-3">
                           <TeamLogo name={fixture.away_team} />
                           <div className="min-w-0 flex-1">
