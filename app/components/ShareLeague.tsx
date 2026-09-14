@@ -13,22 +13,30 @@ export default function ShareLeague({
 }: ShareLeagueProps) {
   const [copied, setCopied] = useState(false)
 
-  const shareUrl =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/?league=${encodeURIComponent(
-          leagueCode
-        )}`
-      : `/?league=${encodeURIComponent(
-          leagueCode
-        )}`
+  /*
+   * IMPORTANT:
+   * Every league gets its own URL containing its unique league code.
+   *
+   * Example:
+   * https://lastmanstandingpl.com/?league=6F931E
+   *
+   * This must NEVER fall back to the generic homepage URL.
+   */
+  const getShareUrl = () => {
+    if (typeof window === "undefined") {
+      return `/?league=${encodeURIComponent(leagueCode)}`
+    }
+
+    return `${window.location.origin}/?league=${encodeURIComponent(
+      leagueCode
+    )}`
+  }
 
   const shareText = `Join my Last Man Standing league "${leagueName}"!`
 
   async function copyCode() {
     try {
-      await navigator.clipboard.writeText(
-        leagueCode
-      )
+      await navigator.clipboard.writeText(leagueCode)
 
       setCopied(true)
 
@@ -43,32 +51,11 @@ export default function ShareLeague({
     }
   }
 
-  async function shareLeague() {
-    if (
-      typeof navigator !== "undefined" &&
-      navigator.share
-    ) {
-      try {
-        await navigator.share({
-          title: "Last Man Standing",
-          text: shareText,
-          url: shareUrl,
-        })
-
-        return
-      } catch {
-        return
-      }
-    }
-
-    await copyLink()
-  }
-
   async function copyLink() {
+    const shareUrl = getShareUrl()
+
     try {
-      await navigator.clipboard.writeText(
-        shareUrl
-      )
+      await navigator.clipboard.writeText(shareUrl)
 
       setCopied(true)
 
@@ -83,9 +70,33 @@ export default function ShareLeague({
     }
   }
 
+  async function shareLeague() {
+    const shareUrl = getShareUrl()
+
+    if (
+      typeof navigator !== "undefined" &&
+      navigator.share
+    ) {
+      try {
+        await navigator.share({
+          title: "Last Man Standing",
+          text: shareText,
+          url: shareUrl,
+        })
+
+        return
+      } catch {
+        // User cancelled sharing — do nothing.
+        return
+      }
+    }
+
+    await copyLink()
+  }
+
   const whatsappUrl =
     `https://wa.me/?text=${encodeURIComponent(
-      `${shareText}\n\n${shareUrl}`
+      `${shareText}\n\n${getShareUrl()}`
     )}`
 
   return (
