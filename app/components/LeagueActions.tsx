@@ -15,21 +15,23 @@ export default function LeagueActions({
 }: Props) {
   const [copied, setCopied] = useState(false)
 
-  const shareUrl =
-    typeof window !== "undefined"
-      ? window.location.href
-      : ""
-
   const handleClick = async () => {
+    // Always build the invite URL from this league's unique code.
+    // Never use the current page URL.
     const url =
-      shareUrl ||
-      `${window.location.origin}/?league=${encodeURIComponent(leagueCode)}`
+      typeof window !== "undefined"
+        ? `${window.location.origin}/?league=${encodeURIComponent(
+            leagueCode
+          )}`
+        : `https://www.lastmanstandingpl.com/?league=${encodeURIComponent(
+            leagueCode
+          )}`
 
     if (action === "share") {
       try {
         if (navigator.share) {
           await navigator.share({
-            title: "Last Man Standing",
+            title: `Join ${leagueName}`,
             text: `Join my Last Man Standing league: ${leagueName}`,
             url,
           })
@@ -38,17 +40,24 @@ export default function LeagueActions({
 
         await navigator.clipboard.writeText(url)
         setCopied(true)
-        window.setTimeout(() => setCopied(false), 1800)
+
+        window.setTimeout(() => {
+          setCopied(false)
+        }, 1800)
       } catch {
         // Sharing can be cancelled by the user.
       }
+
       return
     }
 
     try {
       await navigator.clipboard.writeText(url)
       setCopied(true)
-      window.setTimeout(() => setCopied(false), 1800)
+
+      window.setTimeout(() => {
+        setCopied(false)
+      }, 1800)
     } catch {
       // Ignore clipboard failures.
     }
