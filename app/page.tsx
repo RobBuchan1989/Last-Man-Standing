@@ -1507,7 +1507,11 @@ async function LeaguePage({
 
             <div className="min-w-0 rounded-xl bg-[#151f2b] px-3 py-4 text-center sm:px-4">
               <div className="text-[9px] font-black tracking-[0.22em] text-green-400 sm:text-[10px]">YOUR STATUS</div>
-              <div className="mt-2 inline-flex rounded-full border border-green-400 px-3 py-1 text-xs font-black text-green-400 sm:px-4 sm:py-1.5 sm:text-sm">
+              <div
+                className={`mt-2 inline-flex rounded-full border px-3 py-1 text-xs font-black sm:px-4 sm:py-1.5 sm:text-sm ${entry.alive
+                  ? "border-green-400 text-green-400"
+                  : "border-red-400 bg-red-400/10 text-red-400"}`}
+              >
                 {entry.alive ? "ALIVE" : "OUT"}
               </div>
             </div>
