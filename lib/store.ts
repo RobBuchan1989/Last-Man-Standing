@@ -2246,8 +2246,8 @@ export async function makePick(
   }
 
   const fixtures =
-    await getFixtures(
-      c.round
+    await getFixturesForCompetition(
+      c
     )
 
   if (!fixtures.length) {
