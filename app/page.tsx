@@ -1350,7 +1350,10 @@ async function LeaguePage({
           getLeaderboard(competition.code),
           getSeasonWinners(competition.code),
         ])
-      : Promise.resolve([[], []] as const)
+      : Promise.all([
+          Promise.resolve([]),
+          getSeasonWinners(competition.code),
+        ])
 
   const [seasonLeaderboard, seasonWinners] =
     await seasonDataPromise
