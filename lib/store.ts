@@ -46,6 +46,10 @@ const competitionCache =
 
 const COMPETITION_CACHE_MS = 10_000
 
+export function invalidateCompetitionCache(competitionCode: string) {
+  competitionCache.delete(cleanCode(competitionCode))
+}
+
 function authHeaders() {
   return {
     apikey: SUPABASE_KEY,
