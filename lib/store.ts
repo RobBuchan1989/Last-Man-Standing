@@ -101,6 +101,7 @@ export type Competition = {
   round: number
   owner_entry_id?: string | null
   season_number?: number
+  season_started_at?: string | null
 }
 
 export type SeasonWinner = {
@@ -2144,6 +2145,43 @@ export async function getRoundHistory(
  * FIXTURES
  * ------------------------------------------------------------
  */
+
+export async function getFixturesForCompetition(
+  competition: Competition
+): Promise<Fixture[]> {
+  const matches = await getLivePremierLeagueMatches()
+
+  const seasonStartedAt = competition.season_started_at
+    ? new Date(competition.season_started_at).getTime()
+    : null
+
+  const upcoming = matches
+    .filter((match) => {
+      if (match.matchday === null) return false
+      const kickoff = new Date(match.utcDate).getTime()
+      if (!Number.isFinite(kickoff)) return false
+      if (seasonStartedAt !== null && kickoff <= seasonStartedAt) return false
+      return match.status !== "FINISHED"
+    })
+    .sort(
+      (a, b) =>
+        new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime()
+    )
+
+  if (!upcoming.length) return []
+
+  const nextMatchday = upcoming[0].matchday
+  if (nextMatchday === null) return []
+
+  return upcoming
+    .filter((match) => match.matchday === nextMatchday)
+    .map(convertMatch)
+    .filter((fixture): fixture is Fixture => fixture !== null)
+    .sort(
+      (a, b) =>
+        new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime()
+    )
+}
 
 export async function getFixtures(
   round: number
