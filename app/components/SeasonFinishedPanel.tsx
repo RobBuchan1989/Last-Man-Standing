@@ -1,8 +1,6 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
-
 import { renewLeagueAction } from "@/app/actions/game"
 
 type Props = {
@@ -20,7 +18,6 @@ export default function SeasonFinishedPanel({
   winnerName,
   winnerRound,
 }: Props) {
-  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState("")
 
