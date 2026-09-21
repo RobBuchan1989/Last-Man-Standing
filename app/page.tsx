@@ -10,7 +10,7 @@ import SeasonFinishedPanel from "@/app/components/SeasonFinishedPanel"
 import {
   getCompetition,
   getCurrentEntry,
-  getFixtures,
+  getFixturesForCompetition,
   getLeaderboard,
   getPicks,
   getSeasonWinners,
