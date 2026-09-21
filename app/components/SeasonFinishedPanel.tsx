@@ -46,7 +46,7 @@ export default function SeasonFinishedPanel({
         return
       }
 
-      router.refresh()
+      window.location.href = `/?league=${encodeURIComponent(leagueCode)}`
     })
   }
 
