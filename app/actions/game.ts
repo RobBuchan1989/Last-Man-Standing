@@ -313,20 +313,24 @@ export async function renewLeagueAction(
   leagueCode: string
 ) {
   try {
-    const jar = await cookies()
+    /*
+     * Use the same recognised-player lookup as the league page.
+     * The browser may currently have another league selected in
+     * lms_entry_id while still remembering this league in
+     * lms_player_entries.
+     */
+    const recognisedEntry = await getCurrentEntry(leagueCode, false)
 
-    const entryId = jar.get(ENTRY_COOKIE)?.value
-
-    if (!entryId) {
+    if (!recognisedEntry || recognisedEntry.competition_id !== competitionId) {
       return {
-        error: "Join the league first.",
+        error: "You are not a player in this league.",
       }
     }
 
     const entryResponse = await fetch(
       SUPABASE_URL +
         "/rest/v1/entries?id=eq." +
-        encodeURIComponent(entryId) +
+        encodeURIComponent(recognisedEntry.id) +
         "&select=id,competition_id,session_token&limit=1",
       {
         method: "GET",
