@@ -293,253 +293,291 @@ async function HomePage() {
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#0b1018] text-white">
 
-      <header className="border-b border-white/10 bg-[#111722] px-6 py-7">
-        <div className="mx-auto max-w-7xl">
+      {/* HERO */}
+
+      <section className="relative isolate overflow-hidden border-b border-white/10">
+        <img
+          src="/stadium-hero.jpg"
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 -z-20 h-full w-full object-cover object-center"
+        />
+        <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[#06111a]/35" />
+        <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(3,10,17,0.95)_0%,rgba(3,10,17,0.78)_38%,rgba(3,10,17,0.34)_72%,rgba(3,10,17,0.18)_100%)]" />
+        <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(3,10,17,0.24)_0%,rgba(3,10,17,0.06)_55%,rgba(3,10,17,0.82)_100%)]" />
+
+        <div className="mx-auto max-w-7xl px-4 pb-10 pt-5 sm:px-6 sm:pb-14 sm:pt-7 lg:px-8">
           <HomeLink />
-        </div>
-      </header>
 
-      <div className="mx-auto max-w-5xl px-6 py-16">
+          <div className="mt-10 grid min-w-0 items-center gap-8 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-12">
+            <div className="min-w-0">
+              <div className="text-[11px] font-black tracking-[0.28em] text-green-400 sm:text-sm">
+                PREMIER LEAGUE · LAST MAN STANDING
+              </div>
 
-        <div className="rounded-2xl border border-white/10 bg-[#151b25] p-8 shadow-2xl">
+              <h2 className="mt-3 max-w-4xl text-[3.5rem] font-black uppercase leading-[0.84] tracking-[-0.045em] text-white sm:text-6xl lg:text-8xl">
+                PICK.
+                <br />
+                <span className="text-green-400">WIN.</span>
+                <br />
+                SURVIVE.
+              </h2>
 
-          <div className="text-sm font-bold tracking-[0.3em] text-green-400">
-            LAST MAN STANDING
-          </div>
-
-          <h2 className="mt-3 text-5xl font-black">
-            Welcome
-          </h2>
-
-          <p className="mt-5 max-w-2xl text-xl text-slate-400">
-            Pick. Win. Survive.
-          </p>
-
-          {/* YOUR LEAGUES */}
-
-          <div className="mt-10 rounded-2xl bg-[#0e141d] p-6">
-
-            <div className="text-sm font-bold tracking-[0.25em] text-green-400">
-              YOUR LEAGUES
+              <p className="mt-6 max-w-2xl text-base leading-6 text-slate-200 sm:text-xl sm:leading-7">
+                Create a league, invite your friends and pick one Premier League team each round. Choose wisely — you can only use each team once.
+              </p>
             </div>
 
-            {playerLeagues.length > 0 ? (
+            <div className="hidden lg:block">
+              <div className="relative rounded-xl border-2 border-white/30 bg-[#07111b]/75 p-6 shadow-2xl backdrop-blur-sm">
+                <div className="absolute inset-2 rounded-lg border border-white/10" />
+                <div className="relative text-center">
+                  <div className="text-2xl font-black uppercase leading-tight text-green-400">
+                    CAN YOU BE
+                    <br />
+                    THE LAST MAN
+                    <br />
+                    STANDING?
+                  </div>
+                  <div className="mt-5 text-xs font-black tracking-[0.25em] text-slate-400">
+                    PREMIER LEAGUE
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-              <div className="mt-5 space-y-4">
+      {/* CONTENT */}
 
-                {playerLeagues.map(
-                  ({
-                    competition,
-                    entry,
-                  }) => (
+      <div className="mx-auto w-full max-w-7xl min-w-0 overflow-x-hidden px-3 py-5 sm:px-6 sm:py-8 lg:px-8">
 
-                    <div
-                      key={entry.id}
-                      className="rounded-2xl border border-white/10 bg-[#151b25] p-5"
-                    >
+        {/* YOUR LEAGUES */}
 
-                      <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+        <section className="rounded-2xl border border-white/10 bg-[#151b25] p-5 shadow-2xl sm:p-7">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <div className="text-xs font-black tracking-[0.28em] text-green-400 sm:text-sm">
+                YOUR LEAGUES
+              </div>
+              <h2 className="mt-2 text-3xl font-black sm:text-4xl">
+                Jump back in
+              </h2>
+              <p className="mt-2 text-slate-400">
+                Continue a league you've already joined.
+              </p>
+            </div>
+          </div>
 
-                        <div>
-
-                          <div className="text-2xl font-black">
-                            {
-                              competition.name
-                            }
-                          </div>
-
-                          <div className="mt-2 text-slate-400">
-                            Welcome back,{" "}
-                            {
-                              entry.name
-                            }
-                            .
-                          </div>
-
-                          <div className="mt-1 text-sm text-slate-500">
-                            League code:{" "}
-                            <strong className="text-slate-300">
-                              {
-                                competition.code
-                              }
-                            </strong>
-                          </div>
-
+          {playerLeagues.length > 0 ? (
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              {playerLeagues.map(
+                ({
+                  competition,
+                  entry,
+                }) => (
+                  <div
+                    key={entry.id}
+                    className="rounded-2xl border border-white/10 bg-[#0e141d] p-5 transition hover:border-green-400/40"
+                  >
+                    <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="truncate text-2xl font-black">
+                          {competition.name}
                         </div>
 
-                        <LeagueReturnButton
-                          href={`/?league=${encodeURIComponent(
-                            competition.code
-                          )}`}
-                        />
+                        <div className="mt-2 text-slate-400">
+                          Welcome back, {entry.name}.
+                        </div>
 
+                        <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
+                          <span className="rounded-full bg-[#202733] px-3 py-1.5 text-slate-300">
+                            CODE {competition.code}
+                          </span>
+                          <span className={`rounded-full px-3 py-1.5 ${
+                            entry.alive
+                              ? "bg-green-400/10 text-green-400"
+                              : "bg-red-400/10 text-red-400"
+                          }`}>
+                            {entry.alive ? "ALIVE" : "OUT"}
+                          </span>
+                        </div>
                       </div>
 
+                      <LeagueReturnButton
+                        href={`/?league=${encodeURIComponent(
+                          competition.code
+                        )}`}
+                      />
                     </div>
-
-                  )
-                )}
-
+                  </div>
+                )
+              )}
+            </div>
+          ) : (
+            <div className="mt-6 rounded-2xl border border-white/10 bg-[#0e141d] p-6">
+              <div className="text-lg font-bold">
+                You haven't joined any leagues yet.
               </div>
-
-            ) : (
-
-              <div className="mt-5 rounded-xl border border-white/10 bg-[#151b25] p-5">
-
-                <div className="text-lg font-bold">
-                  You haven't joined any leagues yet.
-                </div>
-
-                <p className="mt-2 text-slate-400">
-                  Create a league or use a league
-                  code to join one.
-                </p>
-
-              </div>
-
-            )}
-
-          </div>
-
-          {/* CREATE + JOIN */}
-
-          <div className="mt-8 grid gap-6 md:grid-cols-2">
-
-            {/* CREATE */}
-
-            <div className="rounded-2xl bg-[#0e141d] p-6">
-
-              <div className="text-sm font-bold tracking-[0.25em] text-green-400">
-                CREATE A LEAGUE
-              </div>
-
-              <h3 className="mt-2 text-2xl font-black">
-                Start your own
-              </h3>
-
               <p className="mt-2 text-slate-400">
-                Create a new competition and invite
-                your friends.
+                Create a league below or use a league code to join one.
               </p>
+            </div>
+          )}
+        </section>
 
-              <form
-                action={
-                  createLeagueAction
-                }
-                className="mt-6 space-y-4"
-              >
+        {/* CREATE + JOIN */}
 
-                <div>
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
 
-                  <label className="mb-2 block font-semibold text-slate-300">
-                    League name
-                  </label>
+          {/* CREATE */}
 
-                  <input
-                    name="leagueName"
-                    required
-                    maxLength={60}
-                    placeholder="e.g. Friday Night Football"
-                    className="w-full rounded-xl border border-white/10 bg-[#151b25] px-4 py-4 text-white outline-none focus:border-green-400"
-                  />
-
-                </div>
-
-                <div>
-
-                  <label className="mb-2 block font-semibold text-slate-300">
-                    Your name
-                  </label>
-
-                  <input
-                    name="playerName"
-                    required
-                    maxLength={40}
-                    placeholder="e.g. Rob"
-                    className="w-full rounded-xl border border-white/10 bg-[#151b25] px-4 py-4 text-white outline-none focus:border-green-400"
-                  />
-
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full rounded-xl bg-green-400 px-5 py-4 font-black text-[#07110b] hover:bg-green-300"
-                >
-                  CREATE LEAGUE
-                </button>
-
-              </form>
-
+          <section className="rounded-2xl border border-green-400/20 bg-[#101923] p-5 shadow-2xl sm:p-7">
+            <div className="text-xs font-black tracking-[0.28em] text-green-400 sm:text-sm">
+              CREATE A LEAGUE
             </div>
 
-            {/* JOIN */}
+            <h2 className="mt-2 text-3xl font-black sm:text-4xl">
+              Start your own
+            </h2>
 
-            <div className="rounded-2xl bg-[#0e141d] p-6">
+            <p className="mt-3 text-slate-400">
+              Create a league and invite your friends to compete for the title.
+            </p>
 
-              <div className="text-sm font-bold tracking-[0.25em] text-green-400">
-                JOIN A LEAGUE
+            <form
+              action={createLeagueAction}
+              className="mt-7 space-y-4"
+            >
+              <div>
+                <label className="mb-2 block text-sm font-bold text-slate-300">
+                  League name
+                </label>
+                <input
+                  name="leagueName"
+                  required
+                  maxLength={60}
+                  placeholder="e.g. Friday Night Football"
+                  className="w-full rounded-xl border border-white/10 bg-[#0b1018] px-4 py-4 text-white outline-none transition focus:border-green-400"
+                />
               </div>
 
-              <h3 className="mt-2 text-2xl font-black">
-                Got an invite?
-              </h3>
+              <div>
+                <label className="mb-2 block text-sm font-bold text-slate-300">
+                  Your name
+                </label>
+                <input
+                  name="playerName"
+                  required
+                  maxLength={40}
+                  placeholder="e.g. Rob"
+                  className="w-full rounded-xl border border-white/10 bg-[#0b1018] px-4 py-4 text-white outline-none transition focus:border-green-400"
+                />
+              </div>
 
-              <p className="mt-2 text-slate-400">
-                Enter the league code shared with
-                you.
-              </p>
-
-              <form
-                action={joinAction}
-                className="mt-6 space-y-4"
+              <button
+                type="submit"
+                className="w-full rounded-xl bg-green-400 px-5 py-4 font-black text-[#07110b] transition hover:bg-green-300"
               >
+                CREATE LEAGUE
+              </button>
+            </form>
+          </section>
 
-                <div>
+          {/* JOIN */}
 
-                  <label className="mb-2 block font-semibold text-slate-300">
-                    League code
-                  </label>
-
-                  <input
-                    name="league"
-                    required
-                    maxLength={20}
-                    placeholder="e.g. F34BD5"
-                    className="w-full rounded-xl border border-white/10 bg-[#151b25] px-4 py-4 uppercase text-white outline-none focus:border-green-400"
-                  />
-
-                </div>
-
-                <div>
-
-                  <label className="mb-2 block font-semibold text-slate-300">
-                    Your name
-                  </label>
-
-                  <input
-                    name="name"
-                    required
-                    maxLength={40}
-                    placeholder="e.g. Rob"
-                    className="w-full rounded-xl border border-white/10 bg-[#151b25] px-4 py-4 text-white outline-none focus:border-green-400"
-                  />
-
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full rounded-xl bg-green-400 px-5 py-4 font-black text-[#07110b] hover:bg-green-300"
-                >
-                  JOIN LEAGUE
-                </button>
-
-              </form>
-
+          <section className="rounded-2xl border border-white/10 bg-[#151b25] p-5 shadow-2xl sm:p-7">
+            <div className="text-xs font-black tracking-[0.28em] text-green-400 sm:text-sm">
+              JOIN A LEAGUE
             </div>
 
-          </div>
+            <h2 className="mt-2 text-3xl font-black sm:text-4xl">
+              Got an invite?
+            </h2>
+
+            <p className="mt-3 text-slate-400">
+              Enter the league code shared with you and start playing.
+            </p>
+
+            <form
+              action={joinAction}
+              className="mt-7 space-y-4"
+            >
+              <div>
+                <label className="mb-2 block text-sm font-bold text-slate-300">
+                  League code
+                </label>
+                <input
+                  name="league"
+                  required
+                  maxLength={20}
+                  placeholder="e.g. F34BD5"
+                  className="w-full rounded-xl border border-white/10 bg-[#0b1018] px-4 py-4 uppercase text-white outline-none transition focus:border-green-400"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-bold text-slate-300">
+                  Your name
+                </label>
+                <input
+                  name="name"
+                  required
+                  maxLength={40}
+                  placeholder="e.g. Rob"
+                  className="w-full rounded-xl border border-white/10 bg-[#0b1018] px-4 py-4 text-white outline-none transition focus:border-green-400"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full rounded-xl bg-green-400 px-5 py-4 font-black text-[#07110b] transition hover:bg-green-300"
+              >
+                JOIN LEAGUE
+              </button>
+            </form>
+          </section>
 
         </div>
+
+        {/* HOW IT WORKS */}
+
+        <section className="mt-6 rounded-2xl border border-white/10 bg-[#151b25] p-5 shadow-2xl sm:p-7">
+          <div className="text-xs font-black tracking-[0.28em] text-green-400 sm:text-sm">
+            HOW IT WORKS
+          </div>
+
+          <h2 className="mt-2 text-3xl font-black">
+            Pick. Win. Survive.
+          </h2>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <div className="rounded-2xl bg-[#0e141d] p-5">
+              <div className="text-2xl font-black text-green-400">01</div>
+              <div className="mt-3 text-lg font-black">Pick a team</div>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                Choose one Premier League team each round.
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-[#0e141d] p-5">
+              <div className="text-2xl font-black text-green-400">02</div>
+              <div className="mt-3 text-lg font-black">Win the round</div>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                Your team must win. A draw or loss knocks you out.
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-[#0e141d] p-5">
+              <div className="text-2xl font-black text-green-400">03</div>
+              <div className="mt-3 text-lg font-black">Be the last one standing</div>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                You cannot use the same team twice. Survive until you're the last player left.
+              </p>
+            </div>
+          </div>
+        </section>
 
       </div>
 
