@@ -2161,7 +2161,7 @@ export async function getFixturesForCompetition(
       const kickoff = new Date(match.utcDate).getTime()
       if (!Number.isFinite(kickoff)) return false
       if (seasonStartedAt !== null && kickoff <= seasonStartedAt) return false
-      return match.status !== "FINISHED"
+      return !["FINISHED", "CANCELLED", "POSTPONED"].includes(match.status)
     })
     .sort(
       (a, b) =>
