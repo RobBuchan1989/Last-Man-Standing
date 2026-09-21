@@ -6,6 +6,7 @@ import {
   createCompetition,
   getCompetition,
   getCurrentEntry,
+  invalidateCompetitionCache,
   joinCompetition,
 } from "@/lib/store"
 
@@ -406,6 +407,7 @@ export async function renewLeagueAction(
       return { error: message }
     }
 
+    invalidateCompetitionCache(leagueCode)
     revalidatePath("/")
     return { ok: true }
   } catch (e) {
