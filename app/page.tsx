@@ -734,7 +734,7 @@ async function CriticalLeagueContent({
   viewingCurrentRound: boolean
   winnerName: string | null
 }) {
-  if (competition.status === "finished") {
+  if (competition.status === "finished" && viewingCurrentRound) {
     return (
       <SeasonFinishedPanel
         competitionId={competition.id}
