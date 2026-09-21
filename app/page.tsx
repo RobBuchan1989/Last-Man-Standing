@@ -5,6 +5,7 @@ import CurrentRoundPick from "@/app/components/CurrentRoundPick"
 import LeagueReturnButton from "@/app/components/LeagueReturnButton"
 import LeagueActions from "@/app/components/LeagueActions"
 import LiveLeaderboard from "@/app/components/LiveLeaderboard"
+import SeasonFinishedPanel from "@/app/components/SeasonFinishedPanel"
 
 import {
   getCompetition,
@@ -12,6 +13,7 @@ import {
   getFixtures,
   getLeaderboard,
   getPicks,
+  getSeasonWinners,
   getRoundPicks,
   getPlayerLeagues,
   joinCompetition,
@@ -723,13 +725,27 @@ async function CriticalLeagueContent({
   displayRound,
   currentRound,
   viewingCurrentRound,
+  winnerName,
 }: {
   competition: any
   entry: any
   displayRound: number
   currentRound: number
   viewingCurrentRound: boolean
+  winnerName: string | null
 }) {
+  if (competition.status === "finished") {
+    return (
+      <SeasonFinishedPanel
+        competitionId={competition.id}
+        leagueCode={competition.code}
+        seasonNumber={competition.season_number ?? 1}
+        winnerName={winnerName}
+        winnerRound={currentRound}
+      />
+    )
+  }
+
   const [
     picks,
     fixtures,
@@ -1376,6 +1392,26 @@ async function LeaguePage({
     )
   }
 
+  const seasonDataPromise =
+    competition.status === "finished"
+      ? Promise.all([
+          getLeaderboard(competition.code),
+          getSeasonWinners(competition.code),
+        ])
+      : Promise.resolve([[], []] as const)
+
+  const [seasonLeaderboard, seasonWinners] =
+    await seasonDataPromise
+
+  const winnerName =
+    competition.owner_entry_id
+      ? seasonLeaderboard.find(
+          (player: any) =>
+            player.id ===
+            competition.owner_entry_id
+        )?.name ?? null
+      : null
+
   const currentRound =
     competition.round
 
@@ -1559,6 +1595,7 @@ async function LeaguePage({
               viewingCurrentRound={
                 viewingCurrentRound
               }
+              winnerName={winnerName}
             />
           </Suspense>
 
@@ -1607,6 +1644,46 @@ async function LeaguePage({
 
         </div>
 
+      </div>
+
+      <div className="mx-auto mt-6 w-full max-w-7xl min-w-0 px-3 pb-8 sm:px-6 lg:px-8">
+        <section className="rounded-2xl border border-white/10 bg-[#151b25] p-5 sm:p-7">
+          <div className="text-xs font-black tracking-[0.28em] text-green-400">
+            PAST SEASON WINNERS
+          </div>
+
+          <h2 className="mt-2 text-3xl font-black">
+            League history
+          </h2>
+
+          {seasonWinners.length > 0 ? (
+            <div className="mt-5 overflow-hidden rounded-xl border border-white/10">
+              {seasonWinners.map((winner: any) => (
+                <div
+                  key={winner.id}
+                  className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#101923] px-4 py-4 last:border-b-0"
+                >
+                  <div>
+                    <div className="font-black text-white">
+                      {winner.winner_name}
+                    </div>
+                    <div className="mt-1 text-sm text-slate-400">
+                      Season {winner.season_number}
+                    </div>
+                  </div>
+
+                  <div className="text-sm font-semibold text-slate-400">
+                    {new Date(winner.completed_at).toLocaleDateString("en-GB")}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 text-slate-400">
+              No completed winning seasons have been recorded yet.
+            </p>
+          )}
+        </section>
       </div>
 
     </main>
