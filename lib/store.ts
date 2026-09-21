@@ -95,6 +95,17 @@ export type Competition = {
   name: string
   status: string
   round: number
+  owner_entry_id?: string | null
+  season_number?: number
+}
+
+export type SeasonWinner = {
+  id: string
+  competition_id: string
+  season_number: number
+  winner_entry_id: string | null
+  winner_name: string
+  completed_at: string
 }
 
 export type Entry = {
@@ -2365,6 +2376,18 @@ export async function makePick(
    * succeeds, so failed picks do not trigger a refresh.
    */
   revalidatePath("/", "page")
+}
+
+export async function getSeasonWinners(
+  competitionCode?: string
+): Promise<SeasonWinner[]> {
+  const c = await getCompetitionByCodeFast(competitionCode)
+
+  return rest<SeasonWinner[]>(
+    `season_winners?competition_id=eq.${encodeURIComponent(
+      c.id
+    )}&select=*&order=season_number.desc`
+  )
 }
 
 /*
