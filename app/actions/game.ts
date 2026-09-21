@@ -5,6 +5,7 @@ import { cookies } from "next/headers"
 import {
   createCompetition,
   getCompetition,
+  getCurrentEntry,
   joinCompetition,
 } from "@/lib/store"
 
