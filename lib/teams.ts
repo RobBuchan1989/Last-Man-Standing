@@ -26,7 +26,7 @@ const teamsData: Team[] = [
     name: "Bournemouth",
     shortName: "Bournemouth",
     tla: "BOU",
-    crest: "https://crests.football-data.org/1044.svg",
+    crest: "https://crests.football-data.org/bournemouth.png",
   },
   {
     id: 337,
@@ -131,7 +131,7 @@ const teamsData: Team[] = [
     name: "Coventry City",
     shortName: "Coventry City",
     tla: "COV",
-    crest: "https://crests.football-data.org/1076.svg",
+    crest: "https://crests.football-data.org/1076.png",
   },
   {
     id: 349,
@@ -145,7 +145,7 @@ const teamsData: Team[] = [
     name: "Hull City",
     shortName: "Hull City",
     tla: "HUL",
-    crest: "https://crests.football-data.org/322.svg",
+    crest: "https://crests.football-data.org/322.png",
   },
 ]
 
