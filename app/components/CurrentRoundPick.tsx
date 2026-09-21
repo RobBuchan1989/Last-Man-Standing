@@ -46,10 +46,10 @@ type Props = {
 const TEAM_LOGOS: Record<string, number> = {
   arsenal: 359,
   "aston villa": 362,
-  bournemouth: 8678,
+  bournemouth: 349,
   brentford: 337,
-  brighton: 397,
-  "brighton & hove albion": 397,
+  brighton: 331,
+  "brighton & hove albion": 331,
   burnley: 379,
   chelsea: 363,
   "crystal palace": 384,
@@ -73,6 +73,8 @@ const TEAM_LOGOS: Record<string, number> = {
   "wolverhampton wanderers": 380,
   ipswich: 373,
   "ipswich town": 373,
+  "hull city": 306,
+  "coventry city": 388,
   "man city": 382,
   "man united": 360,
 }
