@@ -705,8 +705,8 @@ async function CriticalLeagueContent({
     getPicks(entry.id),
 
     viewingCurrentRound
-      ? getFixtures(
-          currentRound
+      ? getFixturesForCompetition(
+          competition
         )
       : Promise.resolve([]),
   ])
