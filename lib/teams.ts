@@ -40,7 +40,7 @@ const teamsData: Team[] = [
     name: "Brighton & Hove Albion",
     shortName: "Brighton",
     tla: "BHA",
-    crest: "https://crests.football-data.org/397.svg",
+    crest: "https://crests.football-data.org/397.png",
   },
   {
     id: 61,
