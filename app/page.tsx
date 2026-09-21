@@ -625,92 +625,6 @@ function LeagueLoading() {
 
 /*
  * ------------------------------------------------------------
- * ROUND NAVIGATION
- * ------------------------------------------------------------
- */
-
-function RoundNavigation({
-  competition,
-  currentRound,
-  displayRound,
-}: {
-  competition: any
-  currentRound: number
-  displayRound: number
-}) {
-  const viewingCurrentRound =
-    displayRound === currentRound
-
-  return (
-    <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#151b25] p-4">
-
-      <div>
-
-        <div className="text-xs font-bold tracking-[0.25em] text-green-400">
-          ROUND HISTORY
-        </div>
-
-        <div className="mt-1 text-lg font-bold">
-          {viewingCurrentRound
-            ? `Round ${currentRound} — Current`
-            : `Round ${displayRound} — Completed`}
-        </div>
-
-      </div>
-
-      <div className="flex items-center gap-3">
-
-        {displayRound > 1 ? (
-
-          <Link
-            href={`/?league=${encodeURIComponent(
-              competition.code
-            )}&round=${displayRound - 1}`}
-            prefetch={false}
-            className="rounded-xl border border-white/10 bg-[#202733] px-4 py-3 font-bold hover:border-green-400"
-          >
-            ← ROUND{" "}
-            {displayRound - 1}
-          </Link>
-
-        ) : (
-
-          <span className="rounded-xl border border-white/5 bg-[#10151d] px-4 py-3 font-bold text-slate-600">
-            ← PREVIOUS
-          </span>
-
-        )}
-
-        {displayRound <
-        currentRound ? (
-
-          <Link
-            href={`/?league=${encodeURIComponent(
-              competition.code
-            )}&round=${displayRound + 1}`}
-            prefetch={false}
-            className="rounded-xl border border-white/10 bg-[#202733] px-4 py-3 font-bold hover:border-green-400"
-          >
-            ROUND{" "}
-            {displayRound + 1} →
-          </Link>
-
-        ) : (
-
-          <span className="rounded-xl border border-white/5 bg-[#10151d] px-4 py-3 font-bold text-slate-600">
-            CURRENT ROUND
-          </span>
-
-        )}
-
-      </div>
-
-    </div>
-  )
-}
-
-/*
- * ------------------------------------------------------------
  * CRITICAL GAME CONTENT
  *
  * This is deliberately separate from leaderboard/history.
@@ -1546,14 +1460,6 @@ async function LeaguePage({
       </section>
 
       <div className="mx-auto w-full max-w-7xl min-w-0 overflow-x-hidden px-3 py-4 sm:px-6 sm:py-8 lg:px-8">
-
-        {/* ROUND NAVIGATION */}
-
-        <RoundNavigation
-          competition={competition}
-          currentRound={currentRound}
-          displayRound={displayRound}
-        />
 
         <div className="grid w-full min-w-0 gap-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(300px,1fr)] lg:gap-8">
 
