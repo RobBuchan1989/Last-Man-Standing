@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { cookies } from "next/headers"
 import {
   createCompetition,
+  getCompetition,
   joinCompetition,
 } from "@/lib/store"
 
@@ -302,6 +303,112 @@ export async function makePickAction(
         e instanceof Error
           ? e.message
           : "Could not lock in your pick.",
+    }
+  }
+}
+
+
+export async function renewLeagueAction(
+  competitionId: string,
+  leagueCode: string
+) {
+  try {
+    const jar = await cookies()
+
+    const entryId = jar.get(ENTRY_COOKIE)?.value
+
+    if (!entryId) {
+      return {
+        error: "Join the league first.",
+      }
+    }
+
+    const entryResponse = await fetch(
+      SUPABASE_URL +
+        "/rest/v1/entries?id=eq." +
+        encodeURIComponent(entryId) +
+        "&select=id,competition_id,session_token&limit=1",
+      {
+        method: "GET",
+        headers: supabaseHeaders(),
+        cache: "no-store",
+      }
+    )
+
+    if (!entryResponse.ok) {
+      return {
+        error: "Could not verify your game session.",
+      }
+    }
+
+    const entryRows = (await entryResponse.json()) as Array<{
+      id: string
+      competition_id: string
+      session_token: string | null
+    }>
+
+    const entry = entryRows[0]
+
+    if (
+      !entry ||
+      entry.competition_id !== competitionId ||
+      !entry.session_token
+    ) {
+      return {
+        error: "You are not a player in this league.",
+      }
+    }
+
+    const competition = await getCompetition(leagueCode)
+
+    if (competition.id !== competitionId) {
+      return {
+        error: "League verification failed.",
+      }
+    }
+
+    const renewResponse = await fetch(
+      SUPABASE_URL +
+        "/rest/v1/rpc/lms_renew_competition_for_member",
+      {
+        method: "POST",
+        headers: supabaseHeaders(),
+        cache: "no-store",
+        body: JSON.stringify({
+          p_competition_id: competitionId,
+          p_entry_id: entry.id,
+          p_session_token: entry.session_token,
+          p_next_round: 1,
+        }),
+      }
+    )
+
+    if (!renewResponse.ok) {
+      const text = await renewResponse.text()
+      let message = "Could not renew the league."
+
+      try {
+        const parsed = JSON.parse(text)
+        if (typeof parsed?.message === "string") {
+          message = parsed.message
+        } else if (typeof parsed?.error === "string") {
+          message = parsed.error
+        }
+      } catch {
+        if (text) message = text
+      }
+
+      return { error: message }
+    }
+
+    revalidatePath("/")
+    return { ok: true }
+  } catch (e) {
+    return {
+      error:
+        e instanceof Error
+          ? e.message
+          : "Could not renew the league.",
     }
   }
 }
