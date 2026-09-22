@@ -306,6 +306,13 @@ async function HomePage() {
         <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(3,10,17,0.95)_0%,rgba(3,10,17,0.78)_38%,rgba(3,10,17,0.34)_72%,rgba(3,10,17,0.18)_100%)]" />
         <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(3,10,17,0.24)_0%,rgba(3,10,17,0.06)_55%,rgba(3,10,17,0.82)_100%)]" />
 
+        <img
+          src="/premier-league-lion-watermark.svg"
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute right-[-3rem] top-1/2 -z-10 hidden h-[24rem] w-[19rem] -translate-y-1/2 object-contain opacity-[0.10] sm:block lg:right-0 lg:h-[30rem] lg:w-[24rem]"
+        />
+
         <div className="mx-auto max-w-7xl px-4 pb-10 pt-5 sm:px-6 sm:pb-14 sm:pt-7 lg:px-8">
           <HomeLink />
 
