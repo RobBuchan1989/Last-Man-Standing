@@ -95,3 +95,8 @@
     @apply bg-background text-foreground;
   }
 }
+
+
+.pl-lion-watermark {
+  background-image: url("/premier-league-lion-watermark.svg");
+}
