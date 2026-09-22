@@ -4,7 +4,7 @@ import {
 
 async function main() {
   console.log(
-    "[LMS SYNC] Starting background game sync..."
+    "[LMS SYNC] Starting compatibility sync command..."
   )
 
   try {
@@ -12,7 +12,7 @@ async function main() {
       await runBackgroundSync()
 
     console.log(
-      "[LMS SYNC] Background game sync completed."
+      "[LMS SYNC] Supabase pg_cron remains authoritative."
     )
 
     console.log(
@@ -24,7 +24,7 @@ async function main() {
     )
   } catch (error) {
     console.error(
-      "[LMS SYNC] Background game sync failed:",
+      "[LMS SYNC] Compatibility sync command failed:",
       error
     )
 
