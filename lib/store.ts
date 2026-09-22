@@ -1287,15 +1287,60 @@ export async function createCompetition(
         )
       }
 
+      /*
+       * Map the new season to the next physical Premier League
+       * matchday immediately, using the fixtures already synced
+       * into Supabase. This does NOT change the game's logical
+       * round, which remains Round 1.
+       *
+       * If the fixture table has not been refreshed yet, the
+       * background Supabase sync will populate this later.
+       */
+      let createdCompetition = rows[0]
+
+      if (createdCompetition.season_started_at) {
+        const nextFixtures =
+          await rest<Fixture[]>(
+            `fixtures?kickoff=gt.${encodeURIComponent(
+              createdCompetition.season_started_at
+            )}&status=not.in.(FINISHED,CANCELLED,POSTPONED)&order=kickoff.asc&limit=1&select=round`
+          )
+
+        if (nextFixtures[0]?.round) {
+          const mappedRows =
+            await rest<Competition[]>(
+              `competitions?id=eq.${encodeURIComponent(
+                createdCompetition.id
+              )}&select=*&limit=1`,
+              {
+                method: "PATCH",
+                headers: {
+                  Prefer:
+                    "return=representation",
+                },
+                body:
+                  JSON.stringify({
+                    fixture_matchday:
+                      nextFixtures[0].round,
+                  }),
+              }
+            )
+
+          createdCompetition =
+            mappedRows[0] ??
+            createdCompetition
+        }
+      }
+
       await setCompetitionCookie(
-        rows[0].code
+        createdCompetition.code
       )
 
       competitionCache.set(
-        rows[0].code,
+        createdCompetition.code,
         {
           competition:
-            rows[0],
+            createdCompetition,
           expiresAt:
             Date.now() +
             COMPETITION_CACHE_MS,
@@ -1303,9 +1348,9 @@ export async function createCompetition(
       )
 
       // A new league always starts at logical Round 1.
-      // Do not map the brand-new league to the current
-      // Premier League fixture matchday here.
-      return rows[0]
+      // fixture_matchday is only the physical Premier League
+      // matchday used for its Round 1 fixtures.
+      return createdCompetition
     } catch (error) {
       if (
         error instanceof Error &&
