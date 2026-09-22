@@ -295,7 +295,7 @@ async function HomePage() {
 
       {/* HERO */}
 
-      <section className="relative isolate overflow-hidden border-b border-white/10">
+      <section className="pl-hero relative isolate overflow-hidden border-b border-white/10">
         <img
           src="/stadium-hero.jpg"
           alt=""
@@ -305,8 +305,6 @@ async function HomePage() {
         <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[#06111a]/35" />
         <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(3,10,17,0.95)_0%,rgba(3,10,17,0.78)_38%,rgba(3,10,17,0.34)_72%,rgba(3,10,17,0.18)_100%)]" />
         <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(3,10,17,0.24)_0%,rgba(3,10,17,0.06)_55%,rgba(3,10,17,0.82)_100%)]" />
-
-        <div aria-hidden="true" className="pl-lion-watermark pointer-events-none absolute right-[7%] top-1/2 -z-10 hidden h-[15rem] w-[12rem] -translate-y-1/2 bg-contain bg-center bg-no-repeat opacity-[0.08] sm:block lg:right-[9%] lg:h-[20rem] lg:w-[16rem]"></div>
 
         <div className="mx-auto max-w-7xl px-4 pb-10 pt-5 sm:px-6 sm:pb-14 sm:pt-7 lg:px-8">
           <HomeLink />
@@ -1387,7 +1385,7 @@ async function LeaguePage({
 
       {/* HERO */}
 
-      <section className="relative isolate overflow-hidden border-b border-white/10">
+      <section className="pl-hero relative isolate overflow-hidden border-b border-white/10">
         <img
           src="/stadium-hero.jpg"
           alt=""
@@ -1396,9 +1394,7 @@ async function LeaguePage({
         />
         <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[#06111a]/35" />
         <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(3,10,17,0.95)_0%,rgba(3,10,17,0.78)_38%,rgba(3,10,17,0.34)_72%,rgba(3,10,17,0.18)_100%)]" />
-        <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(3,10,17,0.24)_0%,rgba(3,10,17,0.06)_55%,rgba(3,10,17,0.82)_100%)] />
-
-        <div aria-hidden="true" className="pl-lion-watermark pointer-events-none absolute right-[7%] top-1/2 -z-10 hidden h-[15rem] w-[12rem] -translate-y-1/2 bg-contain bg-center bg-no-repeat opacity-[0.08] sm:block lg:right-[9%] lg:h-[20rem] lg:w-[16rem]"></div>
+        <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(3,10,17,0.24)_0%,rgba(3,10,17,0.06)_55%,rgba(3,10,17,0.82)_100%)]" />
 
         <div className="mx-auto max-w-7xl px-4 pb-7 pt-5 sm:px-6 sm:pb-10 sm:pt-7 lg:px-8">
           <HomeLink />
