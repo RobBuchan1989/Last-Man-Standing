@@ -906,240 +906,29 @@ function isRoundComplete(
 }
 
 export async function runBackgroundSync() {
+  /*
+   * Round/result processing is owned by Supabase pg_cron.
+   *
+   * This function used to contain a second, app-side synchroniser which
+   * could confuse Premier League matchdays with the game's logical rounds.
+   * In particular, a brand-new league at logical Round 1 could be moved to
+   * the current Premier League matchday and players could be eliminated
+   * before they had a chance to pick.
+   *
+   * Keep this entry point harmless for any old Render/manual cron command
+   * that may still invoke "npm run sync-game". The authoritative sync is:
+   *   1. lms_sync_round()
+   *   2. lms_process_sync_responses()
+   */
   console.log(
-    "[LMS SYNC] Fetching latest Premier League data..."
+    "[LMS SYNC] App-side sync disabled; Supabase pg_cron is authoritative."
   )
 
-  const matches =
-    await getLivePremierLeagueMatches()
-
-  console.log(
-    `[LMS SYNC] Received ${matches.length} Premier League fixtures.`
-  )
-
-  const competitions =
-    await rest<Competition[]>(
-      "competitions?status=eq.active&select=*"
-    )
-
-  console.log(
-    `[LMS SYNC] Found ${competitions.length} active competitions.`
-  )
-
-  let competitionsSynced =
-    0
-
-  let winnersDetected =
-    0
-
-  for (
-    const competition of competitions
-  ) {
-    try {
-      console.log(
-        `[LMS SYNC] Processing ${competition.code}...`
-      )
-
-      /*
-       * First settle completed picks.
-       */
-
-      await syncFinishedPicks(
-        competition,
-        matches
-      )
-
-      /*
-       * Then enforce the round deadline.
-       */
-
-      await eliminateMissedPicks(
-        competition,
-        matches
-      )
-
-      /*
-       * Capture whether the round that players have just
-       * played is actually complete BEFORE advancing the
-       * competition to the next round.
-       *
-       * This is important: having one player alive during
-       * an active round does NOT make them the winner yet.
-       */
-      const currentRoundComplete =
-        isRoundComplete(
-          matches,
-          competition.round
-        )
-
-      /*
-       * Then update the competition round.
-       */
-
-      const updatedCompetition =
-        await syncCompetitionRound(
-          competition
-        )
-
-      /*
-       * Finally determine whether the competition has
-       * a winner or whether every player has been eliminated.
-       */
-
-      const entries =
-        await rest<Entry[]>(
-          `entries?competition_id=eq.${encodeURIComponent(
-            competition.id
-          )}&select=id,name,alive`
-        )
-
-      const aliveEntries =
-        entries.filter(
-          (entry) =>
-            entry.alive
-        )
-
-      /*
-       * A single surviving player is only a winner once
-       * the round they have just played has completely
-       * finished. This prevents a league with one player
-       * from being marked FINISHED immediately after
-       * that player submits a pick.
-       */
-      if (
-        aliveEntries.length === 1 &&
-        currentRoundComplete
-      ) {
-        const winner =
-          aliveEntries[0]
-
-        await rest(
-          `competitions?id=eq.${encodeURIComponent(
-            competition.id
-          )}`,
-          {
-            method: "PATCH",
-            headers: {
-              Prefer:
-                "return=minimal",
-            },
-            body:
-              JSON.stringify({
-                status:
-                  "finished",
-                owner_entry_id:
-                  winner.id,
-              }),
-          }
-        )
-
-        competitionCache.set(
-          competition.code,
-          {
-            competition: {
-              ...updatedCompetition,
-              status:
-                "finished",
-              owner_entry_id:
-                winner.id,
-            } as Competition,
-            expiresAt:
-              Date.now() +
-              COMPETITION_CACHE_MS,
-          }
-        )
-
-        winnersDetected += 1
-
-        console.log(
-          `[LMS SYNC] Winner detected in ${competition.code}: ${winner.name}`
-        )
-      } else if (
-        aliveEntries.length === 1
-      ) {
-        console.log(
-          `[LMS SYNC] ${competition.code}: one player remains alive, but Round ${competition.round} is not complete yet.`
-        )
-      } else if (
-        aliveEntries.length === 0
-      ) {
-        /*
-         * Everyone has been eliminated.
-         *
-         * The competition must not remain ACTIVE
-         * indefinitely with zero surviving players.
-         */
-        await rest(
-          `competitions?id=eq.${encodeURIComponent(
-            competition.id
-          )}`,
-          {
-            method: "PATCH",
-            headers: {
-              Prefer:
-                "return=minimal",
-            },
-            body:
-              JSON.stringify({
-                status:
-                  "finished",
-                owner_entry_id:
-                  null,
-              }),
-          }
-        )
-
-        competitionCache.set(
-          competition.code,
-          {
-            competition: {
-              ...updatedCompetition,
-              status:
-                "finished",
-              owner_entry_id:
-                null,
-            } as Competition,
-            expiresAt:
-              Date.now() +
-              COMPETITION_CACHE_MS,
-          }
-        )
-
-        console.log(
-          `[LMS SYNC] ${competition.code}: no players remain alive. Competition finished with no winner.`
-        )
-      }
-
-      competitionsSynced += 1
-
-      console.log(
-        `[LMS SYNC] ${competition.code} synced successfully.`
-      )
-    } catch (error) {
-      console.error(
-        `[LMS SYNC] Failed for ${competition.code}:`,
-        error
-      )
-    }
+  return {
+    ok: true,
+    delegated: true,
   }
-
-  const result = {
-    competitionsFound:
-      competitions.length,
-
-    competitionsSynced,
-
-    winnersDetected,
-  }
-
-  console.log(
-    "[LMS SYNC] Complete:",
-    result
-  )
-
-  return result
 }
-
 /*
  * ------------------------------------------------------------
  * COMPETITION
@@ -1482,6 +1271,12 @@ export async function createCompetition(
                   "active",
 
                 round: 1,
+
+                // The season starts when the league is created.
+                // The first Premier League fixture after this timestamp
+                // becomes the fixture matchday for logical Round 1.
+                season_started_at:
+                  new Date().toISOString(),
               }),
           }
         )
