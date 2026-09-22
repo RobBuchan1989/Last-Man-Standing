@@ -324,7 +324,7 @@ async function HomePage() {
               </h2>
 
               <p className="mt-6 max-w-2xl text-base leading-6 text-slate-200 sm:text-xl sm:leading-7">
-                Create a league, invite your friends and pick one Premier League team each round. Choose wisely — you can only use each team once.
+                Create a league, invite your friends and pick one Premier League team each round. Choose wisely. You can only use each team once.
               </p>
             </div>
 
