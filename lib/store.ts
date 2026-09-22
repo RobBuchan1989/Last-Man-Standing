@@ -1507,9 +1507,10 @@ export async function createCompetition(
         }
       )
 
-      return syncCompetitionRound(
-        rows[0]
-      )
+      // A new league always starts at logical Round 1.
+      // Do not map the brand-new league to the current
+      // Premier League fixture matchday here.
+      return rows[0]
     } catch (error) {
       if (
         error instanceof Error &&
