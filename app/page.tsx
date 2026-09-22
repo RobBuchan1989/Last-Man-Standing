@@ -1050,56 +1050,55 @@ async function LeagueSidebar({
 
         <div className="mt-5 space-y-2">
 
-          {Array.from(
-            {
-              length:
-                currentRound,
-            },
-            (_, index) =>
-              currentRound -
-              index
-          ).map(
-            (round) => {
+          {currentRound > 1 ? (
+            Array.from(
+              {
+                length:
+                  currentRound - 1,
+              },
+              (_, index) =>
+                currentRound - 1 -
+                index
+            ).map(
+              (round) => {
 
-              const active =
-                round ===
-                displayRound
+                const active =
+                  round ===
+                  displayRound
 
-              return (
+                return (
 
-                <Link
-                  key={round}
-                  href={`/?league=${encodeURIComponent(
-                    competition.code
-                  )}&round=${round}`}
-                  prefetch={false}
-                  className={`block rounded-xl px-4 py-3 font-bold transition ${
-                    active
-                      ? "bg-green-400 text-[#07110b]"
-                      : "bg-[#202733] text-slate-300 hover:text-white"
-                  }`}
-                >
+                  <Link
+                    key={round}
+                    href={`/?league=${encodeURIComponent(
+                      competition.code
+                    )}&round=${round}`}
+                    prefetch={false}
+                    className={`block rounded-xl px-4 py-3 font-bold transition ${
+                      active
+                        ? "bg-green-400 text-[#07110b]"
+                        : "bg-[#202733] text-slate-300 hover:text-white"
+                    }`}
+                  >
 
-                  <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between">
 
-                    <span>
-                      Round{" "}
-                      {round}
-                    </span>
-
-                    {round ===
-                      currentRound && (
-                      <span className="text-xs uppercase">
-                        Current
+                      <span>
+                        Round{" "}
+                        {round}
                       </span>
-                    )}
 
-                  </div>
+                    </div>
 
-                </Link>
+                  </Link>
 
-              )
-            }
+                )
+              }
+            )
+          ) : (
+            <div className="rounded-xl bg-[#202733] px-4 py-4 text-slate-400">
+              No previous rounds yet. Your first round is Round 1.
+            </div>
           )}
 
         </div>
