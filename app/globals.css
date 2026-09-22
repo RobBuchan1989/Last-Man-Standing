@@ -97,4 +97,29 @@
 }
 
 
-.pl-lion-watermark { background-image: url("/premier-league-lion-watermark.svg"); }
+
+.pl-hero::after {
+  content: "";
+  position: absolute;
+  right: 7%;
+  top: 50%;
+  width: 16rem;
+  height: 20rem;
+  transform: translateY(-50%);
+  background: url("/premier-league-lion-watermark.svg") center / contain no-repeat;
+  opacity: 0.08;
+  pointer-events: none;
+  z-index: -10;
+}
+
+@media (max-width: 639px) {
+  .pl-hero::after {
+    display: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  .pl-hero::after {
+    right: 9%;
+  }
+}
