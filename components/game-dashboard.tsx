@@ -221,6 +221,24 @@ export function GameDashboard({
               </p>
 
             </div>
+
+            <div className="mt-3 rounded-md border border-primary/25 bg-primary/5 p-4">
+              <div className="flex items-start gap-3">
+                <span className="text-lg leading-none" aria-hidden="true">
+                  ⏳
+                </span>
+
+                <div>
+                  <p className="font-display text-sm uppercase tracking-widest text-primary">
+                    Waiting for results
+                  </p>
+
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Round {competition.round} results will be processed automatically once all relevant fixtures have finished.
+                  </p>
+                </div>
+              </div>
+            </div>
           ) : (
             <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
 
