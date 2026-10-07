@@ -222,30 +222,49 @@ export default function CurrentRoundPick({
       : null
 
     return (
-      <div className="mt-6 rounded-2xl border border-green-400/40 bg-green-400/10 p-5 sm:p-6">
-        <div className="flex items-center gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-green-400 text-xl font-black text-[#07110b]">
-            ✓
-          </div>
+      <>
+        <div className="mt-6 rounded-2xl border border-green-400/40 bg-green-400/10 p-5 sm:p-6">
+          <div className="flex items-center gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-green-400 text-xl font-black text-[#07110b]">
+              ✓
+            </div>
 
-          <div className="min-w-0">
-            <div className="text-xs font-black tracking-[0.25em] text-green-400">
-              YOUR PICK IS LOCKED
-            </div>
-            <div className="mt-1 flex flex-wrap items-center gap-3">
-              <TeamLogo name={selectedTeam} size="sm" />
-              <div className="text-xl font-black sm:text-2xl">
-                {selectedTeam}
+            <div className="min-w-0">
+              <div className="text-xs font-black tracking-[0.25em] text-green-400">
+                YOUR PICK IS LOCKED
               </div>
-            </div>
-            {opponent && (
-              <div className="mt-1 text-sm text-slate-300">
-                vs {opponent}
+              <div className="mt-1 flex flex-wrap items-center gap-3">
+                <TeamLogo name={selectedTeam} size="sm" />
+                <div className="text-xl font-black sm:text-2xl">
+                  {selectedTeam}
+                </div>
               </div>
-            )}
+              {opponent && (
+                <div className="mt-1 text-sm text-slate-300">
+                  vs {opponent}
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+
+        <div className="mt-3 rounded-2xl border border-green-400/20 bg-green-400/5 p-5 sm:p-6">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#202733] text-lg" aria-hidden="true">
+              ⏳
+            </div>
+
+            <div className="min-w-0">
+              <div className="text-xs font-black tracking-[0.25em] text-green-400">
+                WAITING FOR RESULTS
+              </div>
+              <p className="mt-1 text-sm leading-6 text-slate-300 sm:text-base">
+                Your pick is locked in. We'll process the round automatically once all relevant fixtures have finished.
+              </p>
+            </div>
+          </div>
+        </div>
+      </>
     )
   }
 
