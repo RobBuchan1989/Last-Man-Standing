@@ -206,6 +206,7 @@ export function GameDashboard({
           </div>
 
           {current ? (
+            <>
             <div className="mt-5 rounded-md border border-primary/30 bg-primary/10 p-4">
 
               <p className="text-xs uppercase tracking-widest text-primary">
@@ -239,6 +240,7 @@ export function GameDashboard({
                 </div>
               </div>
             </div>
+            </>
           ) : (
             <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
 
