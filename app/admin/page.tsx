@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { redirect } from "next/navigation"
 
 import { createClient } from "@/lib/supabase/server"
@@ -126,6 +127,20 @@ export default async function AdminPage() {
           </form>
 
         </div>
+
+        <Link
+          href="/admin/player-recovery"
+          className="mb-8 block rounded-2xl border border-primary/30 bg-primary/5 p-5 transition hover:border-primary/60 hover:bg-primary/10"
+        >
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Player support</p>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-bold text-foreground">Player recovery</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Issue or replace a secure recovery code for an existing player entry.</p>
+            </div>
+            <span className="font-semibold text-primary">Open recovery tools →</span>
+          </div>
+        </Link>
 
         {/* Overview */}
 
