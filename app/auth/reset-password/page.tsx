@@ -18,11 +18,9 @@ export default function ResetPasswordPage() {
     async function establishRecoverySession() {
       try {
         const params = new URLSearchParams(window.location.search)
+        const code = params.get("code")
         const tokenHash = params.get("token_hash")
         const type = params.get("type")
-        if (!tokenHash || type !== "recovery") {
-          throw new Error("This reset link is missing its recovery token. Request a new password-reset email after the recovery email template has been updated.")
-        }
 
         const url = process.env.NEXT_PUBLIC_SUPABASE_URL
         const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -31,13 +29,16 @@ export default function ResetPasswordPage() {
         }
 
         const supabase = createBrowserClient(url, key)
-        const { error: verifyError } = await supabase.auth.verifyOtp({
-          token_hash: tokenHash,
-          type: "recovery",
-        })
-        if (verifyError) throw verifyError
+        if (code) {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+          if (exchangeError) throw exchangeError
+        } else if (tokenHash && type === "recovery") {
+          const { error: verifyError } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "recovery" })
+          if (verifyError) throw verifyError
+        } else {
+          throw new Error("This reset link is missing its recovery code. Request a new password-reset email and open its link in the same browser you used to request it.")
+        }
 
-        // Remove the one-time token from the visible URL after successful verification.
         window.history.replaceState({}, document.title, window.location.pathname)
         if (!cancelled) setRecoveryReady(true)
       } catch (e) {
