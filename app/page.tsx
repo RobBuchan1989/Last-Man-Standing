@@ -6,6 +6,7 @@ import LeagueReturnButton from "@/app/components/LeagueReturnButton"
 import LeagueActions from "@/app/components/LeagueActions"
 import LiveLeaderboard from "@/app/components/LiveLeaderboard"
 import SeasonFinishedPanel from "@/app/components/SeasonFinishedPanel"
+import RoundNavigationLink from "@/app/components/RoundNavigationLink"
 
 import {
   getCompetition,
@@ -802,26 +803,22 @@ async function PreviousRoundContent({
   displayRound: number
   currentRound: number
 }) {
-  const [
-    leaderboard,
-    roundPicks,
-  ] = await Promise.all([
-    getLeaderboard(
+  // The leaderboard already includes each player's pick history.
+  // Reuse that result rather than making a second round-picks query.
+  const leaderboard =
+    await getLeaderboard(
       competition.code
-    ),
-
-    getRoundPicks(
-      displayRound,
-      competition.code
-    ),
-  ])
+    )
 
   const roundPickMap =
     new Map(
-      roundPicks.map(
-        (pick) => [
-          pick.entry_id,
-          pick,
+      leaderboard.map(
+        (player: any) => [
+          player.id,
+          player.picks?.find(
+            (pick: any) =>
+              pick.round === displayRound
+          ) ?? null,
         ]
       )
     )
@@ -842,13 +839,12 @@ async function PreviousRoundContent({
           Review each player's selection and whether it won, drew or lost.
         </p>
 
-        <Link
+        <RoundNavigationLink
           href={`/?league=${encodeURIComponent(competition.code)}`}
-          prefetch={false}
-          className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green-400 px-5 py-4 text-base font-black text-[#07110b] transition hover:bg-green-300 sm:w-auto"
-        >
-          ← Back to current Round {currentRound}
-        </Link>
+          label={`← Back to current Round ${currentRound}`}
+          loadingLabel="Returning to current round…"
+          className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green-400 px-5 py-4 text-base font-black text-[#07110b] transition hover:bg-green-300 disabled:hover:bg-green-400 sm:w-auto"
+        />
       </div>
 
       <div className="mt-8 space-y-4">
@@ -1049,14 +1045,12 @@ async function LeagueSidebar({
         </p>
 
         {displayRound !== currentRound && (
-          <Link
+          <RoundNavigationLink
             href={`/?league=${encodeURIComponent(competition.code)}`}
-            prefetch={false}
-            className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-green-400/40 bg-green-400/10 px-4 py-4 font-black text-green-300 transition hover:bg-green-400/20"
-          >
-            <span>← Back to current round</span>
-            <span>Round {currentRound} →</span>
-          </Link>
+            label={`← Back to current round · Round ${currentRound} →`}
+            loadingLabel="Returning to current round…"
+            className="mt-4 flex w-full items-center justify-between gap-3 rounded-xl border border-green-400/40 bg-green-400/10 px-4 py-4 font-black text-green-300 transition hover:bg-green-400/20 disabled:hover:bg-green-400/10"
+          />
         )}
 
         <div className="mt-5 space-y-2">
@@ -1079,29 +1073,20 @@ async function LeagueSidebar({
 
                 return (
 
-                  <Link
+                  <RoundNavigationLink
                     key={round}
                     href={`/?league=${encodeURIComponent(
                       competition.code
                     )}&round=${round}`}
-                    prefetch={false}
-                    className={`block rounded-xl px-4 py-3 font-bold transition ${
+                    label={`Round ${round} — View picks & results`}
+                    loadingLabel={`Opening Round ${round} results…`}
+                    trailing="›"
+                    className={`flex w-full items-center justify-between gap-3 rounded-xl px-4 py-4 text-left font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400 disabled:cursor-wait ${
                       active
                         ? "bg-green-400 text-[#07110b]"
-                        : "bg-[#202733] text-slate-300 hover:text-white"
+                        : "bg-[#202733] text-slate-300 hover:bg-[#293442] hover:text-white"
                     }`}
-                  >
-
-                    <div className="flex items-center justify-between">
-
-                      <span>
-                        Round {round} — View picks &amp; results
-                      </span>
-                      <span aria-hidden="true" className="text-lg">›</span>
-
-                    </div>
-
-                  </Link>
+                  />
 
                 )
               }
