@@ -830,24 +830,25 @@ async function PreviousRoundContent({
     <>
 
       <div>
-
         <div className="text-sm font-bold tracking-[0.3em] text-green-400">
-          ROUND{" "}
-          {
-            displayRound
-          }{" "}
-          — COMPLETED
+          ROUND {displayRound} — COMPLETED
         </div>
 
         <h2 className="mt-2 text-4xl font-black">
-          ROUND HISTORY
+          ROUND {displayRound} RESULTS
         </h2>
 
         <p className="mt-3 text-lg text-slate-400">
-          Everyone's picks are visible
-          because this round has finished.
+          Review each player's selection and whether it won, drew or lost.
         </p>
 
+        <Link
+          href={`/?league=${encodeURIComponent(competition.code)}`}
+          prefetch={false}
+          className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green-400 px-5 py-4 text-base font-black text-[#07110b] transition hover:bg-green-300 sm:w-auto"
+        >
+          ← Back to current Round {currentRound}
+        </Link>
       </div>
 
       <div className="mt-8 space-y-4">
@@ -1044,9 +1045,19 @@ async function LeagueSidebar({
         </h2>
 
         <p className="mt-3 break-words text-slate-400">
-          Previous round picks are visible.
-          Current round picks remain private.
+          Tap a completed round to see every player's pick and result. Current-round picks stay private.
         </p>
+
+        {displayRound !== currentRound && (
+          <Link
+            href={`/?league=${encodeURIComponent(competition.code)}`}
+            prefetch={false}
+            className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-green-400/40 bg-green-400/10 px-4 py-4 font-black text-green-300 transition hover:bg-green-400/20"
+          >
+            <span>← Back to current round</span>
+            <span>Round {currentRound} →</span>
+          </Link>
+        )}
 
         <div className="mt-5 space-y-2">
 
@@ -1084,9 +1095,9 @@ async function LeagueSidebar({
                     <div className="flex items-center justify-between">
 
                       <span>
-                        Round{" "}
-                        {round}
+                        Round {round} — View picks &amp; results
                       </span>
+                      <span aria-hidden="true" className="text-lg">›</span>
 
                     </div>
 
