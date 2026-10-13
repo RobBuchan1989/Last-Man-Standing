@@ -4,19 +4,21 @@ const SITE_ORIGIN = "https://lastmanstandingpl.com"
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url)
-  const code = url.searchParams.get("code")
+  const tokenHash = url.searchParams.get("token_hash")
+  const type = url.searchParams.get("type")
   const requestedNext = url.searchParams.get("next")
   const next = requestedNext && requestedNext.startsWith("/") && !requestedNext.startsWith("//")
     ? requestedNext
     : "/admin/login"
 
-  if (!code) {
+  if (!tokenHash || type !== "recovery") {
     return NextResponse.redirect(new URL("/admin/forgot-password?error=invalid-link", SITE_ORIGIN))
   }
 
-  // Complete the PKCE exchange in the browser that opened the email. This avoids
-  // relying on server-side cookies being shared with the email client's browser.
+  // Pass the email's one-time token hash to the browser. The browser verifies it
+  // with verifyOtp, which does not depend on a PKCE verifier from another context.
   const destination = new URL(next, SITE_ORIGIN)
-  destination.searchParams.set("code", code)
+  destination.searchParams.set("token_hash", tokenHash)
+  destination.searchParams.set("type", "recovery")
   return NextResponse.redirect(destination)
 }
