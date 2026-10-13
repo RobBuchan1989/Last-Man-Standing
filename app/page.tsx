@@ -1011,25 +1011,29 @@ async function LeagueSidebar({
   currentRound: number
   displayRound: number
 }) {
-  const leaderboard =
-    await getLeaderboard(
-      competition.code
-    )
+  // The historical results view focuses on picks and outcomes.
+  // Don't fetch or render the leaderboard again on that page.
+  const viewingHistory = displayRound !== currentRound
+  const leaderboard = viewingHistory
+    ? []
+    : await getLeaderboard(competition.code)
 
   return (
     <aside className="min-w-0 overflow-hidden">
 
       {/* LEADERBOARD */}
 
-      <LiveLeaderboard
-        leaderboard={leaderboard}
-        currentRound={currentRound}
-        leagueCode={competition.code}
-      />
+      {!viewingHistory && (
+        <LiveLeaderboard
+          leaderboard={leaderboard}
+          currentRound={currentRound}
+          leagueCode={competition.code}
+        />
+      )}
 
       {/* ROUND HISTORY */}
 
-      <div className="mt-6 min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-[#151b25] p-4 sm:p-6">
+      <div className={`${viewingHistory ? "mt-0" : "mt-6"} min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-[#151b25] p-4 sm:p-6`}>
 
         <div className="text-xs font-bold tracking-[0.25em] text-green-400">
           ROUND HISTORY
