@@ -7,6 +7,7 @@ import LeagueActions from "@/app/components/LeagueActions"
 import LiveLeaderboard from "@/app/components/LiveLeaderboard"
 import SeasonFinishedPanel from "@/app/components/SeasonFinishedPanel"
 import RoundNavigationLink from "@/app/components/RoundNavigationLink"
+import PlayerRecoverySection from "@/app/components/PlayerRecoverySection"
 
 import {
   getCompetition,
@@ -578,6 +579,9 @@ async function HomePage() {
             </div>
           </div>
         </section>
+
+        {/* SUBTLE PLAYER RECOVERY — BELOW THE MAIN HOMEPAGE ACTIONS */}
+        <PlayerRecoverySection />
 
       </div>
 
