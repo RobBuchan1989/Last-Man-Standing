@@ -15,7 +15,6 @@ import {
   getLeaderboard,
   getPicks,
   getSeasonWinners,
-  getRoundPicks,
   getPlayerLeagues,
   joinCompetition,
   createCompetition,
