@@ -25,7 +25,7 @@ export default function RoundNavigationLink({
     if (isPending) return
 
     startTransition(() => {
-      router.push(href, { scroll: false })
+      router.push(href)
     })
   }
 
