@@ -2001,8 +2001,11 @@ export async function getFixturesForCompetition(
       if (match.matchday === null) return false
       const kickoff = new Date(match.utcDate).getTime()
       if (!Number.isFinite(kickoff)) return false
+      // Only future fixtures may define the pick deadline. Some API responses
+      // can briefly retain a scheduled status after kickoff has passed.
+      if (kickoff <= Date.now()) return false
       if (seasonStartedAt !== null && kickoff <= seasonStartedAt) return false
-      return !["FINISHED", "CANCELLED", "POSTPONED"].includes(match.status)
+      return !["FINISHED", "CANCELLED", "POSTPONED", "IN_PLAY", "PAUSED", "SUSPENDED"].includes(match.status)
     })
     .sort(
       (a, b) =>
