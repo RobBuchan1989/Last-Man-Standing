@@ -21,10 +21,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/admin/forgot-password?error=configuration", SITE_ORIGIN))
   }
 
-  // The reset request is initiated in the browser, so @supabase/ssr stores the
-  // PKCE verifier in cookies. Exchange the emailed code on the server using
-  // those request cookies, then persist the resulting session cookies on the
-  // redirect response before the reset page loads.
+  // Diagnose PKCE failures without ever logging or exposing the verifier itself.
+  const hasCodeVerifier = request.cookies.getAll().some(({ name }) =>
+    name.includes("code-verifier")
+  )
+
   const response = NextResponse.redirect(new URL(next, SITE_ORIGIN))
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
@@ -41,7 +42,10 @@ export async function GET(request: NextRequest) {
 
   const { error } = await supabase.auth.exchangeCodeForSession(code)
   if (error) {
-    return NextResponse.redirect(new URL("/admin/forgot-password?error=invalid-link", SITE_ORIGIN))
+    const diagnostic = hasCodeVerifier ? "exchange-failed" : "missing-verifier"
+    return NextResponse.redirect(
+      new URL(`/admin/forgot-password?error=${diagnostic}`, SITE_ORIGIN)
+    )
   }
 
   return response
