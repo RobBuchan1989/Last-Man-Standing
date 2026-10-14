@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { createBrowserClient } from "@supabase/ssr"
 
 export default function ForgotPasswordPage() {
@@ -9,6 +9,19 @@ export default function ForgotPasswordPage() {
   const [busy, setBusy] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState("")
+
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("error")
+    if (code === "missing-verifier") {
+      setError("Recovery diagnostic: the browser did not send the PKCE verifier cookie. Do not request another link yet.")
+    } else if (code === "exchange-failed") {
+      setError("Recovery diagnostic: the verifier cookie arrived, but Supabase rejected the recovery code. Do not request another link yet.")
+    } else if (code === "invalid-link") {
+      setError("The recovery link could not be verified or has expired. Do not request another link until we check the recovery flow.")
+    } else if (code === "configuration") {
+      setError("Password recovery configuration is missing. Please contact the site administrator.")
+    }
+  }, [])
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
