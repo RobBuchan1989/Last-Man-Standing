@@ -15,13 +15,8 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     let cancelled = false
 
-    async function establishRecoverySession() {
+    async function checkRecoverySession() {
       try {
-        const params = new URLSearchParams(window.location.search)
-        const code = params.get("code")
-        const tokenHash = params.get("token_hash")
-        const type = params.get("type")
-
         const url = process.env.NEXT_PUBLIC_SUPABASE_URL
         const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
         if (!url || !key) {
@@ -29,17 +24,14 @@ export default function ResetPasswordPage() {
         }
 
         const supabase = createBrowserClient(url, key)
-        if (code) {
-          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
-          if (exchangeError) throw exchangeError
-        } else if (tokenHash && type === "recovery") {
-          const { error: verifyError } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "recovery" })
-          if (verifyError) throw verifyError
-        } else {
-          throw new Error("This reset link is missing its recovery code. Request a new password-reset email and open its link in the same browser you used to request it.")
+        // The /auth/confirm route exchanges the emailed PKCE code server-side
+        // and writes the resulting session cookies before redirecting here.
+        const { data, error: sessionError } = await supabase.auth.getSession()
+        if (sessionError) throw sessionError
+        if (!data.session) {
+          throw new Error("No recovery session was found. Please request a new reset link after the recovery flow is ready.")
         }
 
-        window.history.replaceState({}, document.title, window.location.pathname)
         if (!cancelled) setRecoveryReady(true)
       } catch (e) {
         if (!cancelled) {
@@ -50,7 +42,7 @@ export default function ResetPasswordPage() {
       }
     }
 
-    void establishRecoverySession()
+    void checkRecoverySession()
     return () => { cancelled = true }
   }, [])
 
@@ -78,5 +70,5 @@ export default function ResetPasswordPage() {
     }
   }
 
-  return <main className="min-h-screen bg-background px-6 py-16"><div className="mx-auto max-w-xl"><p className="font-display text-xs uppercase tracking-[0.3em] text-primary">Last Man Standing</p><h1 className="mt-3 font-display text-4xl font-bold uppercase tracking-tight text-foreground">Choose a new password</h1><p className="mt-3 text-lg text-muted-foreground">Set a new password for your existing account.</p><div className="mt-8 rounded-2xl border border-border bg-card p-8">{checkingRecovery ? <p role="status" className="text-sm text-muted-foreground">Verifying your secure recovery link…</p> : <>{error && <p role="alert" className="mb-5 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">{error}</p>}{recoveryReady && !message && <form onSubmit={updatePassword} className="space-y-5"><div><label htmlFor="new-password" className="mb-2 block text-sm font-semibold text-foreground">New password</label><input id="new-password" type="password" required minLength={8} autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} className="w-full rounded-xl border border-border bg-background px-4 py-4 text-foreground outline-none focus:border-primary" /></div><div><label htmlFor="confirm-password" className="mb-2 block text-sm font-semibold text-foreground">Confirm new password</label><input id="confirm-password" type="password" required minLength={8} autoComplete="new-password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full rounded-xl border border-border bg-background px-4 py-4 text-foreground outline-none focus:border-primary" /></div><button disabled={busy} type="submit" className="w-full rounded-xl bg-primary px-6 py-4 font-bold uppercase text-black disabled:opacity-60">{busy ? "Updating password…" : "Update password"}</button></form>}{message && <><p role="status" className="rounded-lg border border-green-500/30 bg-green-500/10 p-3 text-sm text-green-400">{message}</p><a href="/admin/login" className="mt-5 block text-center text-sm font-semibold text-primary hover:underline">Go to admin login →</a></>}</>}</div></div></main>
+  return <main className="min-h-screen bg-background px-6 py-16"><div className="mx-auto max-w-xl"><p className="font-display text-xs uppercase tracking-[0.3em] text-primary">Last Man Standing</p><h1 className="mt-3 font-display text-4xl font-bold uppercase tracking-tight text-foreground">Choose a new password</h1><p className="mt-3 text-lg text-muted-foreground">Set a new password for your existing account.</p><div className="mt-8 rounded-2xl border border-border bg-card p-8">{checkingRecovery ? <p role="status" className="text-sm text-muted-foreground">Checking your secure recovery session…</p> : <>{error && <p role="alert" className="mb-5 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">{error}</p>}{recoveryReady && !message && <form onSubmit={updatePassword} className="space-y-5"><div><label htmlFor="new-password" className="mb-2 block text-sm font-semibold text-foreground">New password</label><input id="new-password" type="password" required minLength={8} autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} className="w-full rounded-xl border border-border bg-background px-4 py-4 text-foreground outline-none focus:border-primary" /></div><div><label htmlFor="confirm-password" className="mb-2 block text-sm font-semibold text-foreground">Confirm new password</label><input id="confirm-password" type="password" required minLength={8} autoComplete="new-password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full rounded-xl border border-border bg-background px-4 py-4 text-foreground outline-none focus:border-primary" /></div><button disabled={busy} type="submit" className="w-full rounded-xl bg-primary px-6 py-4 font-bold uppercase text-black disabled:opacity-60">{busy ? "Updating password…" : "Update password"}</button></form>}{message && <><p role="status" className="rounded-lg border border-green-500/30 bg-green-500/10 p-3 text-sm text-green-400">{message}</p><a href="/admin/login" className="mt-5 block text-center text-sm font-semibold text-primary hover:underline">Go to admin login →</a></>}</>}</div></div></main>
 }
