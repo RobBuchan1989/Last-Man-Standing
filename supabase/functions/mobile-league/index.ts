@@ -1,4 +1,5 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.0";
+/// <reference lib="deno.ns" />
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.0";
 
 type Action = "create" | "join";
 
@@ -41,7 +42,7 @@ async function sha256(value: string): Promise<string> {
 }
 
 async function withinRateLimit(
-  admin: ReturnType<typeof createClient>,
+  admin: SupabaseClient<any>,
   request: Request,
   action: Action,
 ): Promise<boolean> {
