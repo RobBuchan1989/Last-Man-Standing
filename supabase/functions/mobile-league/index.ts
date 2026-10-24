@@ -192,6 +192,23 @@ Deno.serve(async (request: Request) => {
     }
   }
 
+  if (action === "fixtures") {
+    const sessionToken = typeof body.sessionToken === "string" ? body.sessionToken : "";
+    const requestedCode = cleanCode(body.leagueCode);
+    if (!sessionToken || requestedCode.length < 4) return respond({ error: "A valid player session and league code are required." }, 400);
+    const admin = createClient(supabaseUrl, serverKey, { auth: { autoRefreshToken: false, persistSession: false } });
+    const { data: player, error: pe } = await admin.from("entries").select("id, competition_id").eq("session_token", sessionToken).maybeSingle();
+    if (pe || !player) return respond({ error: "This player session could not be verified." }, 401);
+    const { data: competition, error: ce } = await admin.from("competitions").select("id, code, round, fixture_matchday, status").eq("id", player.competition_id).eq("code", requestedCode).maybeSingle();
+    if (ce || !competition) return respond({ error: "This session does not match that league." }, 403);
+    const fixtureRound = competition.fixture_matchday ?? competition.round;
+    const { data: fixtures, error: fe } = await admin.from("fixtures").select("id, round, home_team, away_team, kickoff, home_score, away_score, status").eq("round", fixtureRound).order("kickoff", { ascending: true });
+    if (fe) return respond({ error: "Could not load fixtures." }, 503);
+    const { data: used, error: ue } = await admin.from("picks").select("team").eq("entry_id", player.id);
+    if (ue) return respond({ error: "Could not load your previous picks." }, 503);
+    return respond({ ok: true, action: "fixtures", round: competition.round, fixtureMatchday: fixtureRound, status: competition.status, fixtures: fixtures ?? [], usedTeams: (used ?? []).map((p) => p.team) });
+  }
+
   if (action === "pick") {
     const sessionToken = typeof body.sessionToken === "string" ? body.sessionToken : "";
     const requestedCode = cleanCode(body.leagueCode);
