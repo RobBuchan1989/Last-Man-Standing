@@ -88,7 +88,7 @@ async function requestLeague(
 }
 
 async function requestDashboard(leagueCode: string, sessionToken: string): Promise<DashboardData> {
-  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.replace(/\\/$/, "");
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
   const publishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!supabaseUrl || !publishableKey) throw new Error("The staging connection is not configured.");
 
