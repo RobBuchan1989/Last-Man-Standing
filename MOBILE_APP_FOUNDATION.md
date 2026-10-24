@@ -52,3 +52,19 @@ The mobile implementation should use Capacitor for native iOS/Android capabiliti
 3. Add Capacitor packages and configuration only once the web asset/server strategy is settled.
 4. Create iOS and Android projects and test league deep links, join/create, picks, history, Multi Chip, recovery, and admin isolation.
 5. Add native features and store review materials; test release builds before submission.
+
+
+## Route and identity audit (2026-10-24)
+
+- The home page performs create/join operations through Next.js Server Actions. These are not available from a static bundle and should continue to execute on the hosted Next.js server.
+- The pick endpoint validates the submitted entry ID against the current entry derived from the request's league/player cookies before saving. A mobile integration must preserve this identity check; it must not trust a client-supplied entry ID alone.
+- Player recovery uses a Supabase RPC and then sets three HTTP-only cookies: `lms_entry_id`, `lms_competition_code`, and `lms_player_entries`. Native cookie persistence, app restarts, and opening a shared league link must be tested on real devices.
+- The leaderboard endpoint is read-only and accepts a league code as a query parameter. The pick endpoint is a write operation and must only be exercised against a dedicated test league.
+- The Supabase confirmation route exchanges a PKCE code using a cookie-based verifier and redirects to the production origin. Password-reset / admin-auth flows need explicit device testing; the current callback is not yet a native deep-link callback.
+- `proxy.ts` currently passes requests through to the app and does not implement Supabase refresh logic despite its helper name/comment. Do not change this as part of mobile work without a separate investigation, because it is existing authentication behaviour.
+- The repository has no `.github/workflows` directory on this branch, so there is no checked-in CI workflow currently available to run mobile or type-check validation.
+- The existing Next.js app uses server actions and request cookies; therefore, a fully offline/static Capacitor app is not a viable first step.
+
+## Implementation gate
+
+Before adding Capacitor dependencies or native project files, the next work item is to establish a testable development/staging target and document the device-session approach. The first implementation should be additive and confined to this branch: a native shell plus universal/app links and an explicit cookie/session strategy. No production credentials, Render settings, Supabase schema, or live league data should be changed.
