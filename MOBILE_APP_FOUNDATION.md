@@ -29,6 +29,22 @@ The mobile implementation should use Capacitor for native iOS/Android capabiliti
 - Keep automatic result sync and round progression on the existing backend.
 - Develop on `mobile-app-foundation`, test against a non-production/test league where possible, and merge only after regression tests pass.
 
+## Additional audit findings
+
+- The repository has API routes for picks, leaderboard data, and player recovery. These can be called from a mobile shell, but the current pick route depends on the existing browser cookies and player-entry identity.
+- The player recovery route sets long-lived, HTTP-only cookies. Native WebView cookie handling and shared-link behaviour must be tested before choosing the final shell.
+- The current package does not include Capacitor packages.
+- `next.config.mjs` enables `typescript.ignoreBuildErrors`. A green deployment alone therefore may not prove the TypeScript code is clean; mobile work should add a separate explicit type-check step in CI before release.
+- The README's deployment instructions refer to Vercel, while the live service is hosted on Render. Deployment settings must be verified rather than inferred from the README.
+
+## Live-site protection rules
+
+- All work stays on `mobile-app-foundation`; never commit mobile changes to `main`.
+- Do not merge a pull request or change Render's production branch, build command, start command, environment variables, or auto-deploy settings as part of this work.
+- Do not run database migrations or test writes against production data. Use a separate test league and verify the environment before any test that writes data.
+- Do not add mobile-specific redirects, headers, middleware changes, or package scripts to the production branch without review.
+- Before any merge, inspect the complete diff and confirm that the change is isolated. A separate branch protects source code, but a deployment platform configured to deploy every branch could still deploy it; check Render's deployment configuration before enabling any preview deployment.
+
 ## Next implementation tasks
 
 1. Inspect all API routes, auth callbacks, environment variables, and Render start/build settings.
