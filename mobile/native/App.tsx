@@ -1,6 +1,6 @@
 import { StatusBar } from "expo-status-bar";
 import * as SecureStore from "expo-secure-store";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   SafeAreaView,
   ScrollView,
@@ -164,6 +164,45 @@ export default function App() {
   } | null>(null);
   const [lastSessionToken, setLastSessionToken] = useState("");
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
+  const [savedSessions, setSavedSessions] = useState<SavedSession[]>([]);
+  const [restoring, setRestoring] = useState(true);
+
+  async function refreshSavedSessions() {
+    const raw = await SecureStore.getItemAsync(SESSION_STORAGE_KEY);
+    if (!raw) { setSavedSessions([]); return; }
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      const sessions = Array.isArray(parsed) ? parsed.filter(
+        (item): item is SavedSession => !!item && typeof item === "object" &&
+          typeof item.competitionCode === "string" && typeof item.leagueName === "string" &&
+          typeof item.playerName === "string" && typeof item.sessionToken === "string" &&
+          typeof item.entryId === "string",
+      ) : [];
+      setSavedSessions(sessions);
+    } catch { setSavedSessions([]); }
+  }
+
+  useEffect(() => {
+    refreshSavedSessions().catch(() => setSavedSessions([])).finally(() => setRestoring(false));
+  }, []);
+
+  async function reopenSavedSession(session: SavedSession) {
+    setBusy(true);
+    setMessage("");
+    try {
+      const data = await requestDashboard(session.competitionCode, session.sessionToken);
+      setLastSessionToken(session.sessionToken);
+      setLastLeague({ code: data.competition.code, name: data.competition.name, playerName: data.player.name });
+      setDashboard(data);
+      setLeagueCode(data.competition.code);
+      setPlayerName(data.player.name);
+      setMessageIsError(false);
+      setMessage("Saved league restored securely.");
+    } catch (error) {
+      setMessageIsError(true);
+      setMessage(error instanceof Error ? error.message : "Could not restore this saved league.");
+    } finally { setBusy(false); }
+  }
 
   async function createLeague() {
     if (!playerName.trim() || !leagueName.trim()) {
@@ -180,6 +219,7 @@ export default function App() {
         leagueName: leagueName.trim(),
       });
       await savePlayerSession(result);
+      await refreshSavedSessions();
       setLastSessionToken(result.sessionToken);
       setDashboard(null);
       setLastLeague({
@@ -259,6 +299,23 @@ export default function App() {
         </View>
 
         <View style={styles.section}>
+          {savedSessions.length > 0 && (
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Your saved leagues</Text>
+              <Text style={styles.cardBody}>{restoring ? "Loading saved sessions…" : "Pick up where you left off on this device."}</Text>
+              {savedSessions.map((session) => (
+                <Pressable key={session.competitionCode + session.entryId} accessibilityRole="button"
+                  disabled={busy} style={[styles.savedLeagueButton, busy && styles.disabledButton]}
+                  onPress={() => reopenSavedSession(session)}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.savedLeagueTitle}>{session.leagueName}</Text>
+                    <Text style={styles.savedLeagueMeta}>{session.playerName} · Code {session.competitionCode}</Text>
+                  </View>
+                  <Text style={styles.buttonArrow}>↗</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
           <Text style={styles.sectionTitle}>Your next move</Text>
           <Text style={styles.fieldLabel}>Your player name</Text>
           <TextInput
@@ -540,6 +597,9 @@ const styles = StyleSheet.create({
   messageText: { fontSize: 13, lineHeight: 19, fontWeight: "600" },
   errorText: { color: "#9d3023" },
   successText: { color: "#234b2d" },
+  savedLeagueButton: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#edf0eb" },
+  savedLeagueTitle: { color: forest, fontSize: 14, fontWeight: "800" },
+  savedLeagueMeta: { color: muted, fontSize: 12, marginTop: 3 },
   playerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#edf0eb" },
   playerName: { color: forest, fontSize: 13, fontWeight: "700", flex: 1 },
   playerStatus: { color: muted, fontSize: 12, fontWeight: "700" },
