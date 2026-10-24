@@ -158,7 +158,7 @@ Deno.serve(async (request: Request) => {
         .select("round, team, result, is_multi")
         .eq("entry_id", player.id)
         .eq("round", competition.round)
-        .maybeSingle();
+        .order("team", { ascending: true });
 
       if (ownPickError) {
         return respond({ error: "Could not load your current-round pick." }, 503);
@@ -184,7 +184,7 @@ Deno.serve(async (request: Request) => {
         },
         entries: entries ?? [],
         historicalPicks: history ?? [],
-        ownCurrentPick: ownCurrentPick ?? null,
+        ownCurrentPicks: ownCurrentPick ?? [],
       });
     } catch (error) {
       console.error("Mobile dashboard error:", error instanceof Error ? error.message : "unknown");
