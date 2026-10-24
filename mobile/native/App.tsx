@@ -46,6 +46,14 @@ type SavedSession = {
   savedAt: string;
 };
 
+type DashboardData = {
+  competition: { code: string; name: string; status: string; round: number; seasonNumber: number };
+  player: { id: string; name: string; alive: boolean; multiChipUsed: boolean };
+  entries: { id: string; name: string; alive: boolean; multi_chip_used: boolean }[];
+  historicalPicks: { entry_id: string; round: number; team: string; result: string | null; is_multi: boolean }[];
+  ownCurrentPick: { round: number; team: string; result: string | null; is_multi: boolean } | null;
+};
+
 async function requestLeague(
   action: "create" | "join",
   payload: { playerName: string; leagueName?: string; leagueCode?: string },
@@ -76,6 +84,25 @@ async function requestLeague(
   if (!result.sessionToken || !result.entry?.id || !result.competition?.code) {
     throw new Error("The staging service returned an incomplete player session.");
   }
+  return result;
+}
+
+async function requestDashboard(leagueCode: string, sessionToken: string): Promise<DashboardData> {
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.replace(/\\/$/, "");
+  const publishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!supabaseUrl || !publishableKey) throw new Error("The staging connection is not configured.");
+
+  const response = await fetch(`${supabaseUrl}/functions/v1/mobile-league`, {
+    method: "POST",
+    headers: {
+      apikey: publishableKey,
+      Authorization: `Bearer ${publishableKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ action: "dashboard", leagueCode, sessionToken }),
+  });
+  const result = await response.json().catch(() => null) as (DashboardData & { ok?: boolean; error?: string }) | null;
+  if (!response.ok || !result?.ok) throw new Error(result?.error || "Could not load the league dashboard.");
   return result;
 }
 
@@ -135,6 +162,8 @@ export default function App() {
     name: string;
     playerName: string;
   } | null>(null);
+  const [lastSessionToken, setLastSessionToken] = useState("");
+  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
 
   async function createLeague() {
     if (!playerName.trim() || !leagueName.trim()) {
@@ -151,6 +180,8 @@ export default function App() {
         leagueName: leagueName.trim(),
       });
       await savePlayerSession(result);
+      setLastSessionToken(result.sessionToken);
+      setDashboard(null);
       setLastLeague({
         code: result.competition.code,
         name: result.competition.name,
@@ -184,6 +215,8 @@ export default function App() {
         leagueCode: leagueCode.trim().toUpperCase(),
       });
       await savePlayerSession(result);
+      setLastSessionToken(result.sessionToken);
+      setDashboard(null);
       setLastLeague({
         code: result.competition.code,
         name: result.competition.name,
@@ -340,6 +373,65 @@ export default function App() {
           )}
         </View>
 
+        {lastLeague && (
+          <View style={[styles.section, { paddingTop: 8 }]}>
+            <Pressable
+              accessibilityRole="button"
+              disabled={busy || !lastSessionToken}
+              style={[styles.secondaryButton, busy && styles.disabledButton]}
+              onPress={async () => {
+                setBusy(true);
+                setMessage("");
+                try {
+                  const data = await requestDashboard(lastLeague.code, lastSessionToken);
+                  setDashboard(data);
+                  setMessageIsError(false);
+                  setMessage("League dashboard loaded. Other players' current-round picks are hidden.");
+                } catch (error) {
+                  setMessageIsError(true);
+                  setMessage(error instanceof Error ? error.message : "Could not load the dashboard.");
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              <Text style={styles.secondaryButtonText}>{busy ? "Loading…" : "Open league dashboard"}</Text>
+            </Pressable>
+
+            {dashboard && (
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>{dashboard.competition.name}</Text>
+                <Text style={styles.cardBody}>Round {dashboard.competition.round} · Season {dashboard.competition.seasonNumber}</Text>
+                <Text style={styles.cardBody}>
+                  Your status: {dashboard.player.alive ? "Still alive" : "Eliminated"} · Multi Chip {dashboard.player.multiChipUsed ? "used" : "available"}
+                </Text>
+                <Text style={styles.cardTitle}>Players ({dashboard.entries.length})</Text>
+                {dashboard.entries.map((entry) => (
+                  <View key={entry.id} style={styles.playerRow}>
+                    <Text style={styles.playerName}>{entry.name}{entry.id === dashboard.player.id ? " (you)" : ""}</Text>
+                    <Text style={styles.playerStatus}>{entry.alive ? "Alive" : "Out"}</Text>
+                  </View>
+                ))}
+                <Text style={styles.cardTitle}>Previous-round picks</Text>
+                {dashboard.historicalPicks.length === 0 ? (
+                  <Text style={styles.cardBody}>No completed rounds to show yet.</Text>
+                ) : dashboard.historicalPicks.map((pick, index) => {
+                  const entry = dashboard.entries.find((item) => item.id === pick.entry_id);
+                  return (
+                    <View key={`${pick.entry_id}-${pick.round}-${index}`} style={styles.playerRow}>
+                      <Text style={styles.playerName}>R{pick.round} · {entry?.name ?? "Player"} · {pick.team}{pick.is_multi ? " (Multi Chip)" : ""}</Text>
+                      <Text style={styles.playerStatus}>{pick.result ?? "Pending"}</Text>
+                    </View>
+                  );
+                })}
+                <Text style={styles.cardBody}>
+                  {dashboard.ownCurrentPick ? `Your current pick: ${dashboard.ownCurrentPick.team}` : "Your current-round pick has not been made yet."}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
         <View style={styles.footer}>
           <Text style={styles.footerTitle}>The rules are simple.</Text>
           <Text style={styles.footerBody}>
@@ -448,6 +540,9 @@ const styles = StyleSheet.create({
   messageText: { fontSize: 13, lineHeight: 19, fontWeight: "600" },
   errorText: { color: "#9d3023" },
   successText: { color: "#234b2d" },
+  playerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#edf0eb" },
+  playerName: { color: forest, fontSize: 13, fontWeight: "700", flex: 1 },
+  playerStatus: { color: muted, fontSize: 12, fontWeight: "700" },
   successCard: {
     backgroundColor: forest,
     borderRadius: 20,
