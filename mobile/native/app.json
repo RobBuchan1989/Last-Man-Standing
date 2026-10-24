@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "Last Man Standing",
+    "slug": "last-man-standing",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "lastmanstanding",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.lastmanstandingpl.app"
+    },
+    "android": {
+      "package": "com.lastmanstandingpl.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#10251c"
+      }
+    }
+  }
+}
