@@ -1,22 +1,31 @@
-# Last Man Standing native app scaffold
+# Last Man Standing native app
 
-This is the initial Expo/React Native app for iOS and Android.
+Expo / React Native foundation for iOS and Android.
 
 ## Run locally
 
-1. Install a current Node.js LTS release.
+1. Use a current Node.js LTS release.
 2. From this directory run `npm install`.
-3. Copy `.env.example` to `.env` and set `EXPO_PUBLIC_API_BASE_URL` to the isolated staging origin.
-4. Run `npm start` and open the project in Expo Go or a simulator.
+3. Copy `.env.example` to `.env`.
+4. Set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` to the isolated staging project's URL and publishable key only.
+5. Run `npm run typecheck`, then `npm start` and open the project in Expo Go or a simulator.
 
-## Current status
+## Implemented in this stage
 
-The first home screen is a visual scaffold only. Create/join buttons are intentionally not wired to the backend yet. Do not treat the app as playable until the staging schema, server-side create/join flow, identity/session handling, and pick API have been validated.
+- Native home screen with create-league and join-by-code forms.
+- Create/join calls to the staging-only `mobile-league` Edge Function.
+- Player session token saved using Expo SecureStore, not plain AsyncStorage.
+- Duplicate player names rejected within a league.
+- Rate limiting for create/join requests.
+- No direct public table access; game data remains behind server-side functions.
+
+## Not yet playable end-to-end
+
+The create/join flow is connected, but league dashboard reads, team selection, Multi Chip, historical picks, admin controls, result processing, and share-link deep linking still need their API flows and tests. Do not use this as a production app yet.
 
 ## Safety
 
-- Use only the staging backend for development and testing.
-- Never embed Supabase service-role keys, admin secrets, or football-data API tokens in the app.
+- Only use the staging Supabase project while developing.
+- Never embed Supabase secret/service-role keys, admin secrets, or football-data API tokens in the app.
 - Keep game rules and result progression server-side.
-- Do not change production deployment settings or production database.
-- Test shared league links, player identity persistence, and app restart behaviour before release.
+- Production Supabase, the live website, and existing leagues must remain untouched.
