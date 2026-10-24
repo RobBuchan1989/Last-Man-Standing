@@ -6,6 +6,9 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "lastmanstanding",
+    "plugins": [
+      "expo-secure-store"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.lastmanstandingpl.app"
