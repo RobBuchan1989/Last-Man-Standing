@@ -51,7 +51,7 @@ type DashboardData = {
   player: { id: string; name: string; alive: boolean; multiChipUsed: boolean };
   entries: { id: string; name: string; alive: boolean; multi_chip_used: boolean }[];
   historicalPicks: { entry_id: string; round: number; team: string; result: string | null; is_multi: boolean }[];
-  ownCurrentPick: { round: number; team: string; result: string | null; is_multi: boolean } | null;
+  ownCurrentPicks: { round: number; team: string; result: string | null; is_multi: boolean }[];
 };
 
 async function requestLeague(
@@ -425,7 +425,7 @@ export default function App() {
                   );
                 })}
                 <Text style={styles.cardBody}>
-                  {dashboard.ownCurrentPick ? `Your current pick: ${dashboard.ownCurrentPick.team}` : "Your current-round pick has not been made yet."}
+                  {dashboard.ownCurrentPicks.length ? `Your current pick${dashboard.ownCurrentPicks.length > 1 ? "s" : ""}: ${dashboard.ownCurrentPicks.map((pick) => pick.team).join(", ")}` : "Your current-round pick has not been made yet."}
                 </Text>
               </View>
             )}
