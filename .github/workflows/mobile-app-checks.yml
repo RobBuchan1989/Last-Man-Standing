@@ -1,4 +1,4 @@
-name: Mobile app checks
+name: Mobile and staging backend checks
 
 on:
   push:
@@ -6,10 +6,14 @@ on:
       - mobile-app-foundation
     paths:
       - "mobile/native/**"
+      - "supabase/functions/mobile-league/**"
+      - "supabase/migrations/**"
       - ".github/workflows/mobile-app-checks.yml"
   pull_request:
     paths:
       - "mobile/native/**"
+      - "supabase/functions/mobile-league/**"
+      - "supabase/migrations/**"
       - ".github/workflows/mobile-app-checks.yml"
   workflow_dispatch:
 
@@ -17,8 +21,8 @@ permissions:
   contents: read
 
 jobs:
-  typecheck:
-    name: Typecheck Expo app
+  native:
+    name: Expo typecheck and config
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -40,3 +44,18 @@ jobs:
 
       - name: Validate Expo configuration
         run: npx expo config --type public
+
+  edge-function:
+    name: Check mobile Edge Function
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Typecheck staging Edge Function
+        run: deno check supabase/functions/mobile-league/index.ts
