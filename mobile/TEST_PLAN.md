@@ -2,6 +2,17 @@
 
 Run only against an isolated staging backend and a dedicated test league.
 
+## Staging checkpoint — 24 October 2026
+
+- [x] Created the staging base schema and persistent rate-limit table in project `tdtwbuoakjsbkjaljmla`.
+- [x] Verified the staging tables are empty and RLS is enabled.
+- [x] Verified no public/authenticated table grants or RLS policies exist yet; direct public table access remains closed.
+- [x] Deployed the `mobile-league` Edge Function to staging (active, version 1) for create/join actions.
+- [x] Added native create/join forms and SecureStore-backed player-session persistence.
+- [x] Added CI workflow definitions for Expo typechecking/config validation and Deno checking of the Edge Function.
+- [ ] End-to-end HTTP test of create/join and a real iOS/Android typecheck still need a successful CI/device run.
+- [ ] Fixture sync, dashboard reads, pick submission, round processing, and deep links are not yet connected.
+
 ## Onboarding
 - [ ] Open app to home screen.
 - [ ] Create a new league with a name and organiser/player name.
