@@ -14,6 +14,8 @@ Expo / React Native foundation for iOS and Android.
 
 - Native home screen with create-league and join-by-code forms.
 - Create/join calls to the staging-only `mobile-league` Edge Function.
+- Session-authenticated league dashboard API and native dashboard view.
+- Dashboard shows league round, player status, Multi Chip status, player list, historical picks, and the player's own current pick only.
 - Player session token saved using Expo SecureStore, not plain AsyncStorage.
 - Duplicate player names rejected within a league.
 - Rate limiting for create/join requests.
@@ -29,3 +31,23 @@ The create/join flow is connected, but league dashboard reads, team selection, M
 - Never embed Supabase secret/service-role keys, admin secrets, or football-data API tokens in the app.
 - Keep game rules and result progression server-side.
 - Production Supabase, the live website, and existing leagues must remain untouched.
+
+
+## Installable test builds
+
+EAS build profiles are defined in `eas.json`:
+
+- `preview`: Android APK for direct device testing and an iOS internal build route.
+- `production`: store-oriented build profile, not to be used until the staging acceptance checks pass.
+
+To build after signing into an Expo account on a developer machine:
+
+```sh
+npm install
+npx eas-cli login
+npx eas-cli build:configure
+npx eas-cli build --platform android --profile preview
+npx eas-cli build --platform ios --profile preview
+```
+
+An iPhone install outside the simulator requires an Apple signing/distribution route. TestFlight distribution requires Apple Developer account access and App Store Connect setup. No Apple credentials or paid account are stored in this repository. Never put private signing credentials in Git.
