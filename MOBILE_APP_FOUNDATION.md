@@ -68,3 +68,16 @@ The mobile implementation should use Capacitor for native iOS/Android capabiliti
 ## Implementation gate
 
 Before adding Capacitor dependencies or native project files, the next work item is to establish a testable development/staging target and document the device-session approach. The first implementation should be additive and confined to this branch: a native shell plus universal/app links and an explicit cookie/session strategy. No production credentials, Render settings, Supabase schema, or live league data should be changed.
+
+
+## Product decision: app launch and league migration
+
+The owner is happy for players to create fresh leagues in the mobile app and, if needed, invite/re-invite players to join those leagues through the app. This gives us a safe adoption path without forcing existing website leagues or live seasons to migrate.
+
+- Keep existing website leagues and live competitions working unchanged.
+- Allow the mobile app to create new leagues using the existing server-side league creation logic.
+- Make joining/rejoining straightforward via league code/share link and a clear in-app join flow.
+- Do not automatically copy, reset, migrate, or alter existing league/player records.
+- Treat any future migration of an existing league as an explicit, separately tested choice—not a requirement for the initial app release.
+- Verify that shared links open the app when installed and still fall back to the website when the app is not installed.
+- Test app-created leagues and all write actions in a dedicated test league before considering release.
