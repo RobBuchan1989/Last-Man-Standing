@@ -569,7 +569,14 @@ export default function App() {
                     <Text style={styles.cardBody}>No fixtures are available in staging yet. The fixtures feed must be populated before picks can be submitted.</Text>
                   ) : (
                     <>
-                      {fixturesData.fixtures.map((fixture) => {
+                      {fixturesData.fixtures
+                        .filter((fixture) => {
+                          const status = (fixture.status ?? "").toUpperCase();
+                          const scheduled = ["TIMED", "SCHEDULED", "NS"].includes(status);
+                          const kickoff = fixture.kickoff ? new Date(fixture.kickoff).getTime() : Number.NaN;
+                          return scheduled && Number.isFinite(kickoff) && kickoff > Date.now();
+                        })
+                        .map((fixture) => {
                         const available = [fixture.home_team, fixture.away_team].filter((team): team is string => !!team && !fixturesData.usedTeams.some((used) => used.toLowerCase() === team.toLowerCase()));
                         return (
                           <View key={fixture.id} style={styles.fixtureRow}>
@@ -605,7 +612,7 @@ export default function App() {
           <Text style={styles.footerBody}>
             Choose a team you have not used before. A win keeps you in. A draw or loss means you are out.
           </Text>
-          <Text style={styles.footerNote}>Staging preview · Create/join is connected; picks are not connected yet</Text>
+          <Text style={styles.footerNote}>Staging preview · fixtures and picks are being validated</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
