@@ -96,6 +96,102 @@ Deno.serve(async (request: Request) => {
   }
 
   const action = body.action;
+
+  // Dashboard requests authenticate with the unguessable per-entry session token.
+  // Other players' current-round picks are never included in the response.
+  if (action === "dashboard") {
+    const sessionToken = typeof body.sessionToken === "string" ? body.sessionToken : "";
+    const requestedCode = cleanCode(body.leagueCode);
+    if (!sessionToken || sessionToken.length > 100 || requestedCode.length < 4) {
+      return respond({ error: "A valid player session and league code are required." }, 400);
+    }
+
+    const admin = createClient(supabaseUrl, serverKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    try {
+      const { data: player, error: playerError } = await admin
+        .from("entries")
+        .select("id, competition_id, name, alive, multi_chip_used")
+        .eq("session_token", sessionToken)
+        .maybeSingle();
+
+      if (playerError || !player) {
+        return respond({ error: "This player session could not be verified. Please rejoin the league." }, 401);
+      }
+
+      const { data: competition, error: competitionError } = await admin
+        .from("competitions")
+        .select("id, code, name, status, round, season_number, fixture_matchday")
+        .eq("id", player.competition_id)
+        .eq("code", requestedCode)
+        .maybeSingle();
+
+      if (competitionError || !competition) {
+        return respond({ error: "This session does not match that league." }, 403);
+      }
+
+      const { data: entries, error: entriesError } = await admin
+        .from("entries")
+        .select("id, name, alive, multi_chip_used, created_at")
+        .eq("competition_id", competition.id)
+        .order("created_at", { ascending: true });
+
+      if (entriesError) {
+        return respond({ error: "Could not load league players." }, 503);
+      }
+
+      const { data: history, error: historyError } = await admin
+        .from("picks")
+        .select("entry_id, round, team, result, is_multi")
+        .in("entry_id", (entries ?? []).map((entry) => entry.id))
+        .lt("round", competition.round)
+        .order("round", { ascending: true });
+
+      if (historyError) {
+        return respond({ error: "Could not load previous-round picks." }, 503);
+      }
+
+      const { data: ownCurrentPick, error: ownPickError } = await admin
+        .from("picks")
+        .select("round, team, result, is_multi")
+        .eq("entry_id", player.id)
+        .eq("round", competition.round)
+        .maybeSingle();
+
+      if (ownPickError) {
+        return respond({ error: "Could not load your current-round pick." }, 503);
+      }
+
+      return respond({
+        ok: true,
+        action,
+        competition: {
+          id: competition.id,
+          code: competition.code,
+          name: competition.name,
+          status: competition.status,
+          round: competition.round,
+          seasonNumber: competition.season_number,
+          fixtureMatchday: competition.fixture_matchday,
+        },
+        player: {
+          id: player.id,
+          name: player.name,
+          alive: player.alive,
+          multiChipUsed: player.multi_chip_used,
+        },
+        entries: entries ?? [],
+        historicalPicks: history ?? [],
+        ownCurrentPick: ownCurrentPick ?? null,
+      });
+    } catch (error) {
+      console.error("Mobile dashboard error:", error instanceof Error ? error.message : "unknown");
+      return respond({ error: "The league dashboard is temporarily unavailable." }, 503);
+    }
+  }
+
   if (action !== "create" && action !== "join") {
     return respond({ error: "Action must be create or join." }, 400);
   }
