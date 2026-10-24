@@ -46,6 +46,39 @@ type SavedSession = {
   savedAt: string;
 };
 
+type FixtureData = {
+  id: string; round: number | null; home_team: string | null; away_team: string | null;
+  kickoff: string | null; home_score: number | null; away_score: number | null; status: string | null;
+};
+type FixturesData = { fixtures: FixtureData[]; usedTeams: string[]; round: number; fixtureMatchday: number; status: string };
+
+async function requestFixtures(leagueCode: string, sessionToken: string): Promise<FixturesData> {
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  const publishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!supabaseUrl || !publishableKey) throw new Error("The staging connection is not configured.");
+  const response = await fetch(`${supabaseUrl}/functions/v1/mobile-league`, {
+    method: "POST",
+    headers: { apikey: publishableKey, Authorization: `Bearer ${publishableKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "fixtures", leagueCode, sessionToken }),
+  });
+  const result = await response.json().catch(() => null) as (FixturesData & { ok?: boolean; error?: string }) | null;
+  if (!response.ok || !result?.ok) throw new Error(result?.error || "Could not load fixtures.");
+  return result;
+}
+
+async function requestPick(leagueCode: string, sessionToken: string, teams: string[], useMultiChip: boolean): Promise<void> {
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  const publishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!supabaseUrl || !publishableKey) throw new Error("The staging connection is not configured.");
+  const response = await fetch(`${supabaseUrl}/functions/v1/mobile-league`, {
+    method: "POST",
+    headers: { apikey: publishableKey, Authorization: `Bearer ${publishableKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "pick", leagueCode, sessionToken, teams, useMultiChip }),
+  });
+  const result = await response.json().catch(() => null) as { ok?: boolean; error?: string } | null;
+  if (!response.ok || !result?.ok) throw new Error(result?.error || "Could not submit your pick.");
+}
+
 type DashboardData = {
   competition: { code: string; name: string; status: string; round: number; seasonNumber: number };
   player: { id: string; name: string; alive: boolean; multiChipUsed: boolean };
@@ -166,6 +199,9 @@ export default function App() {
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [savedSessions, setSavedSessions] = useState<SavedSession[]>([]);
   const [restoring, setRestoring] = useState(true);
+  const [fixturesData, setFixturesData] = useState<FixturesData | null>(null);
+  const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
+  const [useMultiChip, setUseMultiChip] = useState(false);
 
   async function refreshSavedSessions() {
     const raw = await SecureStore.getItemAsync(SESSION_STORAGE_KEY);
@@ -201,6 +237,35 @@ export default function App() {
     } catch (error) {
       setMessageIsError(true);
       setMessage(error instanceof Error ? error.message : "Could not restore this saved league.");
+    } finally { setBusy(false); }
+  }
+
+  async function loadFixtures() {
+    if (!lastLeague || !lastSessionToken) return;
+    setBusy(true); setMessage("");
+    try {
+      const data = await requestFixtures(lastLeague.code, lastSessionToken);
+      setFixturesData(data); setSelectedTeams([]);
+      setMessageIsError(false);
+      setMessage(data.fixtures.length ? "Fixtures loaded for your current round." : "No fixtures have been synced to staging yet. Team picks will be available when the fixture feed is connected.");
+    } catch (error) {
+      setMessageIsError(true); setMessage(error instanceof Error ? error.message : "Could not load fixtures.");
+    } finally { setBusy(false); }
+  }
+
+  async function submitPick() {
+    if (!lastLeague || !lastSessionToken) return;
+    setBusy(true); setMessage("");
+    try {
+      await requestPick(lastLeague.code, lastSessionToken, selectedTeams, useMultiChip);
+      setMessageIsError(false); setMessage("Pick submitted and locked for this round.");
+      const [dash, fixtures] = await Promise.all([
+        requestDashboard(lastLeague.code, lastSessionToken),
+        requestFixtures(lastLeague.code, lastSessionToken),
+      ]);
+      setDashboard(dash); setFixturesData(fixtures); setSelectedTeams([]);
+    } catch (error) {
+      setMessageIsError(true); setMessage(error instanceof Error ? error.message : "Could not submit your pick.");
     } finally { setBusy(false); }
   }
 
@@ -489,6 +554,52 @@ export default function App() {
           </View>
         )}
 
+        {lastLeague && dashboard?.player.alive && dashboard.ownCurrentPicks.length === 0 && (
+          <View style={styles.section}>
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Choose your team</Text>
+              <Text style={styles.cardBody}>Your selection locks when submitted. You cannot reuse a team from a previous round.</Text>
+              <Pressable accessibilityRole="button" disabled={busy} style={[styles.secondaryButton, busy && styles.disabledButton]} onPress={loadFixtures}>
+                <Text style={styles.secondaryButtonText}>{busy ? "Loading…" : "Load current-round fixtures"}</Text>
+              </Pressable>
+              {fixturesData && (
+                <>
+                  <Text style={styles.cardBody}>Round {fixturesData.round} · Fixture matchday {fixturesData.fixtureMatchday}</Text>
+                  {fixturesData.fixtures.length === 0 ? (
+                    <Text style={styles.cardBody}>No fixtures are available in staging yet. The fixtures feed must be populated before picks can be submitted.</Text>
+                  ) : (
+                    <>
+                      {fixturesData.fixtures.map((fixture) => {
+                        const available = [fixture.home_team, fixture.away_team].filter((team): team is string => !!team && !fixturesData.usedTeams.some((used) => used.toLowerCase() === team.toLowerCase()));
+                        return (
+                          <View key={fixture.id} style={styles.fixtureRow}>
+                            <Text style={styles.fixtureText}>{fixture.home_team ?? "TBC"} v {fixture.away_team ?? "TBC"}</Text>
+                            <Text style={styles.fixtureMeta}>{fixture.kickoff ? new Date(fixture.kickoff).toLocaleString() : "Kick-off TBC"} · {fixture.status ?? "Unknown"}</Text>
+                            {available.map((team) => (
+                              <Pressable key={team} accessibilityRole="button" disabled={busy} onPress={() => setSelectedTeams((current) => current.includes(team) ? current.filter((item) => item !== team) : (useMultiChip ? current.length < 2 : current.length < 1) ? [...current, team] : current)} style={[styles.teamChoice, selectedTeams.includes(team) && styles.teamChoiceSelected]}>
+                                <Text style={[styles.teamChoiceText, selectedTeams.includes(team) && styles.teamChoiceTextSelected]}>{selectedTeams.includes(team) ? "✓ " : ""}{team}</Text>
+                              </Pressable>
+                            ))}
+                          </View>
+                        );
+                      })}
+                      {!dashboard.player.multiChipUsed && (
+                        <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: useMultiChip }} onPress={() => { setUseMultiChip((v) => !v); setSelectedTeams([]); }} style={styles.chipToggle}>
+                          <Text style={styles.chipToggleText}>{useMultiChip ? "☑" : "☐"} Use Multi Chip (choose two teams; either win keeps you alive)</Text>
+                        </Pressable>
+                      )}
+                      <Text style={styles.cardBody}>Selected: {selectedTeams.length ? selectedTeams.join(", ") : "None"}</Text>
+                      <Pressable accessibilityRole="button" disabled={busy || selectedTeams.length !== (useMultiChip ? 2 : 1)} style={[styles.primaryButton, (busy || selectedTeams.length !== (useMultiChip ? 2 : 1)) && styles.disabledButton]} onPress={submitPick}>
+                        <Text style={styles.primaryButtonText}>{busy ? "Submitting…" : "Submit and lock pick"}</Text>
+                      </Pressable>
+                    </>
+                  )}
+                </>
+              )}
+            </View>
+          </View>
+        )}
+
         <View style={styles.footer}>
           <Text style={styles.footerTitle}>The rules are simple.</Text>
           <Text style={styles.footerBody}>
@@ -597,6 +708,15 @@ const styles = StyleSheet.create({
   messageText: { fontSize: 13, lineHeight: 19, fontWeight: "600" },
   errorText: { color: "#9d3023" },
   successText: { color: "#234b2d" },
+  fixtureRow: { borderTopWidth: 1, borderTopColor: "#e3e8e0", paddingTop: 12, gap: 7 },
+  fixtureText: { color: forest, fontSize: 15, fontWeight: "800" },
+  fixtureMeta: { color: muted, fontSize: 12 },
+  teamChoice: { alignSelf: "flex-start", borderWidth: 1, borderColor: "#dbe2da", borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: "#f8faf7" },
+  teamChoiceSelected: { backgroundColor: forest, borderColor: forest },
+  teamChoiceText: { color: forest, fontSize: 14, fontWeight: "700" },
+  teamChoiceTextSelected: { color: "#ffffff" },
+  chipToggle: { paddingVertical: 10 },
+  chipToggleText: { color: forest, fontSize: 13, fontWeight: "700" },
   savedLeagueButton: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#edf0eb" },
   savedLeagueTitle: { color: forest, fontSize: 14, fontWeight: "800" },
   savedLeagueMeta: { color: muted, fontSize: 12, marginTop: 3 },
