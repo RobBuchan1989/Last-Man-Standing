@@ -45,3 +45,15 @@ Run only against an isolated staging backend and a dedicated test league.
 - [ ] No production league or player records are touched during testing.
 - [ ] iOS and Android builds tested on physical devices.
 - [ ] Accessibility, external links, back navigation, offline/error states, and app-store requirements reviewed.
+
+## Staging checkpoint — 25 October 2026
+
+- [x] Added server-only `lms_mobile_submit_pick` RPC in migration `20261025103000_atomic_mobile_pick_submission.sql`.
+- [x] Replaced the mobile Edge Function's multi-request pick writes with one RPC call. The database now validates the session, league, round, player status, unused teams, fixture eligibility and Multi Chip before committing.
+- [x] Applied the RPC migration to staging project `tdtwbuoakjsbkjaljmla`.
+- [x] Deployed `mobile-league` version 7 to staging.
+- [x] Ran isolated SQL smoke tests using temporary staging-only competition, players and future fixtures: normal pick saved once; duplicate round pick rejected; Multi Chip saved exactly two picks and set its used flag; second Multi Chip attempt rejected; invalid second Multi Chip team saved no partial picks and left the chip unused.
+- [x] Removed the temporary test competition and fixtures; verified zero test rows remained.
+- [ ] Full mobile HTTP create/join/dashboard/pick flow remains unverified because this execution environment cannot reach the staging HTTPS endpoint directly.
+- [ ] Fixture sync still needs a server-side `FOOTBALL_DATA_API_TOKEN` secret and a protected invocation mechanism; staging fixtures are currently empty.
+- [ ] Result settlement, Multi Chip win aggregation, automatic progression, season winner history and reset are not yet implemented/tested end-to-end.
