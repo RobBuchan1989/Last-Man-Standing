@@ -59,7 +59,8 @@ Run only against an isolated staging backend and a dedicated test league.
 - [x] Added server-only result settlement and progression RPCs in migration `20261025110000_staging_round_processing.sql`; the functions only execute for `service_role`.
 - [x] Ran isolated staging regression tests with temporary fixtures and entries: standard win survives; standard loss is eliminated; a Multi Chip pair with one win and one loss survives; a missed pick is eliminated; logical round advances to the next fixture matchday; a sole survivor is recorded in `season_winners`; zero survivors finishes the league without recording a false winner.
 - [x] Removed all temporary processing-test competitions, fixtures, picks and winner-history rows; staging game tables were verified empty after cleanup.
-- [ ] Fixture sync is implemented and typechecked on the branch but is not deployed; staging-only `FOOTBALL_DATA_API_TOKEN` and `LMS_FIXTURE_SYNC_SECRET` must be configured first.
+- [x] Added and deployed protected `sync-fixtures` Edge Function version 1; its source passed Deno typechecking and it calls the staging round processor after upserting fixtures.
+- [ ] A real fixture sync is not yet verified. Confirm `FOOTBALL_DATA_API_TOKEN` and `LMS_FIXTURE_SYNC_SECRET` exist in staging Edge Function secrets, invoke the endpoint securely, and check the imported fixture rows.
 - [ ] Reset/new-season behavior and full HTTP/device end-to-end flow still need tests.
 
 ## Result-processing regression details — 25 October 2026
