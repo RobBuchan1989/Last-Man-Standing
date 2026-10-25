@@ -295,6 +295,10 @@ Deno.serve(async (request: Request) => {
 
     if (action === "create") {
       const leagueName = cleanName(body.leagueName, 60);
+      if (!leagueName) {
+        return respond({ error: "Enter a league name of 1–60 characters." }, 400);
+      }
+
       const { data: nextFixture, error: nextFixtureError } = await admin
         .from("fixtures")
         .select("round")
@@ -309,10 +313,6 @@ Deno.serve(async (request: Request) => {
         console.error("Mobile create fixture lookup failed:", nextFixtureError.code);
         return respond({ error: "Could not prepare the first round. Please try again." }, 503);
       }
-      if (!leagueName) {
-        return respond({ error: "Enter a league name of 1–60 characters." }, 400);
-      }
-
       let competition: {
         id: string;
         code: string;
