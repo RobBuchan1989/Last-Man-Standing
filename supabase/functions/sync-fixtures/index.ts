@@ -112,23 +112,44 @@ Deno.serve(async (request: Request) => {
       .filter((fixture) => fixture.kickoff && new Date(fixture.kickoff).getTime() > now && scheduledStatuses.has(fixture.status))
       .reduce<number | null>((minimum, fixture) => minimum === null ? fixture.round : Math.min(minimum, fixture.round), null);
 
+    let leaguesAssigned = 0;
     if (nextMatchday !== null) {
-      const { error } = await admin
+      const { data: activeLeagues, error: activeAssignError } = await admin
         .from("competitions")
         .update({ fixture_matchday: nextMatchday })
         .is("fixture_matchday", null)
-        .in("status", ["active", "open"]);
-      if (error) {
-        console.error("Staging league fixture-matchday assignment failed:", error.code);
-        return respond({ error: "Fixtures synced, but existing staging leagues could not be assigned a matchday." }, 503);
+        .in("status", ["active", "open"])
+        .select("id");
+      if (activeAssignError) {
+        console.error("Staging league fixture-matchday assignment failed:", activeAssignError.code);
+        return respond({ error: "Fixtures synced, but active staging leagues could not be assigned a matchday." }, 503);
       }
+
+      const { data: waitingLeagues, error: waitingAssignError } = await admin
+        .from("competitions")
+        .update({ fixture_matchday: nextMatchday, status: "active" })
+        .is("fixture_matchday", null)
+        .eq("status", "waiting_fixtures")
+        .select("id");
+      if (waitingAssignError) {
+        console.error("Staging waiting-league recovery failed:", waitingAssignError.code);
+        return respond({ error: "Fixtures synced, but waiting staging leagues could not be resumed." }, 503);
+      }
+      leaguesAssigned = (activeLeagues?.length ?? 0) + (waitingLeagues?.length ?? 0);
+    }
+
+    const { data: processing, error: processingError } = await admin.rpc("lms_process_ready_rounds");
+    if (processingError) {
+      console.error("Staging round processing failed:", processingError.code);
+      return respond({ error: "Fixtures were synced, but automatic round processing could not run." }, 503);
     }
 
     return respond({
       ok: true,
       fixturesUpserted: fixtures.length,
       nextUpcomingMatchday: nextMatchday,
-      leaguesAssigned: nextMatchday === null ? 0 : "active/open leagues with no fixture matchday",
+      leaguesAssigned,
+      processing,
     });
   } catch (error) {
     console.error("Staging fixture sync failed:", error instanceof Error ? error.name : "unknown");
