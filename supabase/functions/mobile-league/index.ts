@@ -210,48 +210,69 @@ Deno.serve(async (request: Request) => {
   }
 
   if (action === "pick") {
-    const sessionToken = typeof body.sessionToken === "string" ? body.sessionToken : "";
+    const sessionToken = typeof body.sessionToken === "string" ? body.sessionToken.trim() : "";
     const requestedCode = cleanCode(body.leagueCode);
-    const teams = Array.isArray(body.teams) ? body.teams.filter((v): v is string => typeof v === "string").map((v) => v.trim()) : [];
+    const teams = Array.isArray(body.teams)
+      ? body.teams.filter((value): value is string => typeof value === "string").map((value) => value.trim())
+      : [];
     const useMultiChip = body.useMultiChip === true;
-    if (!sessionToken || sessionToken.length > 100 || requestedCode.length < 4) return respond({ error: "A valid player session and league code are required." }, 400);
-    if (teams.length !== (useMultiChip ? 2 : 1) || teams.some((v) => !v || v.length > 80) || new Set(teams.map((v) => v.toLocaleLowerCase("en-GB"))).size !== teams.length) return respond({ error: useMultiChip ? "Choose two different teams for the Multi Chip." : "Choose exactly one team." }, 400);
-    const admin = createClient(supabaseUrl, serverKey, { auth: { autoRefreshToken: false, persistSession: false } });
+
+    if (!sessionToken || sessionToken.length > 100 || requestedCode.length < 4) {
+      return respond({ error: "A valid player session and league code are required." }, 400);
+    }
+    if (
+      teams.length !== (useMultiChip ? 2 : 1) ||
+      teams.some((team) => !team || team.length > 80) ||
+      new Set(teams.map((team) => team.toLocaleLowerCase("en-GB"))).size !== teams.length
+    ) {
+      return respond({
+        error: useMultiChip ? "Choose two different teams for the Multi Chip." : "Choose exactly one team.",
+      }, 400);
+    }
+
+    const admin = createClient(supabaseUrl, serverKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
     try {
-      const { data: player, error: pe } = await admin.from("entries").select("id, competition_id, alive, multi_chip_used").eq("session_token", sessionToken).maybeSingle();
-      if (pe || !player) return respond({ error: "This player session could not be verified." }, 401);
-      const { data: competition, error: ce } = await admin.from("competitions").select("id, code, status, round, fixture_matchday").eq("id", player.competition_id).eq("code", requestedCode).maybeSingle();
-      if (ce || !competition) return respond({ error: "This session does not match that league." }, 403);
-      if (!player.alive) return respond({ error: "You have been eliminated from this league." }, 409);
-      if (!["active", "open"].includes(competition.status)) return respond({ error: "This league is not accepting picks right now." }, 409);
-      if (useMultiChip && player.multi_chip_used) return respond({ error: "Your Multi Chip has already been used this season." }, 409);
-      const { data: current, error: currentError } = await admin.from("picks").select("id").eq("entry_id", player.id).eq("round", competition.round);
-      if (currentError) return respond({ error: "Could not check your current pick." }, 503);
-      if ((current ?? []).length) return respond({ error: "You have already submitted a pick for this round." }, 409);
-      const { data: previous, error: previousError } = await admin.from("picks").select("team").eq("entry_id", player.id);
-      if (previousError) return respond({ error: "Could not check previous picks." }, 503);
-      const used = new Set((previous ?? []).map((p) => p.team.toLocaleLowerCase("en-GB")));
-      const reused = teams.find((team) => used.has(team.toLocaleLowerCase("en-GB")));
-      if (reused) return respond({ error: "You have already used " + reused + ". Choose a different team." }, 409);
-      const fixtureRound = competition.fixture_matchday ?? competition.round;
-      const { data: fixtures, error: fixtureError } = await admin.from("fixtures").select("id, home_team, away_team, kickoff, status").eq("round", fixtureRound);
-      if (fixtureError) return respond({ error: "Could not load fixtures for this round." }, 503);
-      const future = (fixtures ?? []).filter((f) => f.kickoff && new Date(f.kickoff).getTime() > Date.now() && ["TIMED", "SCHEDULED", "NS"].includes((f.status ?? "").toUpperCase()));
-      if (!future.length) return respond({ error: "Upcoming fixtures are not available for this round yet." }, 409);
-      const rows = [];
-      for (const team of teams) {
-        const fixture = future.find((f) => (f.home_team ?? "").toLocaleLowerCase("en-GB") === team.toLocaleLowerCase("en-GB") || (f.away_team ?? "").toLocaleLowerCase("en-GB") === team.toLocaleLowerCase("en-GB"));
-        if (!fixture) return respond({ error: team + " does not have an upcoming fixture in this round." }, 400);
-        rows.push({ entry_id: player.id, round: competition.round, team, result: "pending", fixture_id: fixture.id, locked_at: new Date().toISOString(), is_multi: useMultiChip });
+      const { data: outcome, error: submitError } = await admin.rpc("lms_mobile_submit_pick", {
+        p_session_token: sessionToken,
+        p_league_code: requestedCode,
+        p_teams: teams,
+        p_use_multi_chip: useMultiChip,
+      });
+
+      if (submitError) {
+        console.error("Atomic mobile pick submission failed:", submitError.code);
+        return respond({ error: "Pick submission is temporarily unavailable. Please refresh and try again." }, 503);
       }
-      const { error: insertError } = await admin.from("picks").insert(rows);
-      if (insertError) { console.error("Mobile pick submission failed:", insertError.code); return respond({ error: "Could not submit your pick. Refresh the league and try again." }, 409); }
-      if (useMultiChip) {
-        const { error: chipError } = await admin.from("entries").update({ multi_chip_used: true }).eq("id", player.id).eq("multi_chip_used", false);
-        if (chipError) { await admin.from("picks").delete().eq("entry_id", player.id).eq("round", competition.round); return respond({ error: "Could not activate Multi Chip. Your picks were not saved." }, 503); }
+
+      const result = outcome as {
+        ok?: boolean;
+        status?: number;
+        error?: string;
+        round?: number;
+        teams?: string[];
+        multiChipUsed?: boolean;
+      } | null;
+
+      if (!result?.ok) {
+        return respond(
+          { error: result?.error || "Could not submit your pick. Refresh the league and try again." },
+          result?.status && result.status >= 400 && result.status <= 599 ? result.status : 409,
+        );
       }
-      return respond({ ok: true, action: "pick", round: competition.round, teams, multiChipUsed: useMultiChip });
-    } catch (error) { console.error("Mobile pick error:", error instanceof Error ? error.message : "unknown"); return respond({ error: "Pick submission is temporarily unavailable." }, 503); }
+
+      return respond({
+        ok: true,
+        action: "pick",
+        round: result.round,
+        teams: result.teams ?? teams,
+        multiChipUsed: result.multiChipUsed === true,
+      });
+    } catch (error) {
+      console.error("Mobile pick error:", error instanceof Error ? error.message : "unknown");
+      return respond({ error: "Pick submission is temporarily unavailable." }, 503);
+    }
   }
 
   if (action !== "create" && action !== "join") {
