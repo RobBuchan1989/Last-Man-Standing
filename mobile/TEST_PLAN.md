@@ -56,4 +56,18 @@ Run only against an isolated staging backend and a dedicated test league.
 - [x] Removed the temporary test competition and fixtures; verified zero test rows remained.
 - [ ] Full mobile HTTP create/join/dashboard/pick flow remains unverified because this execution environment cannot reach the staging HTTPS endpoint directly.
 - [ ] Fixture sync still needs a server-side `FOOTBALL_DATA_API_TOKEN` secret and a protected invocation mechanism; staging fixtures are currently empty.
-- [ ] Result settlement, Multi Chip win aggregation, automatic progression, season winner history and reset are not yet implemented/tested end-to-end.
+- [x] Added server-only result settlement and progression RPCs in migration `20261025110000_staging_round_processing.sql`; the functions only execute for `service_role`.
+- [x] Ran isolated staging regression tests with temporary fixtures and entries: standard win survives; standard loss is eliminated; a Multi Chip pair with one win and one loss survives; a missed pick is eliminated; logical round advances to the next fixture matchday; a sole survivor is recorded in `season_winners`; zero survivors finishes the league without recording a false winner.
+- [x] Removed all temporary processing-test competitions, fixtures, picks and winner-history rows; staging game tables were verified empty after cleanup.
+- [ ] Fixture sync is implemented and typechecked on the branch but is not deployed; staging-only `FOOTBALL_DATA_API_TOKEN` and `LMS_FIXTURE_SYNC_SECRET` must be configured first.
+- [ ] Reset/new-season behavior and full HTTP/device end-to-end flow still need tests.
+
+## Result-processing regression details — 25 October 2026
+
+- Standard pick results were settled from final fixture scores as `win`/`loss`.
+- Multi Chip survival was aggregated per player/round; either winning selection was sufficient to keep the player alive.
+- Players with no pick were eliminated when the fixture matchday completed.
+- The competition advanced from logical round 1 / fixture matchday 1 to logical round 2 / fixture matchday 2 after all matchday 1 fixtures were final.
+- A one-survivor test stored the winner name and entry reference and marked the league finished.
+- A zero-survivor test marked the league finished but wrote no winner row.
+- These were controlled SQL-level staging tests, not a full HTTP/device end-to-end test.
