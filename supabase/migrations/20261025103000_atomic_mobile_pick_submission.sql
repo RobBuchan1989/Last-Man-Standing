@@ -31,7 +31,7 @@ begin
   end if;
 
   if p_teams is null
-     or cardinality(p_teams) <> case when coalesce(p_use_multi_chip, false) then 2 else 1 end
+     or cardinality(p_teams) <> (case when coalesce(p_use_multi_chip, false) then 2 else 1 end)
      or exists (select 1 from unnest(p_teams) as t where nullif(trim(t), '') is null or length(trim(t)) > 80)
      or (select count(distinct lower(trim(t))) from unnest(p_teams) as t) <> cardinality(p_teams) then
     return jsonb_build_object(
