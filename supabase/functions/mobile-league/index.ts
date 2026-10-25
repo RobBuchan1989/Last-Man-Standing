@@ -123,7 +123,7 @@ Deno.serve(async (request: Request) => {
 
       const { data: competition, error: competitionError } = await admin
         .from("competitions")
-        .select("id, code, name, status, round, season_number, fixture_matchday")
+        .select("id, code, name, status, round, season_number, fixture_matchday, owner_entry_id")
         .eq("id", player.competition_id)
         .eq("code", requestedCode)
         .maybeSingle();
@@ -153,6 +153,16 @@ Deno.serve(async (request: Request) => {
         return respond({ error: "Could not load previous-round picks." }, 503);
       }
 
+      const { data: seasonWinners, error: winnersError } = await admin
+        .from("season_winners")
+        .select("season_number, winner_name, completed_at")
+        .eq("competition_id", competition.id)
+        .order("season_number", { ascending: false });
+
+      if (winnersError) {
+        return respond({ error: "Could not load season winner history." }, 503);
+      }
+
       const { data: ownCurrentPick, error: ownPickError } = await admin
         .from("picks")
         .select("round, team, result, is_multi")
@@ -175,6 +185,7 @@ Deno.serve(async (request: Request) => {
           round: competition.round,
           seasonNumber: competition.season_number,
           fixtureMatchday: competition.fixture_matchday,
+          isOwner: competition.owner_entry_id === player.id,
         },
         player: {
           id: player.id,
@@ -185,6 +196,7 @@ Deno.serve(async (request: Request) => {
         entries: entries ?? [],
         historicalPicks: history ?? [],
         ownCurrentPicks: ownCurrentPick ?? [],
+        seasonWinners: seasonWinners ?? [],
       });
     } catch (error) {
       console.error("Mobile dashboard error:", error instanceof Error ? error.message : "unknown");
@@ -275,8 +287,41 @@ Deno.serve(async (request: Request) => {
     }
   }
 
+  if (action === "reset") {
+    const sessionToken = typeof body.sessionToken === "string" ? body.sessionToken.trim() : "";
+    const requestedCode = cleanCode(body.leagueCode);
+    if (!sessionToken || sessionToken.length > 100 || requestedCode.length < 4) {
+      return respond({ error: "A valid organiser session and league code are required." }, 400);
+    }
+
+    const admin = createClient(supabaseUrl, serverKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    try {
+      const { data: outcome, error: resetError } = await admin.rpc("lms_mobile_reset_season", {
+        p_session_token: sessionToken,
+        p_league_code: requestedCode,
+      });
+      if (resetError) {
+        console.error("Mobile season reset failed:", resetError.code);
+        return respond({ error: "The season could not be reset. Please try again." }, 503);
+      }
+      const result = outcome as { ok?: boolean; status?: number; error?: string; seasonNumber?: number; round?: number } | null;
+      if (!result?.ok) {
+        return respond(
+          { error: result?.error || "The season could not be reset." },
+          result?.status && result.status >= 400 && result.status <= 599 ? result.status : 409,
+        );
+      }
+      return respond({ ok: true, action: "reset", seasonNumber: result.seasonNumber, round: result.round });
+    } catch (error) {
+      console.error("Mobile season reset error:", error instanceof Error ? error.message : "unknown");
+      return respond({ error: "The season reset is temporarily unavailable." }, 503);
+    }
+  }
+
   if (action !== "create" && action !== "join") {
-    return respond({ error: "Action must be create, join, or pick." }, 400);
+    return respond({ error: "Action must be create, join, pick, or reset." }, 400);
   }
 
   const playerName = cleanName(body.playerName, 40);
