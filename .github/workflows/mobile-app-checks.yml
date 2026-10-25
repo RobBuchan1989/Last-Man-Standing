@@ -7,12 +7,14 @@ on:
     paths:
       - "mobile/native/**"
       - "supabase/functions/mobile-league/**"
+      - "supabase/functions/sync-fixtures/**"
       - "supabase/migrations/**"
       - ".github/workflows/mobile-app-checks.yml"
   pull_request:
     paths:
       - "mobile/native/**"
       - "supabase/functions/mobile-league/**"
+      - "supabase/functions/sync-fixtures/**"
       - "supabase/migrations/**"
       - ".github/workflows/mobile-app-checks.yml"
   workflow_dispatch:
@@ -59,3 +61,18 @@ jobs:
 
       - name: Typecheck staging Edge Function
         run: deno check supabase/functions/mobile-league/index.ts
+
+  fixture-sync:
+    name: Check protected fixture sync function
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Typecheck staging fixture sync
+        run: deno check supabase/functions/sync-fixtures/index.ts
