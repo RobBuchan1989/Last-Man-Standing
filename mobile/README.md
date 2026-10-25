@@ -5,7 +5,7 @@ This branch contains an Expo/React Native app foundation for iOS and Android, co
 ## Current implementation
 
 - Native Expo app with create/join forms, saved league sessions in Expo SecureStore, a league dashboard, historical picks, fixture selection and pick submission UI.
-- Staging Edge Function `mobile-league` deployed to project `tdtwbuoakjsbkjaljmla` (current deployed version 10).
+- Staging Edge Function `mobile-league` deployed to project `tdtwbuoakjsbkjaljmla` (current deployed version 12).
 - Staging-only `lms_mobile_submit_pick` SQL function validates a normal pick or Multi Chip selection and writes the rows atomically.
 - Staging-only `lms_process_competition_round` and `lms_process_ready_rounds` functions settle completed matchdays, eliminate missed picks, apply the Multi Chip rule, advance rounds, record a sole winner, and avoid recording a winner when nobody survives. Controlled SQL regression tests passed.
 - Staging fixture-sync Edge Function is deployed as version 1. It upserts Premier League fixtures from football-data.org, assigns a next matchday to leagues without one, and calls the server-side round processor. A successful real fixture sync has not yet been verified because the required staging secrets and HTTP invocation still need confirmation.
