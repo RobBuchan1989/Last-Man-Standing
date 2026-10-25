@@ -88,5 +88,6 @@ Run only against an isolated staging backend and a dedicated test league.
 - [x] Confirmed the synthetic test leagues and fixtures were cleaned up; staging tables are back to zero rows.
 - [x] Deployed the protected `sync-fixtures` Edge Function (version 1) and refreshed `mobile-league` (version 11) in staging only.
 - [x] Added mobile season-winner history and an organiser-only reset action; GitHub Actions Expo/Deno checks passed on the current branch.
-- [ ] Real fixture sync remains blocked until staging Edge Function secrets `FOOTBALL_DATA_API_TOKEN` and `LMS_FIXTURE_SYNC_SECRET` are configured, and a scheduled caller is set up.
+- [x] Configured a staging-only Supabase `pg_cron` job named `lms-staging-fixture-sync` to invoke the protected sync endpoint hourly at minute 17; it safely does nothing until the Vault secret exists.
+- [ ] Real fixture sync remains blocked until `FOOTBALL_DATA_API_TOKEN` and `LMS_FIXTURE_SYNC_SECRET` are added to staging Edge Function secrets, and the same sync secret is added to Supabase Vault as `lms_fixture_sync_secret`.
 - [ ] Full mobile HTTP create/join/dashboard/pick journey, live fixture sync, and physical-device Android/iOS builds are still unverified.
