@@ -33,11 +33,14 @@ function constantTimeEqual(left: string, right: string): boolean {
 function canonicalTeamName(name: string): string {
   const cleaned = name.replace(/\./g, "").replace(/\bFC\b/gi, "").replace(/\bAFC\b/gi, "").replace(/\s+/g, " ").trim();
   const aliases: Record<string, string> = {
-    "Brighton Hove Albion": "Brighton & Hove Albion",
-    "Wolves": "Wolverhampton Wanderers",
-    "Spurs": "Tottenham Hotspur",
+    "brighton and hove albion": "Brighton & Hove Albion",
+    "brighton hove albion": "Brighton & Hove Albion",
+    "wolves": "Wolverhampton Wanderers",
+    "wolverhampton wanderers": "Wolverhampton Wanderers",
+    "spurs": "Tottenham Hotspur",
+    "tottenham hotspur": "Tottenham Hotspur",
   };
-  return aliases[cleaned] || cleaned;
+  return aliases[cleaned.toLowerCase()] || cleaned;
 }
 
 function convertMatch(match: FootballDataMatch) {
