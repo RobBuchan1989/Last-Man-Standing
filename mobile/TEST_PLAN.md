@@ -79,3 +79,14 @@ Run only against an isolated staging backend and a dedicated test league.
 - [x] Verified the organiser can reset a finished staging season: season increments, logical round returns to 1, the next upcoming fixture matchday is assigned, player survival and Multi Chip availability reset, and prior season winner history remains intact.
 - [x] Deleted the temporary reset-test league and fixture; no reset-test rows remain.
 - [ ] The reset and winner-history Edge Function routes are deployed to staging, but HTTP-level verification through the public endpoint remains outstanding.
+
+
+## Verified staging processing and reset — 25 October 2026
+
+- [x] Ran isolated SQL smoke tests against staging for result settlement, Multi Chip success when one of two teams wins, missed-pick elimination, logical-round advancement, draw elimination, sole-winner recording, and organiser-only season reset.
+- [x] Confirmed reset increments the season, restarts at logical round 1, restores all players and Multi Chip availability, clears prior-season picks, and preserves the season winner record.
+- [x] Confirmed the synthetic test leagues and fixtures were cleaned up; staging tables are back to zero rows.
+- [x] Deployed the protected `sync-fixtures` Edge Function (version 1) and refreshed `mobile-league` (version 11) in staging only.
+- [x] Added mobile season-winner history and an organiser-only reset action; GitHub Actions Expo/Deno checks passed on the current branch.
+- [ ] Real fixture sync remains blocked until staging Edge Function secrets `FOOTBALL_DATA_API_TOKEN` and `LMS_FIXTURE_SYNC_SECRET` are configured, and a scheduled caller is set up.
+- [ ] Full mobile HTTP create/join/dashboard/pick journey, live fixture sync, and physical-device Android/iOS builds are still unverified.
