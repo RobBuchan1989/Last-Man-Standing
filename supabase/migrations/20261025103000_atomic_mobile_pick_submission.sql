@@ -10,7 +10,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path = public, pg_temp
-as $$
+as $lms$
 declare
   v_entry_id uuid;
   v_competition_id uuid;
@@ -147,7 +147,7 @@ begin
     'multiChipUsed', coalesce(p_use_multi_chip, false)
   );
 end;
-$$;
+$lms$;
 
 revoke all on function public.lms_mobile_submit_pick(text, text, text[], boolean) from public, anon, authenticated;
 grant execute on function public.lms_mobile_submit_pick(text, text, text[], boolean) to service_role;
