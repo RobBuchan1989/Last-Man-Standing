@@ -2,6 +2,7 @@ import { StatusBar } from "expo-status-bar";
 import * as SecureStore from "expo-secure-store";
 import { useEffect, useState } from "react";
 import {
+  Alert,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -80,11 +81,12 @@ async function requestPick(leagueCode: string, sessionToken: string, teams: stri
 }
 
 type DashboardData = {
-  competition: { code: string; name: string; status: string; round: number; seasonNumber: number };
+  competition: { code: string; name: string; status: string; round: number; seasonNumber: number; isOwner: boolean };
   player: { id: string; name: string; alive: boolean; multiChipUsed: boolean };
   entries: { id: string; name: string; alive: boolean; multi_chip_used: boolean }[];
   historicalPicks: { entry_id: string; round: number; team: string; result: string | null; is_multi: boolean }[];
   ownCurrentPicks: { round: number; team: string; result: string | null; is_multi: boolean }[];
+  seasonWinners: { season_number: number; winner_name: string; completed_at: string }[];
 };
 
 async function requestLeague(
@@ -137,6 +139,19 @@ async function requestDashboard(leagueCode: string, sessionToken: string): Promi
   const result = await response.json().catch(() => null) as (DashboardData & { ok?: boolean; error?: string }) | null;
   if (!response.ok || !result?.ok) throw new Error(result?.error || "Could not load the league dashboard.");
   return result;
+}
+
+async function requestResetSeason(leagueCode: string, sessionToken: string): Promise<void> {
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  const publishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!supabaseUrl || !publishableKey) throw new Error("The staging connection is not configured.");
+  const response = await fetch(`${supabaseUrl}/functions/v1/mobile-league`, {
+    method: "POST",
+    headers: { apikey: publishableKey, Authorization: `Bearer ${publishableKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "reset", leagueCode, sessionToken }),
+  });
+  const result = await response.json().catch(() => null) as { ok?: boolean; error?: string } | null;
+  if (!response.ok || !result?.ok) throw new Error(result?.error || "Could not reset the season.");
 }
 
 async function savePlayerSession(result: LeagueResponse) {
@@ -534,6 +549,53 @@ export default function App() {
                     <Text style={styles.playerStatus}>{entry.alive ? "Alive" : "Out"}</Text>
                   </View>
                 ))}
+                <Text style={styles.cardTitle}>Season winner history</Text>
+                {dashboard.seasonWinners.length === 0 ? (
+                  <Text style={styles.cardBody}>No completed seasons recorded yet.</Text>
+                ) : dashboard.seasonWinners.map((winner) => (
+                  <View key={winner.season_number} style={styles.playerRow}>
+                    <Text style={styles.playerName}>Season {winner.season_number} · {winner.winner_name}</Text>
+                    <Text style={styles.playerStatus}>{new Date(winner.completed_at).toLocaleDateString()}</Text>
+                  </View>
+                ))}
+                {dashboard.competition.status === "finished" && dashboard.competition.isOwner && (
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={busy}
+                    style={[styles.secondaryButton, busy && styles.disabledButton]}
+                    onPress={() => {
+                      const code = dashboard.competition.code;
+                      const token = lastSessionToken;
+                      Alert.alert(
+                        "Start a new season?",
+                        "This clears the current season's picks and restores all players. The completed-season winner record is kept.",
+                        [
+                          { text: "Cancel", style: "cancel" },
+                          { text: "Start new season", style: "destructive", onPress: async () => {
+                            setBusy(true);
+                            try {
+                              await requestResetSeason(code, token);
+                              const refreshed = await requestDashboard(code, token);
+                              setDashboard(refreshed);
+                              setFixturesData(null);
+                              setSelectedTeams([]);
+                              setUseMultiChip(false);
+                              setMessage("A new season has started.");
+                              setMessageIsError(false);
+                            } catch (error) {
+                              setMessage(error instanceof Error ? error.message : "Could not reset the season.");
+                              setMessageIsError(true);
+                            } finally {
+                              setBusy(false);
+                            }
+                          } },
+                        ],
+                      );
+                    }}
+                  >
+                    <Text style={styles.secondaryButtonText}>{busy ? "Resetting…" : "Start new season"}</Text>
+                  </Pressable>
+                )}
                 <Text style={styles.cardTitle}>Previous-round picks</Text>
                 {dashboard.historicalPicks.length === 0 ? (
                   <Text style={styles.cardBody}>No completed rounds to show yet.</Text>
@@ -554,7 +616,7 @@ export default function App() {
           </View>
         )}
 
-        {lastLeague && dashboard?.player.alive && dashboard.ownCurrentPicks.length === 0 && (
+        {lastLeague && dashboard?.player.alive && dashboard.competition.status !== "finished" && dashboard.ownCurrentPicks.length === 0 && (
           <View style={styles.section}>
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Choose your team</Text>
