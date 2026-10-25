@@ -15,7 +15,9 @@ Expo / React Native foundation for iOS and Android.
 - Native home screen with create-league and join-by-code forms.
 - Create/join calls to the staging-only `mobile-league` Edge Function.
 - Session-authenticated league dashboard API and native dashboard view.
-- Dashboard shows league round, player status, Multi Chip status, player list, historical picks, and the player's own current pick only.
+- Dashboard shows league round, player status, Multi Chip status, player list, historical picks, season-winner history, and the player's own current pick only.
+- Fixture selection and normal/Multi Chip pick submission screens are connected to the staging Edge Function.
+- The league organiser can reset a finished season from the app; the reset RPC retains winner history and restores player/chip state.
 - Player session token saved using Expo SecureStore, not plain AsyncStorage.
 - Duplicate player names rejected within a league.
 - Rate limiting for create/join requests.
@@ -23,7 +25,7 @@ Expo / React Native foundation for iOS and Android.
 
 ## Not yet playable end-to-end
 
-The create/join flow is connected, but league dashboard reads, team selection, Multi Chip, historical picks, admin controls, result processing, and share-link deep linking still need their API flows and tests. Do not use this as a production app yet.
+The main screens and server-side pick/result/reset APIs are connected, and controlled staging SQL tests cover pick atomicity, Multi Chip survival, missed-pick elimination, round advancement, winner recording, and reset. Real fixture sync is still blocked until staging secrets are added; full mobile HTTP create/join/dashboard/pick tests, actual player recovery and deep links, admin controls, and physical-device builds remain outstanding. Do not use this as a production app yet.
 
 ## Safety
 
