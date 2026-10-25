@@ -72,3 +72,10 @@ Run only against an isolated staging backend and a dedicated test league.
 - A one-survivor test stored the winner name and entry reference and marked the league finished.
 - A zero-survivor test marked the league finished but wrote no winner row.
 - These were controlled SQL-level staging tests, not a full HTTP/device end-to-end test.
+
+## Season reset regression — 25 October 2026
+
+- [x] Verified a non-owner session receives HTTP-equivalent status 403 from the reset RPC and the finished league remains unchanged.
+- [x] Verified the organiser can reset a finished staging season: season increments, logical round returns to 1, the next upcoming fixture matchday is assigned, player survival and Multi Chip availability reset, and prior season winner history remains intact.
+- [x] Deleted the temporary reset-test league and fixture; no reset-test rows remain.
+- [ ] The reset and winner-history Edge Function routes are deployed to staging, but HTTP-level verification through the public endpoint remains outstanding.
