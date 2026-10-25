@@ -13,13 +13,13 @@ Ship Last Man Standing to the Apple App Store and Google Play while keeping the 
 - `app/auth/confirm/route.ts` handles Supabase PKCE confirmation and redirects to the production domain.
 - The README says Supabase pg_cron/pg_net handles automatic football-data.org synchronisation.
 
-## Architecture decision
+## Architecture decision (updated 25 October 2026)
 
-Do not convert the existing site to a static Next.js export: the current server actions, API routes, cookie-based sessions, and authentication routes depend on the Next.js server.
+The current native client is an **Expo / React Native app** in `mobile/native`, not a Capacitor WebView. It has its own native screens and calls a reviewed, server-side Supabase Edge Function for mobile create/join, dashboard, fixture, pick, and season-reset actions. The mobile app is connected to a separate staging Supabase project while it is being developed.
 
-Do not point a release Capacitor build at a remote website using Capacitor's development `server.url` setting. That setting is intended for development/live reload and a thin WebView alone may not meet App Store review requirements.
+Do not convert the existing Next.js website to a static export: the production site still depends on server actions, API routes, cookie-based sessions, and authentication routes. Keep the existing Render-hosted Next.js site and its production database as the website source of truth; do not migrate live leagues into the native app automatically.
 
-The mobile implementation should use Capacitor for native iOS/Android capabilities while the existing Render-hosted Next.js server and Supabase remain authoritative. Before generating release projects, implement and test a mobile shell/navigation approach that supports the existing server-rendered routes, league query links, Supabase authentication and player recovery. Add native app value (for example, push notifications for pick deadlines/results, native share flows, and robust external-link handling) rather than shipping a bare website wrapper.
+Keep Supabase service-role credentials and the football-data.org token on the server only. The native client uses only the staging project URL and publishable key. The mobile app must not expose other players' current-round picks or perform result settlement in the client.
 
 ## Data and safety constraints
 
@@ -33,7 +33,7 @@ The mobile implementation should use Capacitor for native iOS/Android capabiliti
 
 - The repository has API routes for picks, leaderboard data, and player recovery. These can be called from a mobile shell, but the current pick route depends on the existing browser cookies and player-entry identity.
 - The player recovery route sets long-lived, HTTP-only cookies. Native WebView cookie handling and shared-link behaviour must be tested before choosing the final shell.
-- The current package does not include Capacitor packages.
+- The native implementation uses Expo and EAS build profiles; Capacitor is not part of the current implementation.
 - `next.config.mjs` enables `typescript.ignoreBuildErrors`. A green deployment alone therefore may not prove the TypeScript code is clean; mobile work should add a separate explicit type-check step in CI before release.
 - The README's deployment instructions refer to Vercel, while the live service is hosted on Render. Deployment settings must be verified rather than inferred from the README.
 
@@ -62,12 +62,12 @@ The mobile implementation should use Capacitor for native iOS/Android capabiliti
 - The leaderboard endpoint is read-only and accepts a league code as a query parameter. The pick endpoint is a write operation and must only be exercised against a dedicated test league.
 - The Supabase confirmation route exchanges a PKCE code using a cookie-based verifier and redirects to the production origin. Password-reset / admin-auth flows need explicit device testing; the current callback is not yet a native deep-link callback.
 - `proxy.ts` currently passes requests through to the app and does not implement Supabase refresh logic despite its helper name/comment. Do not change this as part of mobile work without a separate investigation, because it is existing authentication behaviour.
-- The repository has no `.github/workflows` directory on this branch, so there is no checked-in CI workflow currently available to run mobile or type-check validation.
+- A checked-in GitHub Actions workflow now type-checks the Expo app, validates Expo configuration, and runs Deno checks for the mobile and fixture-sync Edge Functions.
 - The existing Next.js app uses server actions and request cookies; therefore, a fully offline/static Capacitor app is not a viable first step.
 
 ## Implementation gate
 
-Before adding Capacitor dependencies or native project files, the next work item is to establish a testable development/staging target and document the device-session approach. The first implementation should be additive and confined to this branch: a native shell plus universal/app links and an explicit cookie/session strategy. No production credentials, Render settings, Supabase schema, or live league data should be changed.
+The initial Expo client and isolated staging backend now exist. Before any release build, complete the staging secret setup, real fixture sync, mobile HTTP end-to-end tests, deep-link/session-recovery tests, and physical-device checks. All work remains additive on `mobile-app-foundation`; no production credentials, Render production settings, production schema, or live league data may be changed.
 
 
 ## Product decision: app launch and league migration
