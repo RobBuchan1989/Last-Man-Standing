@@ -8,6 +8,8 @@ export type FootballDataMatch = {
   score?: { fullTime?: { home: number | null; away: number | null } | null } | null;
 };
 
+export type FootballDataResponse = { matches?: FootballDataMatch[] };
+
 export type FootballDataFixture = {
   id: string;
   round: number;
