@@ -1,54 +1,13 @@
 /// <reference lib="deno.ns" />
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.0";
 
-import { convertMatch, scheduledStatuses, type FootballDataMatch } from "./fixture-utils.ts";
+import { convertMatch, scheduledStatuses, type FootballDataResponse } from "./fixture-utils.ts";
 
 function respond(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
   });
-}
-
-function constantTimeEqual(left: string, right: string): boolean {
-  const a = new TextEncoder().encode(left);
-  const b = new TextEncoder().encode(right);
-  if (a.length !== b.length) return false;
-  let difference = 0;
-  for (let index = 0; index < a.length; index += 1) difference |= a[index] ^ b[index];
-  return difference === 0;
-}
-
-function canonicalTeamName(name: string): string {
-  const cleaned = name.replace(/\./g, "").replace(/\bFC\b/gi, "").replace(/\bAFC\b/gi, "").replace(/\s+/g, " ").trim();
-  const aliases: Record<string, string> = {
-    "brighton and hove albion": "Brighton & Hove Albion",
-    "brighton hove albion": "Brighton & Hove Albion",
-    "wolves": "Wolverhampton Wanderers",
-    "wolverhampton wanderers": "Wolverhampton Wanderers",
-    "spurs": "Tottenham Hotspur",
-    "tottenham hotspur": "Tottenham Hotspur",
-  };
-  return aliases[cleaned.toLowerCase()] || cleaned;
-}
-
-function convertMatch(match: FootballDataMatch) {
-  if (!Number.isInteger(match.id) || !match.matchday || !match.homeTeam?.name || !match.awayTeam?.name) return null;
-  const kickoff = new Date(match.utcDate);
-  if (!Number.isFinite(kickoff.getTime())) return null;
-  const status = typeof match.status === "string" ? match.status.trim().toUpperCase() : "";
-  if (!status) return null;
-  return {
-    id: String(match.id),
-    round: match.matchday,
-    home_team: canonicalTeamName(match.homeTeam.name),
-    away_team: canonicalTeamName(match.awayTeam.name),
-    kickoff: kickoff.toISOString(),
-    home_score: match.score?.fullTime?.home ?? null,
-    away_score: match.score?.fullTime?.away ?? null,
-    status,
-    updated_at: new Date().toISOString(),
-  };
 }
 
 Deno.serve(async (request: Request) => {
