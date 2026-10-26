@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.0";
 
-import { convertMatch, scheduledStatuses, type FootballDataResponse } from "./fixture-utils.ts";
+import { constantTimeEqual, convertMatch, scheduledStatuses, type FootballDataResponse } from "./fixture-utils.ts";
 
 function respond(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
