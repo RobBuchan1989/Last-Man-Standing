@@ -43,7 +43,7 @@ Deno.serve(async (request: Request) => {
 
     const payload = await upstream.json() as FootballDataResponse;
     const matches = Array.isArray(payload.matches) ? payload.matches : [];
-    const fixtures = matches.map(convertMatch).filter((fixture): fixture is NonNullable<ReturnType<typeof convertMatch>> => fixture !== null);
+    const fixtures = matches.map((match) => convertMatch(match)).filter((fixture): fixture is NonNullable<ReturnType<typeof convertMatch>> => fixture !== null);
     if (fixtures.length === 0) return respond({ error: "The fixture provider returned no usable Premier League matches." }, 502);
 
     const admin = createClient(supabaseUrl, serverKey, {
