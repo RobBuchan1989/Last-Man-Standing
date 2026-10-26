@@ -76,3 +76,6 @@ jobs:
 
       - name: Typecheck staging fixture sync
         run: deno check supabase/functions/sync-fixtures/index.ts
+
+      - name: Test fixture normalisation helpers
+        run: deno test supabase/functions/sync-fixtures/fixture-utils_test.ts
