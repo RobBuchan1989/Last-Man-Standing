@@ -94,7 +94,7 @@ Run only against an isolated staging backend and a dedicated test league.
 
 ## Staging checkpoint — 26 October 2026
 
-- [x] Verified the latest branch head at this checkpoint is `218e4d9a63b299e8a3b9b3939d7c189b4dba9537`; the latest automated code-check run at parent commit `51ada432de281ee96b1534992c50c2df20c15191` passed all three jobs: Expo typecheck/config, mobile Edge Function Deno check, and fixture-sync Deno check plus helper tests.
+- [x] Verified the application-code commit deployed to staging is `218e4d9a63b299e8a3b9b3939d7c189b4dba9537`; the latest automated code-check run at parent commit `51ada432de281ee96b1534992c50c2df20c15191` passed all three jobs: Expo typecheck/config, mobile Edge Function Deno check, and fixture-sync Deno check plus helper tests.
 - [x] Verified `mobile-league` is active in isolated staging at version 12 and `sync-fixtures` is active at version 3.
 - [x] Manually deployed the current branch head to the separate Render staging service with auto-deploy still disabled. The Next.js build succeeded, the service started, and Render reported the service live.
 - [x] Rechecked staging table status: `competitions`, `entries`, `fixtures`, `picks`, and `season_winners` all have zero rows; RLS remains enabled.
