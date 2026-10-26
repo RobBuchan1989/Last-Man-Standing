@@ -91,3 +91,17 @@ Run only against an isolated staging backend and a dedicated test league.
 - [x] Configured a staging-only Supabase `pg_cron` job named `lms-staging-fixture-sync` to invoke the protected sync endpoint hourly at minute 17; it safely does nothing until the Vault secret exists.
 - [ ] Real fixture sync remains blocked until `FOOTBALL_DATA_API_TOKEN` and `LMS_FIXTURE_SYNC_SECRET` are added to staging Edge Function secrets, and the same sync secret is added to Supabase Vault as `lms_fixture_sync_secret`. The hourly cron is already configured and will begin syncing once the Vault secret is present.
 - [ ] Full mobile HTTP create/join/dashboard/pick journey, live fixture sync, and physical-device Android/iOS builds are still unverified.
+
+## Staging checkpoint — 26 October 2026
+
+- [x] Verified the latest branch head at this checkpoint is `218e4d9a63b299e8a3b9b3939d7c189b4dba9537`; the latest automated code-check run at parent commit `51ada432de281ee96b1534992c50c2df20c15191` passed all three jobs: Expo typecheck/config, mobile Edge Function Deno check, and fixture-sync Deno check plus helper tests.
+- [x] Verified `mobile-league` is active in isolated staging at version 12 and `sync-fixtures` is active at version 3.
+- [x] Manually deployed the current branch head to the separate Render staging service with auto-deploy still disabled. The Next.js build succeeded, the service started, and Render reported the service live.
+- [x] Rechecked staging table status: `competitions`, `entries`, `fixtures`, `picks`, and `season_winners` all have zero rows; RLS remains enabled.
+- [x] Verified the `lms-staging-fixture-sync` cron job is active with schedule `17 * * * *`; its recent scheduled executions succeeded.
+- [x] Verified the Vault secret named `lms_fixture_sync_secret` is currently absent. The scheduled job therefore has no configured sync secret to use and fixture syncing remains blocked.
+- [ ] Do not mark live fixture sync complete until the staging Edge Function secrets `FOOTBALL_DATA_API_TOKEN` and `LMS_FIXTURE_SYNC_SECRET` are configured and the matching `lms_fixture_sync_secret` is added to staging Vault. Secret values must never be committed or bundled in the app.
+- [ ] Fixture table remains empty; a real provider sync has not been verified.
+- [ ] Full public HTTP create/join/dashboard/pick/reset test is still outstanding because this environment cannot make direct outbound HTTPS requests to the staging endpoint. SQL regression tests are not a substitute for that end-to-end check.
+- [ ] EAS Android/iOS builds and physical-device tests have not yet been run; Expo/Apple build credentials are not configured in this workspace.
+- [x] No production deployment, production database, or existing live league was accessed or modified during this checkpoint.
