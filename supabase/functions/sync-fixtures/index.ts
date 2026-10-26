@@ -1,18 +1,7 @@
 /// <reference lib="deno.ns" />
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.0";
 
-type FootballDataMatch = {
-  id: number;
-  matchday: number | null;
-  utcDate: string;
-  status: string;
-  homeTeam?: { name?: string };
-  awayTeam?: { name?: string };
-  score?: { fullTime?: { home: number | null; away: number | null } | null } | null;
-};
-type FootballDataResponse = { matches?: FootballDataMatch[] };
-
-const scheduledStatuses = new Set(["TIMED", "SCHEDULED", "NS"]);
+import { convertMatch, scheduledStatuses, type FootballDataMatch } from "./fixture-utils.ts";
 
 function respond(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
