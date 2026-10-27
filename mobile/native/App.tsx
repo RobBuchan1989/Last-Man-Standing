@@ -55,11 +55,10 @@ type FixturesData = { fixtures: FixtureData[]; usedTeams: string[]; round: numbe
 
 async function requestFixtures(leagueCode: string, sessionToken: string): Promise<FixturesData> {
   const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-  const publishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!supabaseUrl || !publishableKey) throw new Error("The staging connection is not configured.");
+  if (!supabaseUrl) throw new Error("The staging connection is not configured.");
   const response = await fetch(`${supabaseUrl}/functions/v1/mobile-league`, {
     method: "POST",
-    headers: { apikey: publishableKey, Authorization: `Bearer ${publishableKey}`, "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action: "fixtures", leagueCode, sessionToken }),
   });
   const result = await response.json().catch(() => null) as (FixturesData & { ok?: boolean; error?: string }) | null;
@@ -69,11 +68,10 @@ async function requestFixtures(leagueCode: string, sessionToken: string): Promis
 
 async function requestPick(leagueCode: string, sessionToken: string, teams: string[], useMultiChip: boolean): Promise<void> {
   const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-  const publishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!supabaseUrl || !publishableKey) throw new Error("The staging connection is not configured.");
+  if (!supabaseUrl) throw new Error("The staging connection is not configured.");
   const response = await fetch(`${supabaseUrl}/functions/v1/mobile-league`, {
     method: "POST",
-    headers: { apikey: publishableKey, Authorization: `Bearer ${publishableKey}`, "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action: "pick", leagueCode, sessionToken, teams, useMultiChip }),
   });
   const result = await response.json().catch(() => null) as { ok?: boolean; error?: string } | null;
@@ -94,21 +92,16 @@ async function requestLeague(
   payload: { playerName: string; leagueName?: string; leagueCode?: string },
 ): Promise<LeagueResponse> {
   const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
-  const publishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-  if (!supabaseUrl || !publishableKey) {
+  if (!supabaseUrl) {
     throw new Error(
-      "The staging connection is not configured. Copy .env.example to .env and add the staging Supabase URL and publishable key.",
+      "The staging connection is not configured. Copy .env.example to .env and add the staging Supabase URL.",
     );
   }
 
   const response = await fetch(`${supabaseUrl}/functions/v1/mobile-league`, {
     method: "POST",
-    headers: {
-      apikey: publishableKey,
-      Authorization: `Bearer ${publishableKey}`,
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action, ...payload }),
   });
 
@@ -124,16 +117,11 @@ async function requestLeague(
 
 async function requestDashboard(leagueCode: string, sessionToken: string): Promise<DashboardData> {
   const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-  const publishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!supabaseUrl || !publishableKey) throw new Error("The staging connection is not configured.");
+  if (!supabaseUrl) throw new Error("The staging connection is not configured.");
 
   const response = await fetch(`${supabaseUrl}/functions/v1/mobile-league`, {
     method: "POST",
-    headers: {
-      apikey: publishableKey,
-      Authorization: `Bearer ${publishableKey}`,
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action: "dashboard", leagueCode, sessionToken }),
   });
   const result = await response.json().catch(() => null) as (DashboardData & { ok?: boolean; error?: string }) | null;
@@ -143,11 +131,10 @@ async function requestDashboard(leagueCode: string, sessionToken: string): Promi
 
 async function requestResetSeason(leagueCode: string, sessionToken: string): Promise<void> {
   const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-  const publishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!supabaseUrl || !publishableKey) throw new Error("The staging connection is not configured.");
+  if (!supabaseUrl) throw new Error("The staging connection is not configured.");
   const response = await fetch(`${supabaseUrl}/functions/v1/mobile-league`, {
     method: "POST",
-    headers: { apikey: publishableKey, Authorization: `Bearer ${publishableKey}`, "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action: "reset", leagueCode, sessionToken }),
   });
   const result = await response.json().catch(() => null) as { ok?: boolean; error?: string } | null;
