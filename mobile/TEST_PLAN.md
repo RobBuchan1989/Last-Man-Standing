@@ -117,3 +117,22 @@ Run only against an isolated staging backend and a dedicated test league.
 - [ ] Vault secret `lms_fixture_sync_secret` remains absent. The Edge Function secrets `LMS_FIXTURE_SYNC_SECRET` and `FOOTBALL_DATA_API_TOKEN` still require configuration/verification in staging. The direct request confirms fail-closed behaviour, not a real fixture import.
 - [ ] Real fixture sync, complete mobile HTTP flow, and physical Android/iOS builds remain unverified.
 - [x] No production deployment, production database, or existing live league was accessed or modified during this checkpoint.
+
+
+## Staging checkpoint — 27 October 2026 (HTTP journey verified)
+
+- [x] Reached the deployed staging `mobile-league` endpoint through the staging database HTTP extension and executed real HTTP requests against the deployed Edge Function; these were not simulated direct RPC calls.
+- [x] Create league returned HTTP 201 and a player session; joining with a second player returned HTTP 201.
+- [x] Duplicate player name returned HTTP 409 with the expected rejection.
+- [x] Fixture-list route returned HTTP 200 and the controlled synthetic staging matchday fixtures.
+- [x] Normal pick returned HTTP 200; Multi Chip with two teams returned HTTP 200 and marked the chip used; a second pick in the same round returned HTTP 409.
+- [x] Before round settlement, each player's dashboard returned only that player's own current-round picks; the other player's picks were absent from both `ownCurrentPicks` and `historicalPicks`.
+- [x] Settled synthetic round 1 through `lms_process_ready_rounds`: Manchester City and Arsenal were wins, Liverpool was a loss; the normal-pick player survived and the Multi Chip player also survived because one of the two selections won. The logical round advanced to 2 / fixture matchday 39.
+- [x] In round 2, one synthetic pick won and the other lost. The processor eliminated one player, recorded the remaining player as season 1 winner, and marked the league finished.
+- [x] The deployed HTTP reset route returned HTTP 200; direct staging DB verification confirmed season 2, round 1, matchday 40, both players restored, Multi Chip unused, picks cleared, and the season 1 winner record retained.
+- [x] Deleted the temporary league, entries, picks, synthetic fixtures, winner-history row, rate-limit records and HTTP response rows created by the test. Final staging counts: 0 competitions, 0 entries, 0 fixtures, 0 picks, 0 season winners, 0 rate-limit rows.
+- [x] Diagnosed a mobile client configuration issue: including the configured publishable key in the `apikey` header returned HTTP 401 `Invalid API key`; the same protected-by-session Edge Function routes worked without that header. Removed the key and bearer header from native requests and removed the unnecessary publishable-key setting from `mobile/native/.env.example`. The Edge Function still validates per-player session tokens server-side. This fix is on `mobile-app-foundation`; CI was triggered and must finish successfully before this code change is considered checked.
+- [ ] Cross-device recovery with a recovery code is not implemented or tested. SecureStore restoration is currently same-device session persistence only.
+- [ ] Real football-data.org fixture import remains blocked by missing staging Edge Function secrets `FOOTBALL_DATA_API_TOKEN` and `LMS_FIXTURE_SYNC_SECRET`, plus missing Vault secret `lms_fixture_sync_secret`. Synthetic test fixtures do not count as a real feed test.
+- [ ] EAS Android/iOS builds and physical-device tests remain outstanding; Expo/Apple build access is not configured in this workspace.
+- [x] No production deployment, production database, or existing live league was accessed or modified during these tests.
