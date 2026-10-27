@@ -25,6 +25,8 @@ export type FootballDataFixture = {
 export const scheduledStatuses = new Set(["TIMED", "SCHEDULED", "NS"]);
 
 export function constantTimeEqual(left: string, right: string): boolean {
+  // An empty bearer token must never authenticate, even if the configured value is empty.
+  if (!left || !right) return false;
   const a = new TextEncoder().encode(left);
   const b = new TextEncoder().encode(right);
   if (a.length !== b.length) return false;
