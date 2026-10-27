@@ -105,3 +105,15 @@ Run only against an isolated staging backend and a dedicated test league.
 - [ ] Full public HTTP create/join/dashboard/pick/reset test is still outstanding because this environment cannot make direct outbound HTTPS requests to the staging endpoint. SQL regression tests are not a substitute for that end-to-end check.
 - [ ] EAS Android/iOS builds and physical-device tests have not yet been run; Expo/Apple build credentials are not configured in this workspace.
 - [x] No production deployment, production database, or existing live league was accessed or modified during this checkpoint.
+
+## Staging checkpoint — 27 October 2026
+
+- [x] Hardened the fixture-sync secret comparison so empty supplied/configured values never compare as authenticated; added regression assertions for both empty-token directions.
+- [x] Deployed the updated protected fixture-sync function to the isolated staging Supabase project as version 4; `mobile-league` remains active at version 12.
+- [x] GitHub Actions run [40485783306](https://github.com/RobBuchan1989/Last-Man-Standing/actions/runs/40485783306) passed all three jobs on branch head `42c0b4fe6a70d56fbb626d605a3b355425f530da`: Expo typecheck/config, mobile Edge Function Deno check, and fixture-sync Deno check plus helper tests.
+- [x] Verified the staging fixture-sync endpoint is reachable from the staging database's HTTP extension. A no-authorization POST returned HTTP 503 with the explicit response that the server-side sync secret is missing. No fixture write occurred.
+- [x] Rechecked the staging game tables: `competitions`, `entries`, `fixtures`, `picks`, and `season_winners` all contain zero rows.
+- [x] Confirmed the hourly `lms-staging-fixture-sync` cron remains active at `17 * * * *`.
+- [ ] Vault secret `lms_fixture_sync_secret` remains absent. The Edge Function secrets `LMS_FIXTURE_SYNC_SECRET` and `FOOTBALL_DATA_API_TOKEN` still require configuration/verification in staging. The direct request confirms fail-closed behaviour, not a real fixture import.
+- [ ] Real fixture sync, complete mobile HTTP flow, and physical Android/iOS builds remain unverified.
+- [x] No production deployment, production database, or existing live league was accessed or modified during this checkpoint.
