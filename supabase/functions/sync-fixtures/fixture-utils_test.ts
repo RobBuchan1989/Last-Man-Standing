@@ -16,7 +16,9 @@ Deno.test("sync secret comparison accepts equal values and rejects differences",
   assertEquals(constantTimeEqual("secret-token", "secret-token"), true);
   assertEquals(constantTimeEqual("secret-token", "secret-t0ken"), false);
   assertEquals(constantTimeEqual("short", "longer"), false);
-  assertEquals(constantTimeEqual("", ""), true);
+  assertEquals(constantTimeEqual("", ""), false);
+  assertEquals(constantTimeEqual("", "configured-secret"), false);
+  assertEquals(constantTimeEqual("provided-secret", ""), false);
 });
 
 Deno.test("canonicalises known Premier League team aliases", () => {
