@@ -137,6 +137,11 @@ begin
      set session_token = v_new_session_token
    where id = v_entry.entry_id;
 
+  -- Recovery codes are one-time credentials. Consume the code in the same transaction
+  -- as session rotation so it cannot be replayed on another device.
+  delete from public.player_recovery_codes
+   where entry_id = v_entry.entry_id;
+
   insert into public.player_recovery_attempts(attempt_key, succeeded)
   values (v_attempt_key, true);
 
