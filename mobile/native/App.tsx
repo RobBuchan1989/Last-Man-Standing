@@ -19,7 +19,7 @@ const SESSION_STORAGE_KEY = "lms.playerSessions.v1";
 
 type LeagueResponse = {
   ok: boolean;
-  action: "create" | "join";
+  action: "create" | "join" | "recover";
   competition: {
     id: string;
     code: string;
@@ -115,6 +115,44 @@ async function requestLeague(
   return result;
 }
 
+async function requestRecoverPlayer(
+  leagueCode: string,
+  playerName: string,
+  recoveryCode: string,
+): Promise<LeagueResponse> {
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) throw new Error("The staging connection is not configured.");
+  const response = await fetch(`${supabaseUrl}/functions/v1/mobile-league`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "recover", leagueCode, playerName, recoveryCode }),
+  });
+  const result = await response.json().catch(() => null) as LeagueResponse | { ok?: boolean; error?: string } | null;
+  if (!response.ok || !result?.ok) {
+    throw new Error(result?.error || "Those recovery details could not be verified.");
+  }
+  const recovered = result as LeagueResponse;
+  if (!recovered.sessionToken || !recovered.entry?.id || !recovered.competition?.code) {
+    throw new Error("The recovery service returned an incomplete player session.");
+  }
+  return recovered;
+}
+
+async function requestIssueRecovery(leagueCode: string, sessionToken: string): Promise<string> {
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) throw new Error("The staging connection is not configured.");
+  const response = await fetch(`${supabaseUrl}/functions/v1/mobile-league`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "issueRecovery", leagueCode, sessionToken }),
+  });
+  const result = await response.json().catch(() => null) as { ok?: boolean; recoveryCode?: string; error?: string } | null;
+  if (!response.ok || !result?.ok || !result.recoveryCode) {
+    throw new Error(result?.error || "Could not create a recovery code.");
+  }
+  return result.recoveryCode;
+}
+
 async function requestDashboard(leagueCode: string, sessionToken: string): Promise<DashboardData> {
   const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
   if (!supabaseUrl) throw new Error("The staging connection is not configured.");
@@ -189,6 +227,9 @@ export default function App() {
   const [playerName, setPlayerName] = useState("");
   const [leagueName, setLeagueName] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showRecoveryForm, setShowRecoveryForm] = useState(false);
+  const [recoveryCode, setRecoveryCode] = useState("");
+  const [issuedRecoveryCode, setIssuedRecoveryCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [messageIsError, setMessageIsError] = useState(false);
@@ -302,6 +343,61 @@ export default function App() {
     } catch (error) {
       setMessageIsError(true);
       setMessage(error instanceof Error ? error.message : "Could not create the league.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function recoverPlayer() {
+    if (!playerName.trim() || !leagueCode.trim() || !recoveryCode.trim()) {
+      setMessageIsError(true);
+      setMessage("Enter your player name, league code and recovery code.");
+      return;
+    }
+
+    setBusy(true);
+    setMessage("");
+    try {
+      const result = await requestRecoverPlayer(leagueCode.trim().toUpperCase(), playerName.trim(), recoveryCode.trim());
+      await savePlayerSession(result);
+      await refreshSavedSessions();
+      setLastSessionToken(result.sessionToken);
+      setLastLeague({
+        code: result.competition.code,
+        name: result.competition.name,
+        playerName: result.entry.name,
+      });
+      setLeagueCode(result.competition.code);
+      setPlayerName(result.entry.name);
+      setDashboard(null);
+      setFixturesData(null);
+      setSelectedTeams([]);
+      setUseMultiChip(false);
+      setIssuedRecoveryCode("");
+      setRecoveryCode("");
+      setShowRecoveryForm(false);
+      setMessageIsError(false);
+      setMessage("Player session recovered. Your new session is saved securely on this device; the previous session has been replaced.");
+    } catch (error) {
+      setMessageIsError(true);
+      setMessage(error instanceof Error ? error.message : "Could not recover this player session.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function issueRecoveryCode() {
+    if (!lastLeague || !lastSessionToken) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      const code = await requestIssueRecovery(lastLeague.code, lastSessionToken);
+      setIssuedRecoveryCode(code);
+      setMessageIsError(false);
+      setMessage("Recovery code created. Save it somewhere safe; generating another code will invalidate this one.");
+    } catch (error) {
+      setMessageIsError(true);
+      setMessage(error instanceof Error ? error.message : "Could not create a recovery code.");
     } finally {
       setBusy(false);
     }
@@ -475,6 +571,48 @@ export default function App() {
             </Pressable>
           </View>
 
+          <Pressable
+            accessibilityRole="button"
+            disabled={busy}
+            style={[styles.secondaryButton, busy && styles.disabledButton]}
+            onPress={() => {
+              setShowRecoveryForm((visible) => !visible);
+              setMessage("");
+            }}
+          >
+            <Text style={styles.secondaryButtonText}>{showRecoveryForm ? "Cancel player recovery" : "Recover a player on a new device"}</Text>
+          </Pressable>
+
+          {showRecoveryForm && (
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Restore your player session</Text>
+              <Text style={styles.cardBody}>Use the player name and league code above, then enter the recovery code you saved from your previous device.</Text>
+              <TextInput
+                accessibilityLabel="Player recovery code"
+                autoCapitalize="none"
+                autoCorrect={false}
+                maxLength={100}
+                onChangeText={setRecoveryCode}
+                onSubmitEditing={recoverPlayer}
+                placeholder="Enter recovery code"
+                placeholderTextColor="#8a958e"
+                returnKeyType="go"
+                secureTextEntry
+                style={styles.input}
+                value={recoveryCode}
+              />
+              <Pressable
+                accessibilityRole="button"
+                disabled={busy || !playerName.trim() || !leagueCode.trim() || !recoveryCode.trim()}
+                style={[styles.primaryButton, (busy || !playerName.trim() || !leagueCode.trim() || !recoveryCode.trim()) && styles.disabledButton]}
+                onPress={recoverPlayer}
+              >
+                <Text style={styles.primaryButtonText}>{busy ? "Recovering…" : "Recover player session"}</Text>
+                <Text style={styles.buttonArrow}>↗</Text>
+              </Pressable>
+            </View>
+          )}
+
           {!!message && (
             <View style={[styles.messageBox, messageIsError ? styles.errorBox : styles.successBox]}>
               <Text style={[styles.messageText, messageIsError ? styles.errorText : styles.successText]}>
@@ -491,7 +629,7 @@ export default function App() {
               <Text style={styles.inviteCodeLabel}>LEAGUE CODE</Text>
               <Text selectable style={styles.inviteCode}>{lastLeague.code}</Text>
               <Text style={styles.cardBody}>
-                Keep this code to invite other players. The league dashboard and team-pick screen are the next features being connected.
+                Keep this code to invite other players. Open the dashboard to see standings, season history and your current pick options.
               </Text>
             </View>
           )}
@@ -582,6 +720,21 @@ export default function App() {
                   >
                     <Text style={styles.secondaryButtonText}>{busy ? "Resetting…" : "Start new season"}</Text>
                   </Pressable>
+                )}
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={busy}
+                  style={[styles.secondaryButton, busy && styles.disabledButton]}
+                  onPress={issueRecoveryCode}
+                >
+                  <Text style={styles.secondaryButtonText}>{busy ? "Please wait…" : "Create player recovery code"}</Text>
+                </Pressable>
+                {issuedRecoveryCode !== "" && (
+                  <View style={styles.recoveryCodeBox}>
+                    <Text style={styles.cardTitle}>Save this recovery code</Text>
+                    <Text selectable style={styles.recoveryCodeText}>{issuedRecoveryCode}</Text>
+                    <Text style={styles.cardBody}>Keep it private. You can use it with your player name and league code on another device. Creating a replacement code invalidates this one.</Text>
+                  </View>
                 )}
                 <Text style={styles.cardTitle}>Previous-round picks</Text>
                 {dashboard.historicalPicks.length === 0 ? (
@@ -779,6 +932,8 @@ const styles = StyleSheet.create({
   playerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#edf0eb" },
   playerName: { color: forest, fontSize: 13, fontWeight: "700", flex: 1 },
   playerStatus: { color: muted, fontSize: 12, fontWeight: "700" },
+  recoveryCodeBox: { backgroundColor: "#edf7df", borderRadius: 14, borderWidth: 1, borderColor: "#c9e4a1", padding: 14, gap: 8 },
+  recoveryCodeText: { color: forest, fontSize: 16, fontWeight: "900", letterSpacing: 1.2 },
   successCard: {
     backgroundColor: forest,
     borderRadius: 20,
