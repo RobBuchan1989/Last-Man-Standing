@@ -136,3 +136,20 @@ Run only against an isolated staging backend and a dedicated test league.
 - [ ] Real football-data.org fixture import remains blocked by missing staging Edge Function secrets `FOOTBALL_DATA_API_TOKEN` and `LMS_FIXTURE_SYNC_SECRET`, plus missing Vault secret `lms_fixture_sync_secret`. Synthetic test fixtures do not count as a real feed test.
 - [ ] EAS Android/iOS builds and physical-device tests remain outstanding; Expo/Apple build access is not configured in this workspace.
 - [x] No production deployment, production database, or existing live league was accessed or modified during these tests.
+
+
+## Staging checkpoint — 28 October 2026
+
+- [x] Added mobile self-service recovery-code issuance and recovery UI on `mobile-app-foundation`. The app generates a 24-byte random code, sends only its SHA-256 hash to the server, and displays the plaintext code once for the player to save.
+- [x] Added server-only RPCs `lms_mobile_issue_recovery` and `lms_mobile_recover_player`. Recovery validates league, player name and code; failed attempts are throttled by league/player; successful recovery rotates the session token and consumes the code in the same transaction, preventing replay.
+- [x] Expanded the staging rate-limit constraint to include recovery-code issuance.
+- [x] Applied the recovery, rate-limit and one-time-consumption migrations to staging project `tdtwbuoakjsbkjaljmla`.
+- [x] Ran transactional SQL smoke tests in staging: recovery code hash stored; incorrect code rejected; correct code accepted; session token rotated; old token replaced; recovery code deleted; replay rejected. The transaction was rolled back after assertions, leaving no test rows.
+- [x] Verified the two recovery RPCs cannot be executed by `anon` or `authenticated`; `service_role` can execute them.
+- [x] Deployed the mobile Edge Function to isolated staging (active version 14); fixture-sync remains active at version 4.
+- [x] GitHub Actions run [40671023910](https://github.com/RobBuchan1989/Last-Man-Standing/actions/runs/40671023910) passed all three jobs on commit `e7b7af4e47b12d5b3a1fdc882dd29a5b60ad67b3`: Expo typecheck/config, mobile Edge Function Deno check, and fixture-sync Deno check plus helper tests.
+- [x] Rechecked staging game/recovery tables after the tests: competitions, entries, fixtures, picks, season winners, recovery codes, recovery attempts and rate-limit rows are all zero.
+- [ ] Recovery-code issue/recover still needs a real HTTP-level test through the deployed endpoint and a cross-device UI test; SQL smoke tests alone do not prove the mobile request journey.
+- [ ] Real fixture sync remains blocked until `FOOTBALL_DATA_API_TOKEN` and `LMS_FIXTURE_SYNC_SECRET` are configured in staging Edge Function secrets and matching `lms_fixture_sync_secret` is present in staging Vault. The fixture table remains empty.
+- [ ] EAS Android/iOS builds and physical-device testing remain outstanding; build credentials are not configured.
+- [x] No production deployment, production database, or existing live league was accessed or modified during this checkpoint.
