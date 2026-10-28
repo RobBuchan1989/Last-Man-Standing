@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.0";
 
-type Action = "create" | "join";
+type Action = "create" | "join" | "issue_recovery";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -39,6 +39,13 @@ async function sha256(value: string): Promise<string> {
   return Array.from(new Uint8Array(digest))
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
+}
+
+function randomRecoveryCode(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
 async function withinRateLimit(
@@ -96,6 +103,82 @@ Deno.serve(async (request: Request) => {
   }
 
   const action = body.action;
+
+  if (action === "recover") {
+    const requestedCode = cleanCode(body.leagueCode);
+    const playerName = cleanName(body.playerName, 40);
+    const recoveryCode = typeof body.recoveryCode === "string" ? body.recoveryCode.trim() : "";
+    if (requestedCode.length < 4 || !playerName || !recoveryCode || recoveryCode.length > 100) {
+      return respond({ error: "Those details could not be verified. Check them and try again." }, 400);
+    }
+
+    const admin = createClient(supabaseUrl, serverKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    try {
+      const { data: outcome, error: recoveryError } = await admin.rpc("lms_mobile_recover_player", {
+        p_league_code: requestedCode,
+        p_player_name: playerName,
+        p_code_hash: await sha256(recoveryCode),
+      });
+      if (recoveryError) {
+        console.error("Mobile player recovery failed:", recoveryError.code);
+        return respond({ error: "Player recovery is temporarily unavailable. Please try again." }, 503);
+      }
+      const result = outcome as {
+        ok?: boolean; status?: number; error?: string; action?: string;
+        competition?: Record<string, unknown>; entry?: Record<string, unknown>; sessionToken?: string;
+      } | null;
+      if (!result?.ok || !result.sessionToken || !result.entry || !result.competition) {
+        return respond(
+          { error: result?.error || "Those details could not be verified. Check them and try again." },
+          result?.status && result.status >= 400 && result.status <= 599 ? result.status : 400,
+        );
+      }
+      return respond({ ...result, ok: true, action: "recover" });
+    } catch (error) {
+      console.error("Mobile player recovery error:", error instanceof Error ? error.message : "unknown");
+      return respond({ error: "Player recovery is temporarily unavailable. Please try again." }, 503);
+    }
+  }
+
+  if (action === "issueRecovery") {
+    const sessionToken = typeof body.sessionToken === "string" ? body.sessionToken.trim() : "";
+    const requestedCode = cleanCode(body.leagueCode);
+    if (!sessionToken || sessionToken.length > 100 || requestedCode.length < 4) {
+      return respond({ error: "A valid player session and league code are required." }, 400);
+    }
+
+    const admin = createClient(supabaseUrl, serverKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    try {
+      if (!(await withinRateLimit(admin, request, "issue_recovery"))) {
+        return respond({ error: "Too many recovery-code requests. Please wait a few minutes and try again." }, 429);
+      }
+      const recoveryCode = randomRecoveryCode();
+      const { data: outcome, error: issueError } = await admin.rpc("lms_mobile_issue_recovery", {
+        p_session_token: sessionToken,
+        p_league_code: requestedCode,
+        p_code_hash: await sha256(recoveryCode),
+      });
+      if (issueError) {
+        console.error("Mobile recovery-code issue failed:", issueError.code);
+        return respond({ error: "Could not create a recovery code. Please try again." }, 503);
+      }
+      const result = outcome as { ok?: boolean; status?: number; error?: string } | null;
+      if (!result?.ok) {
+        return respond(
+          { error: result?.error || "Could not create a recovery code." },
+          result?.status && result.status >= 400 && result.status <= 599 ? result.status : 401,
+        );
+      }
+      return respond({ ok: true, action: "issueRecovery", recoveryCode });
+    } catch (error) {
+      console.error("Mobile recovery-code issue error:", error instanceof Error ? error.message : "unknown");
+      return respond({ error: "Could not create a recovery code. Please try again." }, 503);
+    }
+  }
 
   // Dashboard requests authenticate with the unguessable per-entry session token.
   // Other players' current-round picks are never included in the response.
