@@ -396,7 +396,7 @@ export default function App() {
       const code = await requestIssueRecovery(lastLeague.code, lastSessionToken);
       setIssuedRecoveryCode(code);
       setMessageIsError(false);
-      setMessage("Recovery code created. Save it somewhere safe; generating another code will invalidate this one.");
+      setMessage("Recovery code created. Save it somewhere safe: a successful restore consumes it, and generating another code invalidates this one.");
     } catch (error) {
       setMessageIsError(true);
       setMessage(error instanceof Error ? error.message : "Could not create a recovery code.");
