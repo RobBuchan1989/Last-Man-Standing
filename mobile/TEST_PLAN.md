@@ -153,3 +153,17 @@ Run only against an isolated staging backend and a dedicated test league.
 - [ ] Real fixture sync remains blocked until `FOOTBALL_DATA_API_TOKEN` and `LMS_FIXTURE_SYNC_SECRET` are configured in staging Edge Function secrets and matching `lms_fixture_sync_secret` is present in staging Vault. The fixture table remains empty.
 - [ ] EAS Android/iOS builds and physical-device testing remain outstanding; build credentials are not configured.
 - [x] No production deployment, production database, or existing live league was accessed or modified during this checkpoint.
+
+
+## Staging checkpoint — 28 October 2026 (mobile recovery codes)
+
+- [x] Added the mobile recovery RPCs to the isolated staging database using migrations `20261028100000_mobile_recovery.sql` and `20261028100500_mobile_recovery_rate_limit.sql`; the rate-limit constraint permits the `issue_recovery` operation.
+- [x] Deployed the current branch's `mobile-league` Edge Function to the staging Supabase project as version 14. It exposes recovery-code issue and restore routes, hashes codes server-side, throttles recovery attempts, and rotates the session token after a valid restore.
+- [x] Tightened recovery security: successful restore consumes the recovery code in the same database transaction as session-token rotation, preventing replay; the native UI now explains that a successful restore consumes the code and generating another code invalidates the previous one.
+- [x] Ran controlled SQL-level staging regression tests: issue a recovery hash for a test player, recover successfully, confirm the returned session token differs from the old token, confirm the code row is consumed, and confirm replay is rejected. All assertions passed and temporary data was removed.
+- [x] Verified staging game/recovery tables and rate-limit table were empty after cleanup.
+- [x] GitHub Actions run [40670582024](https://github.com/RobBuchan1989/Last-Man-Standing/actions/runs/40670582024) passed all three jobs at commit `0a7f7fc8f09322b45249a8d0d349c40175677f5c`: Expo typecheck/config, mobile Edge Function Deno check, and fixture-sync Deno check/helper tests.
+- [ ] HTTP-level recovery-code issue/restore/replay test was attempted but the outbound request was blocked by the execution safety layer; do not treat the SQL RPC test as a full HTTP recovery test. The current branch has an additional help-text-only app change that triggered a fresh CI run; verify that run before marking the latest branch head green.
+- [ ] Real football-data.org fixture sync remains blocked by staging secrets `FOOTBALL_DATA_API_TOKEN` and `LMS_FIXTURE_SYNC_SECRET`, plus matching Vault secret `lms_fixture_sync_secret`. The fixture table is still empty.
+- [ ] EAS Android/iOS builds and physical-device tests remain outstanding; Expo/Apple build access is not configured in this workspace.
+- [x] No production deployment, production database, or existing live league was accessed or modified during this checkpoint.
