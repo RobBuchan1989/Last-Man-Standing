@@ -145,6 +145,7 @@ Run only against an isolated staging backend and a dedicated test league.
 - [x] Expanded the staging rate-limit constraint to include recovery-code issuance.
 - [x] Applied the recovery, rate-limit and one-time-consumption migrations to staging project `tdtwbuoakjsbkjaljmla`.
 - [x] Ran transactional SQL smoke tests in staging: recovery code hash stored; incorrect code rejected; correct code accepted; session token rotated; old token replaced; recovery code deleted; replay rejected. The transaction was rolled back after assertions, leaving no test rows.
+- [x] Ran an additional transactional throttle test: eight incorrect codes were rejected, the next attempt was rate-limited even with the correct code, and the stored code/session were left unchanged. The test transaction was rolled back.
 - [x] Verified the two recovery RPCs cannot be executed by `anon` or `authenticated`; `service_role` can execute them.
 - [x] Deployed the mobile Edge Function to isolated staging (active version 14); fixture-sync remains active at version 4.
 - [x] GitHub Actions run [40671023910](https://github.com/RobBuchan1989/Last-Man-Standing/actions/runs/40671023910) passed all three jobs on commit `e7b7af4e47b12d5b3a1fdc882dd29a5b60ad67b3`: Expo typecheck/config, mobile Edge Function Deno check, and fixture-sync Deno check plus helper tests.
