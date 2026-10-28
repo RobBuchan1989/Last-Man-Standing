@@ -266,6 +266,7 @@ export default function App() {
   }, []);
 
   async function reopenSavedSession(session: SavedSession) {
+    setIssuedRecoveryCode("");
     setBusy(true);
     setMessage("");
     try {
@@ -328,6 +329,7 @@ export default function App() {
       });
       await savePlayerSession(result);
       await refreshSavedSessions();
+      setIssuedRecoveryCode("");
       setLastSessionToken(result.sessionToken);
       setDashboard(null);
       setLastLeague({
@@ -418,6 +420,7 @@ export default function App() {
         leagueCode: leagueCode.trim().toUpperCase(),
       });
       await savePlayerSession(result);
+      setIssuedRecoveryCode("");
       setLastSessionToken(result.sessionToken);
       setDashboard(null);
       setLastLeague({
