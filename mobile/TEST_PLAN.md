@@ -171,3 +171,18 @@ Run only against an isolated staging backend and a dedicated test league.
 - [ ] Real football-data.org fixture sync remains blocked by staging secrets `FOOTBALL_DATA_API_TOKEN` and `LMS_FIXTURE_SYNC_SECRET`, plus matching Vault secret `lms_fixture_sync_secret`. The fixture table is still empty.
 - [ ] EAS Android/iOS builds and physical-device tests remain outstanding; Expo/Apple build access is not configured in this workspace.
 - [x] No production deployment, production database, or existing live league was accessed or modified during this checkpoint.
+
+
+## Staging checkpoint — 29 October 2026
+
+- [x] Rechecked the current branch head: `6948fa58525235e3ba6516c79724a572bdbd476c`. It is a documentation-only commit after the application-code commit `82fd80113e8cf7505f2520ad75507ba2a4952864`; no newer app code has been deployed.
+- [x] Rechecked GitHub Actions run [40671412798](https://github.com/RobBuchan1989/Last-Man-Standing/actions/runs/40671412798): Expo typecheck/config and Android/iOS Metro bundle exports passed; mobile Edge Function Deno check passed; fixture-sync Deno check and helper tests passed.
+- [x] Rechecked staging Edge Functions: `mobile-league` active version 14 and `sync-fixtures` active version 4.
+- [x] Rechecked execution privileges for recovery issue/recover, atomic pick submission, round processing, and season reset RPCs: `anon` and `authenticated` have no execute privilege; `service_role` does.
+- [x] Rechecked the staging fixture-sync Vault secret by name only (never reading its value): `lms_fixture_sync_secret` is still absent.
+- [x] Confirmed the hourly cron job `lms-staging-fixture-sync` remains active at `17 * * * *`. Its latest scheduled executions report SQL job success, but the job deliberately skips the HTTP request while the Vault secret is absent; these successes do not represent a fixture sync.
+- [x] Rechecked staging game/recovery/rate-limit tables: competitions, entries, fixtures, picks, season winners, recovery codes, recovery attempts and rate-limit records are all zero.
+- [ ] Real football-data.org sync remains blocked until `FOOTBALL_DATA_API_TOKEN` and `LMS_FIXTURE_SYNC_SECRET` are configured as staging Edge Function secrets and the matching `lms_fixture_sync_secret` is added to staging Vault.
+- [ ] Cross-device recovery HTTP/UI test remains outstanding. SQL-level recovery, one-time consumption and throttling tests passed previously, but the direct HTTP attempt was blocked by the execution safety layer.
+- [ ] EAS Android/iOS installable builds and physical-device testing remain outstanding; Expo project linking and Apple signing access are not configured here.
+- [x] No production deployment, production database, or existing live league was accessed or modified during this checkpoint.
