@@ -22,12 +22,9 @@ Follow the prompts to create or link the Expo project. This adds the project ID 
 
 ## Configure the staging endpoint
 
-In the linked Expo project, add the preview environment variable:
+The EAS `development` and `preview` profiles in `mobile/native/eas.json` explicitly set `EXPO_PUBLIC_SUPABASE_URL` to the isolated staging project. The CI safety check verifies this and rejects backend secret keys in build-profile environment variables.
 
-- Name: `EXPO_PUBLIC_SUPABASE_URL`
-- Value: `https://tdtwbuoakjsbkjaljmla.supabase.co`
-
-This is the public staging endpoint, not a secret. Never add a service-role key, Supabase secret key, football-data.org token, or fixture-sync secret to Expo environment variables or the native app.
+This is a public endpoint URL, not a secret. Never add a service-role key, Supabase secret key, football-data.org token, or fixture-sync secret to Expo environment variables or the native app. The `production` profile deliberately has no backend URL configured; do not configure or run a production build without explicit approval.
 
 ## Build preview artifacts
 
