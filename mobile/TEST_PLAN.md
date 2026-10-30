@@ -186,3 +186,16 @@ Run only against an isolated staging backend and a dedicated test league.
 - [ ] Cross-device recovery HTTP/UI test remains outstanding. SQL-level recovery, one-time consumption and throttling tests passed previously, but the direct HTTP attempt was blocked by the execution safety layer.
 - [ ] EAS Android/iOS installable builds and physical-device testing remain outstanding; Expo project linking and Apple signing access are not configured here.
 - [x] No production deployment, production database, or existing live league was accessed or modified during this checkpoint.
+
+## Staging checkpoint — 30 October 2026
+
+- [x] Pinned EAS `development` and `preview` build profiles to the isolated staging Supabase URL in `mobile/native/eas.json`; the production profile remains without a backend URL.
+- [x] Added `mobile/native/scripts/check-build-config.mjs` and `npm run check:build-config`. It verifies the app scheme and platform identifiers, requires development/preview to target staging, checks Android preview is an APK and iOS preview targets physical devices, and rejects secret-like backend variables in EAS profile environment settings.
+- [x] Added the EAS safety check to the native CI job and updated `mobile/BUILDING.md` with the staging-pinned build setup.
+- [x] Ran the build-config script locally against the checked-in app/EAS configuration; all assertions passed.
+- [x] GitHub Actions run [41039713016](https://github.com/RobBuchan1989/Last-Man-Standing/actions/runs/41039713016) completed successfully: EAS staging/secret safety check, Expo TypeScript typecheck, Expo config validation, Android bundle export, iOS bundle export, mobile Edge Function Deno check, and fixture-sync Deno check/helper tests all passed.
+- [ ] No installable EAS APK/IPA has been produced; EAS project linking and account/signing access are still required.
+- [ ] Fixture syncing remains blocked: staging Vault secret `lms_fixture_sync_secret` is absent. The staging fixture table remains empty; no real football-data.org sync has been verified.
+- [x] Rechecked staging game tables: competitions, entries, fixtures, picks and season winners all contain zero rows.
+- [x] Render staging remains on `mobile-app-foundation` with automatic deploys disabled; no staging redeploy was triggered by these mobile-only code/config changes.
+- [x] No production deployment, production database, or existing live league was accessed or modified during this checkpoint.
