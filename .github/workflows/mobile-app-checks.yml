@@ -41,6 +41,9 @@ jobs:
       - name: Install native app dependencies
         run: npm install --no-audit --no-fund
 
+      - name: Check EAS staging and secret configuration
+        run: npm run check:build-config
+
       - name: TypeScript typecheck
         run: npm run typecheck
 
