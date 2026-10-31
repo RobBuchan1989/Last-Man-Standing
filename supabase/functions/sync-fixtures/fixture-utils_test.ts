@@ -62,3 +62,37 @@ Deno.test("scheduled statuses match football-data's pre-kickoff values", () => {
   assertEquals(scheduledStatuses.has("NS"), true);
   assertEquals(scheduledStatuses.has("FINISHED"), false);
 });
+
+
+Deno.test("normalises every current Premier League club to the mobile pick-list name", () => {
+  const currentPremierLeagueTeams: Array<[string, string]> = [
+    ["Arsenal", "Arsenal"],
+    ["Aston Villa FC", "Aston Villa"],
+    ["AFC Bournemouth", "Bournemouth"],
+    ["Brentford FC", "Brentford"],
+    ["Brighton and Hove Albion FC", "Brighton & Hove Albion"],
+    ["Chelsea FC", "Chelsea"],
+    ["Crystal Palace FC", "Crystal Palace"],
+    ["Everton FC", "Everton"],
+    ["Fulham FC", "Fulham"],
+    ["Leeds United FC", "Leeds United"],
+    ["Liverpool FC", "Liverpool"],
+    ["Manchester City FC", "Manchester City"],
+    ["Manchester United FC", "Manchester United"],
+    ["Newcastle United FC", "Newcastle United"],
+    ["Nottingham Forest FC", "Nottingham Forest"],
+    ["Sunderland AFC", "Sunderland"],
+    ["Tottenham Hotspur FC", "Tottenham Hotspur"],
+    ["Coventry City FC", "Coventry City"],
+    ["Ipswich Town FC", "Ipswich Town"],
+    ["Hull City AFC", "Hull City"],
+  ];
+
+  for (const [providerName, mobileName] of currentPremierLeagueTeams) {
+    assertEquals(
+      canonicalTeamName(providerName),
+      mobileName,
+      `Fixture provider name "${providerName}" must match the mobile pick-list name.`,
+    );
+  }
+});
