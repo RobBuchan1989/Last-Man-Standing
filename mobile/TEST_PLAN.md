@@ -213,3 +213,16 @@ Run only against an isolated staging backend and a dedicated test league.
 - [ ] Real football-data.org fixture import remains blocked until `FOOTBALL_DATA_API_TOKEN` and `LMS_FIXTURE_SYNC_SECRET` are configured as staging Edge Function secrets and the matching `lms_fixture_sync_secret` is added to staging Vault.
 - [ ] HTTP-level recovery-code issue/restore/replay test, EAS installable Android/iOS builds and physical-device testing remain outstanding.
 - [x] No production deployment, production database, or existing live league was accessed or modified during this checkpoint.
+
+## Staging checkpoint — 1 November 2026
+
+- [x] Ran a real HTTP recovery-code journey against the deployed staging `mobile-league` Edge Function (version 14), using the staging database HTTP extension and a temporary test player. Recovery-code issuance returned HTTP 200.
+- [x] Restored the player with the issued code; recovery returned HTTP 200 and rotated the session token.
+- [x] Verified the new session token could load the league dashboard over HTTP (200), while the pre-recovery session token was rejected (401).
+- [x] Replayed the same recovery code; the endpoint rejected it with HTTP 400, confirming one-time consumption through the deployed HTTP route.
+- [x] Removed the temporary competition/player, recovery attempt, rate-limit row and HTTP response records. Final staging counts: 0 competitions, 0 entries, 0 fixtures, 0 picks, 0 season winners, 0 recovery codes, 0 recovery attempts and 0 rate-limit rows.
+- [x] Rechecked the isolated staging project: `mobile-league` is active at version 14; `sync-fixtures` is active at version 4; the fixture cron remains active at `17 * * * *`.
+- [ ] The HTTP recovery route is verified, but the complete recovery UI flow on a second physical device is still outstanding.
+- [ ] Real fixture import remains blocked: the staging Vault contains no secrets, including the required `lms_fixture_sync_secret`. The presence of `FOOTBALL_DATA_API_TOKEN` and `LMS_FIXTURE_SYNC_SECRET` in Edge Function secrets cannot be inspected through the available project connection. The cron therefore skips its HTTP call; fixture count remains zero.
+- [ ] Installable EAS Android APK/iOS device build and physical-device acceptance tests remain outstanding; EAS project linking/account access and Apple signing access are required.
+- [x] No production deployment, production database, or existing live league was accessed or modified during this checkpoint.
