@@ -226,3 +226,18 @@ Run only against an isolated staging backend and a dedicated test league.
 - [ ] Real fixture import remains blocked: the staging Vault contains no secrets, including the required `lms_fixture_sync_secret`. The presence of `FOOTBALL_DATA_API_TOKEN` and `LMS_FIXTURE_SYNC_SECRET` in Edge Function secrets cannot be inspected through the available project connection. The cron therefore skips its HTTP call; fixture count remains zero.
 - [ ] Installable EAS Android APK/iOS device build and physical-device acceptance tests remain outstanding; EAS project linking/account access and Apple signing access are required.
 - [x] No production deployment, production database, or existing live league was accessed or modified during this checkpoint.
+
+
+## Staging checkpoint — 2 November 2026
+
+- [x] Compared `mobile-app-foundation` with the previously reviewed commit `122c06ba46cbd1f420d72fd0bcbdc021f8572c7d`; the branch is identical. No application-code changes have landed since the 1 November checkpoint.
+- [x] Rechecked GitHub Actions run [41192192845](https://github.com/RobBuchan1989/Last-Man-Standing/actions/runs/41192192845): all three jobs completed successfully. The fixture helper suite reported 6 passed / 0 failed, including canonicalisation of all 20 current Premier League clubs; the mobile Edge Function Deno check passed; Expo typecheck, build-safety/config checks, and Android/iOS Metro bundle exports passed. These are CI checks and JavaScript bundles, not installable EAS packages.
+- [x] Rechecked isolated Supabase staging project `tdtwbuoakjsbkjaljmla`: project status is `ACTIVE_HEALTHY`; `mobile-league` is active at version 14 and `sync-fixtures` is active at version 4.
+- [x] Confirmed the hourly `lms-staging-fixture-sync` cron is active. Its five latest scheduled executions (06:17–10:17 UTC on 2 November) completed as cron jobs, but the job is designed to skip the HTTP request when its Vault secret is absent; these are not successful fixture imports.
+- [x] Confirmed staging row counts remain zero for fixtures, competitions, entries, picks and season winners; Vault currently contains zero secrets.
+- [x] Sent an unauthorised POST to the staging fixture-sync endpoint at 10:48 UTC. It returned HTTP 503 with the expected fail-closed message that the server-side sync secret is missing. No fixture write occurred; the temporary HTTP response record created by this probe was removed.
+- [x] Inspected native build configuration: development and preview profiles are pinned to the staging Supabase URL; Android preview is configured as an internal APK and iOS preview targets a physical device. App scheme and bundle/package identifiers are present.
+- [ ] Real fixture import remains blocked until `LMS_FIXTURE_SYNC_SECRET` is configured in staging Edge Function secrets and the same value is stored in Vault as `lms_fixture_sync_secret`. The existing `FOOTBALL_DATA_API_TOKEN` must also be present in staging Edge Function secrets; its hidden value cannot be inspected through the available connection.
+- [ ] The EAS project is not linked in the checked-in app configuration (no `extra.eas.projectId` is present). An Expo/EAS account with access is required to link it and create installable preview builds; iOS device builds additionally require Apple Developer signing access.
+- [ ] Complete second-device recovery UI and physical Android/iOS acceptance testing remain outstanding.
+- [x] No production deployment, production database, existing live league, or production configuration was accessed or modified during this checkpoint.
