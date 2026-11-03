@@ -241,3 +241,20 @@ Run only against an isolated staging backend and a dedicated test league.
 - [ ] The EAS project is not linked in the checked-in app configuration (no `extra.eas.projectId` is present). An Expo/EAS account with access is required to link it and create installable preview builds; iOS device builds additionally require Apple Developer signing access.
 - [ ] Complete second-device recovery UI and physical Android/iOS acceptance testing remain outstanding.
 - [x] No production deployment, production database, existing live league, or production configuration was accessed or modified during this checkpoint.
+
+
+## Staging checkpoint — 3 November 2026 (deployed HTTP regression)
+
+- [x] Used only the isolated staging Supabase project and deployed `mobile-league` version 14. Inserted five temporary synthetic fixtures across matchdays 100 and 101, then created a dedicated test league through the deployed HTTP endpoint (HTTP 201).
+- [x] Joined a second test player through HTTP (201); duplicate player name was rejected (409).
+- [x] Fixture-list route returned HTTP 200 for matchday 100. The organiser's normal pick returned HTTP 200; the second player's two-team Multi Chip returned HTTP 200 and set the used flag. A second pick in the same round was rejected (409).
+- [x] Dashboard HTTP responses returned only each caller's own current-round picks; the other player's current-round selections were absent. An invalid session was rejected (401).
+- [x] Marked the three synthetic matchday-100 fixtures final and invoked the server-side `lms_process_ready_rounds` processor. Arsenal won for the normal pick; the Multi Chip pair had one loss (Manchester City) and one win (Chelsea), and that player survived. The league advanced from logical round 1 / matchday 100 to round 2 / matchday 101.
+- [x] Submitted both round-2 picks through HTTP (both 200). After synthetic final scores were applied, the processor eliminated the losing player, finished the league and recorded Regression Owner as the season-1 winner.
+- [x] The finished dashboard route returned previous-round pick history and the season-winner record.
+- [x] Removed the temporary league (including entries, picks and winner history), five synthetic fixtures, three test rate-limit rows and all 13 HTTP response rows created by this test. Verified final staging counts: 0 competitions, 0 entries, 0 fixtures, 0 picks, 0 season winners and 0 rate-limit rows; Vault still has 0 secrets.
+- [ ] This was a deployed HTTP journey with synthetic fixtures and a direct server-side round-processor invocation. It is not a real football-data.org import test, a physical-device test, or proof that the scheduled fixture-sync invocation is working.
+- [ ] Real fixture sync remains blocked until staging Edge Function secrets `FOOTBALL_DATA_API_TOKEN` and `LMS_FIXTURE_SYNC_SECRET` are configured and the identical sync secret is added to Vault as `lms_fixture_sync_secret`. The existing API token's hidden value cannot be inspected through the available connection.
+- [ ] EAS project linking, installable Android/iOS preview builds and physical-device acceptance remain outstanding; Expo/EAS access and Apple signing access are required.
+- [ ] Season reset was not rerun in this checkpoint; the earlier controlled staging reset regression remains the available evidence.
+- [x] No production deployment, production database, production configuration, or existing live league was accessed or modified.
