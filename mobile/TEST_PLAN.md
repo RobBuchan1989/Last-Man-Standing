@@ -258,3 +258,20 @@ Run only against an isolated staging backend and a dedicated test league.
 - [ ] EAS project linking, installable Android/iOS preview builds and physical-device acceptance remain outstanding; Expo/EAS access and Apple signing access are required.
 - [ ] Season reset was not rerun in this checkpoint; the earlier controlled staging reset regression remains the available evidence.
 - [x] No production deployment, production database, production configuration, or existing live league was accessed or modified.
+
+
+
+## Staging checkpoint — 4 November 2026
+
+- [x] Confirmed the current `mobile-app-foundation` branch head is `593a0659b2b1fd6c7f62e507f723d484437c25da` (the 3 November HTTP-regression documentation commit). No later application-code commit is present.
+- [x] Rechecked isolated Supabase staging project `tdtwbuoakjsbkjaljmla`: status `ACTIVE_HEALTHY`; `mobile-league` active at version 14; `sync-fixtures` active at version 4.
+- [x] Rechecked staging game and recovery data: fixtures, competitions, entries, picks, season winners, recovery codes, recovery attempts and rate-limit rows are all zero. Supabase Vault contains zero secrets.
+- [x] Confirmed the staging fixture cron remains active at `17 * * * *`. Its five latest runs on 4 November (06:17–10:17 UTC) have cron status `succeeded`, but the command is conditional on Vault secret `lms_fixture_sync_secret`; with Vault empty, it takes the no-op branch. There were zero rows in `net._http_response` since midnight, so no fixture-sync HTTP request or import is evidenced today.
+- [x] Re-read deployed `sync-fixtures` version 4: it requires Edge Function secrets `LMS_FIXTURE_SYNC_SECRET`, `FOOTBALL_DATA_API_TOKEN`, and server-side Supabase credentials; it fetches football-data.org Premier League matches, upserts fixtures, assigns a next matchday to eligible staging competitions and invokes `lms_process_ready_rounds`. Secret values are not exposed by the available project connection.
+- [x] Rechecked native build files: `mobile/native/app.json` still has no `extra.eas.projectId`; `eas.json` pins development/preview profiles to the staging Supabase URL, configures Android preview as an APK and iOS preview for physical devices. No EAS build has been created.
+- [x] Checked current branch-head GitHub status: no status checks are attached to the 3 November documentation-only commit. The previously recorded 31 October CI run is not a fresh run for this branch head.
+- [x] Ran Supabase security/performance advisors. The nine RLS-enabled/no-policy findings are consistent with the deliberate server-only table-access model: a fresh privilege query returned no table grants to `anon` or `authenticated`. One informational performance finding identifies the missing index on `season_winners.winner_entry_id`; this is non-blocking with the staging table empty and is recorded for later schema review.
+- [ ] Real fixture import remains blocked until the existing `FOOTBALL_DATA_API_TOKEN` is verified in staging Edge Function secrets, a new high-entropy `LMS_FIXTURE_SYNC_SECRET` is added there, and the identical value is stored in Vault as `lms_fixture_sync_secret`.
+- [ ] EAS project linking, installable Android/iOS preview builds and physical-device acceptance remain outstanding; Expo/EAS access and Apple Developer signing access are required.
+- [ ] No new gameplay or recovery HTTP regression was run in this checkpoint; the 3 November deployed HTTP gameplay test and 1 November deployed HTTP recovery test remain the latest evidence for those flows.
+- [x] No production deployment, production database, production configuration, or existing live league was accessed or modified during this checkpoint.
