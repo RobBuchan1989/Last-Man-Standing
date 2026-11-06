@@ -292,3 +292,22 @@ Run only against an isolated staging backend and a dedicated test league.
 - [ ] EAS project linking and installable Android/iOS preview builds remain outstanding. Expo/EAS account access is required; iOS device signing also requires Apple Developer access.
 - [ ] The 1 November recovery HTTP test and 3 November gameplay HTTP regression remain the latest positive deployed HTTP evidence. No gameplay/recovery success-path or physical-device test was rerun on 5 November.
 - [x] No production deployment, production database, production configuration, or existing live league was accessed or modified during this checkpoint.
+
+
+## Staging checkpoint — 6 November 2026
+
+- [x] Read the live Git ref: `mobile-app-foundation` points to `4a84ab5eb823fd57ea5c5527debecc8342253c64` (commit message: “Clarify fixture probe response-log cleanup”).
+- [x] Compared the branch head with the latest application commit covered by CI, `077e7b8e688ac914b6bfa8f625e8e5b15515ff6a`. The branch is 9 commits ahead and 0 behind; the only changed paths across those commits are `mobile/README.md` and `mobile/TEST_PLAN.md`. No application source, Edge Function or migration code has changed since that CI-tested application commit.
+- [x] Checked combined commit status for the current branch head: no status checks are attached. The latest successful workflow run remains [41192192845](https://github.com/RobBuchan1989/Last-Man-Standing/actions/runs/41192192845), created 31 October 2026 against `077e7b8e688ac914b6bfa8f625e8e5b15515ff6a`. Its three jobs completed successfully: Expo typecheck/config plus Android/iOS bundle exports; mobile Edge Function Deno check; fixture-sync Deno check and fixture normalisation tests. This is not a fresh run against the 6 November branch head.
+- [x] Re-read the workflow definition. Push CI is path-filtered to `mobile/native/**`, `supabase/functions/mobile-league/**`, `supabase/functions/sync-fixtures/**`, `supabase/migrations/**` and the workflow file. Documentation-only updates do not trigger this workflow.
+- [x] Confirmed staging project `tdtwbuoakjsbkjaljmla` remains `ACTIVE_HEALTHY`; `mobile-league` is active at version 14 and `sync-fixtures` at version 4.
+- [x] Read-only staging snapshot: competitions 0, entries 0, fixtures 0, picks 0, season winners 0; Vault secret names are empty.
+- [x] Confirmed `lms-staging-fixture-sync` remains active on `17 * * * *`. The six latest runs (05:17–10:17 UTC) have cron status `succeeded`, but the command checks Vault and skips `net.http_post` when `lms_fixture_sync_secret` is absent. These are no-op scheduler runs, not successful provider imports.
+- [x] Confirmed `net._http_response` has 0 rows in the last 24 hours and 1 historical row in total. The older diagnostic row from the unauthorised 5 November probe is not game data; no current fixture-sync HTTP request is being recorded.
+- [x] Re-read deployed `sync-fixtures` source. It checks `LMS_FIXTURE_SYNC_SECRET` before using `FOOTBALL_DATA_API_TOKEN`, then upserts provider fixtures and calls `lms_process_ready_rounds`. Hidden Edge Function secret values remain unavailable through the current connection.
+- [x] Re-read native configuration: development/preview builds remain pinned to staging; Android preview is an internal APK and iOS preview is a physical-device build. `mobile/native/app.json` still has no `extra.eas.projectId`; no installable EAS artifact has been produced.
+- [x] Refreshed Supabase advisors: nine RLS-enabled tables without policies (consistent with the current server-only access model; no public policies added) and one informational unindexed foreign key on `season_winners.winner_entry_id`. No schema changes were made.
+- [ ] Real fixture import remains blocked until `FOOTBALL_DATA_API_TOKEN` is confirmed in staging Edge Function secrets, a new high-entropy `LMS_FIXTURE_SYNC_SECRET` is added there, and the identical value is stored in Vault as `lms_fixture_sync_secret`.
+- [ ] EAS project linking and installable Android/iOS preview builds remain outstanding. Expo/EAS access is required; iOS device signing also requires Apple Developer access.
+- [ ] No gameplay/recovery success-path HTTP regression or physical-device test was run in this checkpoint. The 3 November gameplay HTTP regression and 1 November recovery HTTP test remain the latest positive deployed HTTP evidence.
+- [x] No production deployment, production database, production configuration, or existing live league was accessed or modified during this checkpoint.
