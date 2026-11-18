@@ -511,7 +511,14 @@ Run only against an isolated staging backend and a dedicated test league.
 - [x] GitHub Actions initially caught a regression in the first fixture-hardening commits: regex backslashes in `canonicalTeamName` were double-escaped by the file-write payload, so the Deno suite failed its `Manchester City FC` and `Aston Villa FC` alias assertions. The two failed runs were `44288740710` and `44288766111`; the failure was not hidden or treated as a pass.
 - [x] Corrected the regex literals and verified the fetched branch source now contains the intended word-boundary/whitespace patterns. Fix commit: `8ddd02f61a1786f75b0fd8b74d4aaff7273c8f80`.
 - [x] On the correction commit, GitHub Actions run [44288956996](https://github.com/RobBuchan1989/Last-Man-Standing/actions/runs/44288956996) passed the mobile Edge Function typecheck and protected fixture-sync job. The fixture-sync job completed `deno check` and `deno test`: 9 passed, 0 failed.
-- [x] At the latest check, the Expo job had passed dependency installation, EAS staging/secret checks, TypeScript typecheck, Expo config validation and Android bundle export. iOS bundle export was still in progress, so the overall workflow was not yet complete.
+- [x] Run 44288956996 subsequently completed successfully: all three jobs passed. The Expo job passed dependency installation, EAS staging/secret checks, TypeScript typecheck, Expo config validation, Android bundle export and iOS bundle export. These are CI bundle exports, not EAS-generated installable APK/IPA artifacts.
 - [x] Re-ran the isolated Node compatibility regression after the regex correction: 9/9 groups passed. Re-ran the native build-configuration script: passed. The Node run is supplemental; the official Deno 9/9 result is from GitHub Actions.
 - [ ] No real fixture import, create/join or recovery regression, picks/Multi Chip API regression, real-result round progression or physical-device test was run.
 - [x] No staging database writes, Edge Function deployments, production changes or live-league access occurred during this code/test correction.
+
+
+### 18 November final branch verification
+
+- [x] GitHub confirms the development branch now points to `7d475353266f651d588a6e23e5306a451a221785`, 25 commits ahead and 0 behind the last CI-tested application baseline. Compared files remain the two mobile documentation files plus the fixture utility and its tests.
+- [x] The corrected fixture code commit `8ddd02f61a1786f75b0fd8b74d4aaff7273c8f80` has a fully successful GitHub Actions run: [44288956996](https://github.com/RobBuchan1989/Last-Man-Standing/actions/runs/44288956996). All three jobs passed, including Deno typecheck, all nine Deno fixture-helper tests, mobile Edge Function typecheck, Expo TypeScript/config validation and Android/iOS bundle exports.
+- [ ] No installable EAS APK or IPA was generated; EAS project linking and signing access are still outstanding.
