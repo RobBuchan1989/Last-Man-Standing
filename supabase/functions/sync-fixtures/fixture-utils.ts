@@ -36,7 +36,7 @@ export function constantTimeEqual(left: string, right: string): boolean {
 }
 
 export function canonicalTeamName(name: string): string {
-  const cleaned = name.replace(/\\./g, "").replace(/\\bFC\\b/gi, "").replace(/\\bAFC\\b/gi, "").replace(/\\s+/g, " ").trim();
+  const cleaned = name.replace(/\./g, "").replace(/\bFC\b/gi, "").replace(/\bAFC\b/gi, "").replace(/\s+/g, " ").trim();
   const aliases: Record<string, string> = {
     "brighton and hove albion": "Brighton & Hove Albion",
     "brighton hove albion": "Brighton & Hove Albion",
