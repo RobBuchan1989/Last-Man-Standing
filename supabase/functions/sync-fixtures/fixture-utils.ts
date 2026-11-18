@@ -36,7 +36,7 @@ export function constantTimeEqual(left: string, right: string): boolean {
 }
 
 export function canonicalTeamName(name: string): string {
-  const cleaned = name.replace(/\./g, "").replace(/\bFC\b/gi, "").replace(/\bAFC\b/gi, "").replace(/\s+/g, " ").trim();
+  const cleaned = name.replace(/\\./g, "").replace(/\\bFC\\b/gi, "").replace(/\\bAFC\\b/gi, "").replace(/\\s+/g, " ").trim();
   const aliases: Record<string, string> = {
     "brighton and hove albion": "Brighton & Hove Albion",
     "brighton hove albion": "Brighton & Hove Albion",
@@ -49,19 +49,35 @@ export function canonicalTeamName(name: string): string {
 }
 
 export function convertMatch(match: FootballDataMatch, updatedAt = new Date().toISOString()): FootballDataFixture | null {
-  if (!Number.isInteger(match.id) || !match.matchday || !match.homeTeam?.name || !match.awayTeam?.name) return null;
+  if (!Number.isSafeInteger(match.id) || match.id <= 0) return null;
+  if (!Number.isSafeInteger(match.matchday) || match.matchday === null || match.matchday <= 0) return null;
+
+  const homeName = match.homeTeam?.name?.trim() ?? "";
+  const awayName = match.awayTeam?.name?.trim() ?? "";
+  if (!homeName || !awayName) return null;
+
+  const homeTeam = canonicalTeamName(homeName);
+  const awayTeam = canonicalTeamName(awayName);
+  if (!homeTeam || !awayTeam || homeTeam === awayTeam) return null;
+
   const kickoff = new Date(match.utcDate);
   if (!Number.isFinite(kickoff.getTime())) return null;
   const status = typeof match.status === "string" ? match.status.trim().toUpperCase() : "";
   if (!status) return null;
+
+  const homeScore = match.score?.fullTime?.home ?? null;
+  const awayScore = match.score?.fullTime?.away ?? null;
+  const isValidScore = (score: number | null) => score === null || (Number.isSafeInteger(score) && score >= 0);
+  if (!isValidScore(homeScore) || !isValidScore(awayScore)) return null;
+
   return {
     id: String(match.id),
     round: match.matchday,
-    home_team: canonicalTeamName(match.homeTeam.name),
-    away_team: canonicalTeamName(match.awayTeam.name),
+    home_team: homeTeam,
+    away_team: awayTeam,
     kickoff: kickoff.toISOString(),
-    home_score: match.score?.fullTime?.home ?? null,
-    away_score: match.score?.fullTime?.away ?? null,
+    home_score: homeScore,
+    away_score: awayScore,
     status,
     updated_at: updatedAt,
   };
