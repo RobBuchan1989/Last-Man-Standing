@@ -504,3 +504,14 @@ Run only against an isolated staging backend and a dedicated test league.
 - [ ] Branch protection remains disabled (`protected: false`). Repository admin access is needed to require reviews/status checks; no settings were changed.
 - [ ] No create/join or recovery regression, pick/Multi Chip regression, provider import, real-result progression, or physical-device test was run in this checkpoint. Previous gameplay HTTP evidence remains 3 November and recovery HTTP evidence remains 1 November. These are API-level tests, not full device end-to-end tests.
 - [x] All staging database checks were read-only. No staging game records were created or changed. No production deployment, production database, production configuration or existing live league was accessed or modified.
+
+
+### 18 November fixture-hardening CI follow-up
+
+- [x] GitHub Actions initially caught a regression in the first fixture-hardening commits: regex backslashes in `canonicalTeamName` were double-escaped by the file-write payload, so the Deno suite failed its `Manchester City FC` and `Aston Villa FC` alias assertions. The two failed runs were `44288740710` and `44288766111`; the failure was not hidden or treated as a pass.
+- [x] Corrected the regex literals and verified the fetched branch source now contains the intended word-boundary/whitespace patterns. Fix commit: `8ddd02f61a1786f75b0fd8b74d4aaff7273c8f80`.
+- [x] On the correction commit, GitHub Actions run [44288956996](https://github.com/RobBuchan1989/Last-Man-Standing/actions/runs/44288956996) passed the mobile Edge Function typecheck and protected fixture-sync job. The fixture-sync job completed `deno check` and `deno test`: 9 passed, 0 failed.
+- [x] At the latest check, the Expo job had passed dependency installation, EAS staging/secret checks, TypeScript typecheck, Expo config validation and Android bundle export. iOS bundle export was still in progress, so the overall workflow was not yet complete.
+- [x] Re-ran the isolated Node compatibility regression after the regex correction: 9/9 groups passed. Re-ran the native build-configuration script: passed. The Node run is supplemental; the official Deno 9/9 result is from GitHub Actions.
+- [ ] No real fixture import, create/join or recovery regression, picks/Multi Chip API regression, real-result round progression or physical-device test was run.
+- [x] No staging database writes, Edge Function deployments, production changes or live-league access occurred during this code/test correction.
