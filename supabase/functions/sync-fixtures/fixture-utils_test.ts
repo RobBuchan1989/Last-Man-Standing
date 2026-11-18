@@ -63,7 +63,6 @@ Deno.test("scheduled statuses match football-data's pre-kickoff values", () => {
   assertEquals(scheduledStatuses.has("FINISHED"), false);
 });
 
-
 Deno.test("normalises every current Premier League club to the mobile pick-list name", () => {
   const currentPremierLeagueTeams: Array<[string, string]> = [
     ["Arsenal", "Arsenal"],
@@ -94,5 +93,27 @@ Deno.test("normalises every current Premier League club to the mobile pick-list 
       mobileName,
       `Fixture provider name "${providerName}" must match the mobile pick-list name.`,
     );
+  }
+});
+
+Deno.test("rejects non-positive, fractional and unsafe fixture ids or matchdays", () => {
+  for (const id of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+    assertEquals(convertMatch({ ...validMatch, id }), null);
+  }
+  for (const matchday of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+    assertEquals(convertMatch({ ...validMatch, matchday }), null);
+  }
+});
+
+Deno.test("rejects blank, empty and duplicate canonical team names", () => {
+  assertEquals(convertMatch({ ...validMatch, homeTeam: { name: "   " } }), null);
+  assertEquals(convertMatch({ ...validMatch, awayTeam: { name: "FC" } }), null);
+  assertEquals(convertMatch({ ...validMatch, awayTeam: { name: "Wolverhampton Wanderers" } }), null);
+});
+
+Deno.test("rejects negative, fractional and unsafe full-time scores", () => {
+  for (const score of [-1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+    assertEquals(convertMatch({ ...validMatch, score: { fullTime: { home: score, away: 0 } } }), null);
+    assertEquals(convertMatch({ ...validMatch, score: { fullTime: { home: 0, away: score } } }), null);
   }
 });
