@@ -522,3 +522,13 @@ Run only against an isolated staging backend and a dedicated test league.
 - [x] GitHub confirms the development branch now points to `7d475353266f651d588a6e23e5306a451a221785`, 25 commits ahead and 0 behind the last CI-tested application baseline. Compared files remain the two mobile documentation files plus the fixture utility and its tests.
 - [x] The corrected fixture code commit `8ddd02f61a1786f75b0fd8b74d4aaff7273c8f80` has a fully successful GitHub Actions run: [44288956996](https://github.com/RobBuchan1989/Last-Man-Standing/actions/runs/44288956996). All three jobs passed, including Deno typecheck, all nine Deno fixture-helper tests, mobile Edge Function typecheck, Expo TypeScript/config validation and Android/iOS bundle exports.
 - [ ] No installable EAS APK or IPA was generated; EAS project linking and signing access are still outstanding.
+
+
+### 18 November staging-only fixture function deployment
+
+- [x] Deployed the corrected branch version of `sync-fixtures` to isolated staging only. The deployed `index.ts` was byte-for-byte identical to the existing staging entrypoint; the updated `fixture-utils.ts` contains the validation hardening and corrected team-name regexes.
+- [x] Supabase confirms `sync-fixtures` is ACTIVE at version 5; `mobile-league` remains ACTIVE at version 14. No production project was selected or deployed.
+- [x] Rechecked staging after deployment: competitions, entries, fixtures, picks, season winners, recovery-code/attempt rows, mobile API rate-limit rows and Vault secret names remain 0.
+- [x] The hourly staging cron remains active; the last 24 hours show 24/24 scheduler executions succeeded. HTTP response rows remain 0, so no provider import is evidenced.
+- [ ] The cron still cannot invoke the importer until the staging sync bearer secret is configured in Edge Function secrets and identically in Vault, and the staging football-data token/server-side Supabase credentials are confirmed. No secrets were created, read or changed in this deployment.
+- [x] The only deployed change was to the isolated staging `sync-fixtures` Edge Function. No production deployment, production database, production configuration or existing live league was accessed or modified.
