@@ -1,5 +1,6 @@
 import { StatusBar } from "expo-status-bar";
 import * as SecureStore from "expo-secure-store";
+import { submitPickAndRefresh } from "./pick-submission-flow.mjs";
 import { useEffect, useState } from "react";
 import {
   Alert,
@@ -299,17 +300,37 @@ export default function App() {
 
   async function submitPick() {
     if (!lastLeague || !lastSessionToken) return;
+    const submittedTeams = [...selectedTeams];
+    const submittedMultiChip = useMultiChip;
     setBusy(true); setMessage("");
     try {
-      await requestPick(lastLeague.code, lastSessionToken, selectedTeams, useMultiChip);
-      setMessageIsError(false); setMessage("Pick submitted and locked for this round.");
-      const [dash, fixtures] = await Promise.all([
-        requestDashboard(lastLeague.code, lastSessionToken),
-        requestFixtures(lastLeague.code, lastSessionToken),
-      ]);
-      setDashboard(dash); setFixturesData(fixtures); setSelectedTeams([]);
+      const result = await submitPickAndRefresh({
+        submit: () => requestPick(lastLeague.code, lastSessionToken, submittedTeams, submittedMultiChip),
+        refresh: async () => {
+          const [dash, fixtures] = await Promise.all([
+            requestDashboard(lastLeague.code, lastSessionToken),
+            requestFixtures(lastLeague.code, lastSessionToken),
+          ]);
+          return { dashboard: dash, fixtures };
+        },
+        dashboard,
+        teams: submittedTeams,
+        useMultiChip: submittedMultiChip,
+      });
+      setDashboard(result.dashboard);
+      setFixturesData(result.fixtures);
+      setSelectedTeams([]);
+      setUseMultiChip(false);
+      if (result.refreshFailed) {
+        setMessageIsError(true);
+        setMessage("Your pick was submitted and locked, but the league refresh failed. Your pick is saved locally on this screen; reopen the dashboard to confirm.");
+      } else {
+        setMessageIsError(false);
+        setMessage("Pick submitted and locked for this round.");
+      }
     } catch (error) {
-      setMessageIsError(true); setMessage(error instanceof Error ? error.message : "Could not submit your pick.");
+      setMessageIsError(true);
+      setMessage(error instanceof Error ? error.message : "Could not submit your pick.");
     } finally { setBusy(false); }
   }
 
