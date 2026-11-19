@@ -44,6 +44,9 @@ jobs:
       - name: Check EAS staging and secret configuration
         run: npm run check:build-config
 
+      - name: Test pick submission flow
+        run: npm run test:pick-flow
+
       - name: TypeScript typecheck
         run: npm run typecheck
 
