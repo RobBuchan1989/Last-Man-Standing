@@ -323,7 +323,7 @@ export default function App() {
       setUseMultiChip(false);
       if (result.refreshFailed) {
         setMessageIsError(true);
-        setMessage("Your pick was submitted and locked, but the league refresh failed. Your pick is saved locally on this screen; reopen the dashboard to confirm.");
+        setMessage("Your pick was submitted and locked. The refresh failed, so this on-screen confirmation is temporary; reopen the league to verify.");
       } else {
         setMessageIsError(false);
         setMessage("Pick submitted and locked for this round.");
