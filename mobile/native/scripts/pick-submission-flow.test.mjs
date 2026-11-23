@@ -12,7 +12,7 @@ test("refresh success returns the server dashboard and fixtures", async () => {
   let submitted = 0;
   let refreshed = 0;
   const freshDashboard = { ...dashboard, ownCurrentPicks: [{ round: 4, team: "Arsenal", result: null, is_multi: false }] };
-  const fixtures = [{ id: "fixture-1" }];
+  const fixtures = { fixtures: [{ id: "fixture-1" }] };
 
   const result = await submitPickAndRefresh({
     submit: async () => { submitted += 1; },
@@ -65,7 +65,7 @@ test("submission failure does not attempt dashboard refresh", async () => {
   await assert.rejects(
     submitPickAndRefresh({
       submit: async () => { throw new Error("pick rejected"); },
-      refresh: async () => { refreshed += 1; return { dashboard, fixtures: [] }; },
+      refresh: async () => { refreshed += 1; return { dashboard, fixtures: { fixtures: [] } }; },
       dashboard,
       teams: ["Arsenal"],
       useMultiChip: false,
@@ -77,4 +77,20 @@ test("submission failure does not attempt dashboard refresh", async () => {
 
 test("optimistic state is safe when dashboard is not available", () => {
   assert.equal(applySubmittedPick(null, ["Arsenal"], false), null);
+});
+
+test("incomplete refresh payload is treated as a refresh failure and preserves submitted pick", async () => {
+  const result = await submitPickAndRefresh({
+    submit: async () => {},
+    refresh: async () => ({ dashboard: null, fixtures: null }),
+    dashboard,
+    teams: ["Arsenal"],
+    useMultiChip: false,
+  });
+  assert.equal(result.refreshFailed, true);
+  assert.match(result.error.message, /incomplete data/);
+  assert.deepEqual(result.dashboard.ownCurrentPicks, [
+    { round: 4, team: "Arsenal", result: null, is_multi: false },
+  ]);
+  assert.equal(result.fixtures, null);
 });
