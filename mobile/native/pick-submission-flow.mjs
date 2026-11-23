@@ -17,6 +17,9 @@ export async function submitPickAndRefresh({ submit, refresh, dashboard, teams, 
   const optimisticDashboard = applySubmittedPick(dashboard, teams, useMultiChip);
   try {
     const refreshed = await refresh();
+    if (!refreshed?.dashboard || !Array.isArray(refreshed?.fixtures?.fixtures)) {
+      throw new Error("Dashboard refresh returned incomplete data.");
+    }
     return {
       dashboard: refreshed.dashboard,
       fixtures: refreshed.fixtures,
