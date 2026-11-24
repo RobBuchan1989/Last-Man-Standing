@@ -1,5 +1,7 @@
 export function applySubmittedPick(dashboard, teams, useMultiChip) {
-  if (!dashboard) return dashboard;
+  if (!dashboard || !dashboard.competition || !Number.isInteger(dashboard.competition.round)) {
+    return dashboard;
+  }
   return {
     ...dashboard,
     ownCurrentPicks: teams.map((team) => ({
