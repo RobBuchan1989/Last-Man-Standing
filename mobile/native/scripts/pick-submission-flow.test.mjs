@@ -94,3 +94,8 @@ test("incomplete refresh payload is treated as a refresh failure and preserves s
   ]);
   assert.equal(result.fixtures, null);
 });
+
+test("malformed dashboard cannot crash optimistic pick fallback", () => {
+  const malformedDashboard = { ownCurrentPicks: [] };
+  assert.equal(applySubmittedPick(malformedDashboard, ["Arsenal"], false), malformedDashboard);
+});
