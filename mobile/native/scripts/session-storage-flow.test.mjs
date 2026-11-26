@@ -30,3 +30,14 @@ test("does not refresh the saved-session list when persistence fails", async () 
 
   assert.deepEqual(events, ["persist"]);
 });
+
+test("a saved session remains successful if refreshing the convenience list fails", async () => {
+  let persisted = false;
+
+  await persistSessionAndRefresh(
+    async () => { persisted = true; },
+    async () => { throw new Error("secure storage read failed"); },
+  );
+
+  assert.equal(persisted, true);
+});
