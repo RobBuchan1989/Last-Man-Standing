@@ -1,6 +1,7 @@
 import { StatusBar } from "expo-status-bar";
 import * as SecureStore from "expo-secure-store";
 import { submitPickAndRefresh } from "./pick-submission-flow.mjs";
+import { persistSessionAndRefresh } from "./session-storage-flow.mjs";
 import { useEffect, useState } from "react";
 import {
   Alert,
@@ -348,8 +349,7 @@ export default function App() {
         playerName: playerName.trim(),
         leagueName: leagueName.trim(),
       });
-      await savePlayerSession(result);
-      await refreshSavedSessions();
+      await persistSessionAndRefresh(() => savePlayerSession(result), refreshSavedSessions);
       setIssuedRecoveryCode("");
       setLastSessionToken(result.sessionToken);
       setDashboard(null);
@@ -382,8 +382,7 @@ export default function App() {
     setMessage("");
     try {
       const result = await requestRecoverPlayer(leagueCode.trim().toUpperCase(), playerName.trim(), recoveryCode.trim());
-      await savePlayerSession(result);
-      await refreshSavedSessions();
+      await persistSessionAndRefresh(() => savePlayerSession(result), refreshSavedSessions);
       setLastSessionToken(result.sessionToken);
       setLastLeague({
         code: result.competition.code,
@@ -440,7 +439,7 @@ export default function App() {
         playerName: playerName.trim(),
         leagueCode: leagueCode.trim().toUpperCase(),
       });
-      await savePlayerSession(result);
+      await persistSessionAndRefresh(() => savePlayerSession(result), refreshSavedSessions);
       setIssuedRecoveryCode("");
       setLastSessionToken(result.sessionToken);
       setDashboard(null);

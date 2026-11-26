@@ -9,7 +9,7 @@
     "android": "expo start --android",
     "typecheck": "tsc --noEmit",
     "check:build-config": "node scripts/check-build-config.mjs",
-    "test:pick-flow": "node --test scripts/pick-submission-flow.test.mjs"
+    "test:pick-flow": "node --test scripts/*.test.mjs"
   },
   "dependencies": {
     "expo": "~54.0.0",
